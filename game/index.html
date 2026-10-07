@@ -99,7 +99,28 @@
   #skill.cool { border-color:#44403c; color:#6b6560; background:rgba(31,28,25,.55); }
   #skill:active { transform:scale(.93); }
 
-  .toast { position:absolute; left:50%; top:26%; transform:translateX(-50%); z-index:8;
+  /* lg7 / 广播 的语音条 */
+  #say { position:absolute; left:50%; top:30%; transform:translateX(-50%); z-index:9;
+    max-width:min(88vw,620px); text-align:center; padding:12px 22px;
+    background:#3a1a1a; border:1px solid #8b2f2f; border-left:5px solid #e05252;
+    border-radius:12px; font-size:clamp(13px,3.6vw,18px); line-height:1.6;
+    opacity:0; transition:opacity .3s; pointer-events:none; }
+  #say.on { opacity:1; }
+  #say b { color:#e05252; letter-spacing:.1em; margin-right:9px; }
+
+  /* 22:30 的「今日待办」清单，挂在 HUD 下面 */
+  #plan { margin-top:9px; display:none; }
+  #plan.on { display:block; }
+  #plan .ttl { font-size:11px; letter-spacing:.22em; color:#e8a33d; margin-bottom:6px; }
+  /* 两列，像一张真的待办单；一行塞四条在小屏上会被切掉 */
+  #plan .chips { display:grid; grid-template-columns:1fr 1fr; gap:6px;
+    max-width:min(88vw,340px); }
+  #plan .chip { font-size:clamp(11px,3vw,14px); padding:4px 8px; border-radius:8px;
+    background:#292524; border:1px solid #44403c; font-variant-numeric:tabular-nums;
+    white-space:nowrap; text-align:center; overflow:hidden; text-overflow:ellipsis; }
+  #plan .chip.done { background:#2b3a26; border-color:#7c9c6b; color:#cfe0c4; }
+
+  .toast { position:absolute; left:50%; top:40%; transform:translateX(-50%); z-index:8;
     font-size:clamp(14px,4vw,20px); font-weight:600; text-align:center; padding:11px 24px;
     background:rgba(31,28,25,.94); border:1px solid #57534e; border-radius:12px;
     white-space:nowrap; opacity:0; transition:opacity .35s; pointer-events:none; }
@@ -118,17 +139,20 @@
   </div>
   <div id="xpwrap"><div id="xpbar"></div></div>
   <div id="bossbar"><div class="nm">班主任 lg7</div><div class="bg"><div class="fg"></div></div></div>
+  <div id="plan"><div class="ttl">今日待办</div><div class="chips" id="planChips"></div></div>
 </div>
 
 <div id="stick"><div id="knob"></div></div>
 <button id="skill" type="button">跑厕所<br>就绪</button>
 <div class="toast" id="toast"></div>
+<div id="say"><b>lg7</b><span id="sayTxt"></span></div>
 
 <div class="screen on" id="scTitle">
   <h1>十点三十六<small>生存模拟</small></h1>
   <div class="tip">
     <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 移动　·　手机用左下摇杆<br>
-    攻击全自动。活到放学。
+    攻击全自动。22:00 开始，撑到 22:36 下课。<br>
+    中途会出事，22:30 还有一张每日计划要交。
   </div>
   <button class="btn pri" id="btnStart">开始</button>
   <div id="best" class="tip"></div>
@@ -282,13 +306,109 @@ var BOSS_AVATAR = svgo(
     '<path d="M48.5 46 h3"/><path d="M27.5 44 l-5 -2"/><path d="M72.5 44 l5 -2"/>' +
   '</g>');
 
-/* ==================== 敌人 ==================== */
+/* ==================== 敌人 ====================
+   from = 一局进行到第几成才开始出现（0.5 = 一半时）
+   用比例而不是秒数，这样改 RUN_SEC 不用重调这里。
+   ============================================ */
+
+/* 敌人也是画的。方图，不套圆形蒙版 —— 纸片、试管、铃就该有角。 */
+function svgIcon(inner){
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' + inner + '</svg>';
+}
+
+var ENEMY_ART = {
+
+  /* 卷子：打了红叉的一张纸 */
+  paper: svgIcon(
+    '<path d="M20 8 H60 L80 28 V92 H20 Z" fill="#f4f1e8"/>' +
+    '<path d="M60 8 L80 28 H60 Z" fill="#d3ccbb"/>' +
+    '<g stroke="#c2b9a8" stroke-width="4.5" stroke-linecap="round">' +
+      '<path d="M32 42 h32"/><path d="M32 54 h32"/><path d="M32 66 h19"/></g>' +
+    '<g stroke="#d0524f" stroke-width="4.5" stroke-linecap="round">' +
+      '<path d="M60 60 l15 15"/><path d="M75 60 l-15 15"/></g>' +
+    '<path d="M20 8 H60 L80 28 V92 H20 Z" fill="none" stroke="#a2988a" ' +
+      'stroke-width="3.5" stroke-linejoin="round"/>'),
+
+  /* 铅笔头：削过的一截，斜着放 */
+  chalk: svgIcon(
+    '<g transform="translate(50 50) rotate(-38) scale(0.96) translate(-50 -50)">' +
+      '<rect x="33" y="16" width="34" height="56" fill="#e9b93f"/>' +
+      '<rect x="33" y="16" width="12" height="56" fill="#cd9a27"/>' +
+      '<path d="M33 72 H67 L50 94 Z" fill="#e6cda6"/>' +
+      '<path d="M43 85 L50 94 L57 85 Z" fill="#3a332c"/>' +
+      '<rect x="33" y="10" width="34" height="7" fill="#bdb4a2"/>' +
+      '<rect x="33" y="2" width="34" height="10" rx="4" fill="#d98a8a"/>' +
+      '<g fill="none" stroke="#8a6a1c" stroke-width="2.6">' +
+        '<rect x="33" y="16" width="34" height="56"/>' +
+        '<path d="M33 72 H67 L50 94 Z"/></g>' +
+    '</g>'),
+
+  /* 试管：装了大半管绿水 */
+  flask: svgIcon(
+    '<g transform="translate(50 50) rotate(14) translate(-50 -50)">' +
+      '<path d="M37 14 h26 v52 a13 13 0 0 1 -26 0 Z" fill="#e4eef5"/>' +
+      '<path d="M37 46 h26 v20 a13 13 0 0 1 -26 0 Z" fill="#6fbf73"/>' +
+      '<rect x="32" y="8" width="36" height="9" rx="4" fill="#c9d5dd"/>' +
+      '<path d="M37 14 h26 v52 a13 13 0 0 1 -26 0 Z" fill="none" ' +
+        'stroke="#93a5b3" stroke-width="3"/>' +
+      '<path d="M44 30 q3 -6 0 -11" fill="none" stroke="#b9c9d6" ' +
+        'stroke-width="2.6" stroke-linecap="round"/>' +
+    '</g>'),
+
+  /* 铃：上课铃 */
+  bell: svgIcon(
+    '<circle cx="50" cy="15" r="7.5" fill="#c08f2f"/>' +
+    '<path d="M50 18 a7 7 0 0 1 7 7 c0 6 15 12 15 30 v10 H28 v-10 c0 -18 15 -24 15 -30 ' +
+      'a7 7 0 0 1 7 -7 Z" fill="#dcae4a"/>' +
+    '<rect x="24" y="64" width="52" height="9" rx="4" fill="#c08f2f"/>' +
+    '<circle cx="50" cy="82" r="7.5" fill="#eccb79"/>' +
+    '<path d="M50 18 a7 7 0 0 1 7 7 c0 6 15 12 15 30 v10 H28 v-10 c0 -18 15 -24 15 -30 ' +
+      'a7 7 0 0 1 7 -7 Z" fill="none" stroke="#9d7420" stroke-width="3"/>'),
+
+  /* 作业本：摞三本 */
+  book: svgIcon(
+    '<rect x="16" y="60" width="68" height="20" rx="4" fill="#4f7fb8"/>' +
+    '<rect x="16" y="60" width="10" height="20" rx="3" fill="#3d6a9e"/>' +
+    '<rect x="28" y="64" width="50" height="12" rx="2" fill="#f2efe6"/>' +
+    '<rect x="22" y="37" width="62" height="20" rx="4" fill="#c96a6a"/>' +
+    '<rect x="22" y="37" width="10" height="20" rx="3" fill="#a85555"/>' +
+    '<rect x="34" y="41" width="44" height="12" rx="2" fill="#f2efe6"/>' +
+    '<rect x="28" y="14" width="56" height="20" rx="4" fill="#7fa86a"/>' +
+    '<rect x="28" y="14" width="10" height="20" rx="3" fill="#648a52"/>' +
+    '<rect x="40" y="18" width="38" height="12" rx="2" fill="#f2efe6"/>')
+};
+
+/* 子弹也是画的。太小了看不清细节，只要颜色和轮廓分得开就行。 */
+var BULLET_ART = {
+  pen: svgIcon(
+    '<g transform="translate(50 50) rotate(45) scale(0.82) translate(-50 -50)">' +
+      '<rect x="42" y="12" width="16" height="60" rx="3" fill="#2f4f8f"/>' +
+      '<rect x="42" y="12" width="6" height="60" fill="#24406f"/>' +
+      '<path d="M42 72 h16 l-8 16 Z" fill="#cdd8e2"/>' +
+      '<path d="M46 82 l4 6 l4 -6 Z" fill="#3a332c"/>' +
+      '<rect x="42" y="4" width="16" height="9" rx="4" fill="#9aa7b5"/>' +
+    '</g>'),
+  note: svgIcon(
+    '<path d="M22 16 H70 L80 26 V86 H22 Z" fill="#f5edc8"/>' +
+    '<path d="M70 16 L80 26 H70 Z" fill="#dcd29f"/>' +
+    '<g stroke="#a4965f" stroke-width="4" stroke-linecap="round">' +
+      '<path d="M32 38 h34"/><path d="M32 52 h34"/><path d="M32 66 h22"/></g>' +
+    '<path d="M22 16 H70 L80 26 V86 H22 Z" fill="none" stroke="#9c8f60" ' +
+      'stroke-width="3" stroke-linejoin="round"/>'),
+  cup: svgIcon(
+    '<rect x="60" y="2" width="7" height="28" rx="3.5" fill="#e06a6a" ' +
+      'transform="rotate(20 63 16)"/>' +
+    '<path d="M28 22 H72 L66 88 H34 Z" fill="#9cc4e4"/>' +
+    '<path d="M28 22 H72 L70 34 H30 Z" fill="#b9d8ef"/>' +
+    '<path d="M28 22 H72 L66 88 H34 Z" fill="none" stroke="#6f96b8" stroke-width="3"/>')
+};
+
 var ENEMY_TYPES = [
-  { id:'paper', e:'📄', hp:11,  spd:62, dmg:5,  r:15, xp:1, from:0  },
-  { id:'chalk', e:'✏️', hp:7,   spd:98, dmg:4,  r:14, xp:1, from:0  },
-  { id:'flask', e:'🧪', hp:17,  spd:56, dmg:8,  r:17, xp:2, from:40 },
-  { id:'bell',  e:'🔔', hp:24,  spd:74, dmg:9,  r:18, xp:2, from:80 },
-  { id:'book',  e:'📚', hp:46,  spd:42, dmg:14, r:22, xp:3, from:130}
+  { id:'paper', n:'卷子',   e:'📄', hp:11, spd:62, dmg:5,  r:15, xp:1, from:0    },
+  { id:'chalk', n:'铅笔头', e:'✏️', hp:7,  spd:98, dmg:4,  r:14, xp:1, from:0    },
+  { id:'flask', n:'试管',   e:'🧪', hp:17, spd:56, dmg:8,  r:17, xp:2, from:0.15 },
+  { id:'bell',  n:'铃声',   e:'🔔', hp:24, spd:74, dmg:9,  r:18, xp:2, from:0.30 },
+  { id:'book',  n:'作业本', e:'📚', hp:46, spd:42, dmg:14, r:22, xp:3, from:0.48 }
 ];
 
 /* ==================== 武器 ==================== */
@@ -336,7 +456,7 @@ window.addEventListener('resize', resize); resize();
    PHOTO = 真人照片（只有本地放了 img/ 才有，永远不会被推上去）
    显示时优先用照片，没有就退回画像。
    ================================================ */
-var IMGS = {}, PHOTO = {};
+var IMGS = {}, PHOTO = {}, ENEMY_ICON = {}, BULLET_ICON = {};
 function svgURI(s){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }
 function faceOf(id){ return PHOTO[id] || IMGS[id]; }
 
@@ -351,6 +471,22 @@ function faceOf(id){ return PHOTO[id] || IMGS[id]; }
   var bi = new Image();
   bi.onload = function(){ IMGS.boss = bi; buildCharList(); };
   bi.src = svgURI(BOSS_AVATAR);
+
+  /* 敌人和子弹的图标。没加载出来之前 render 会退回 emoji，不会白屏。
+     先烤成位图再画 —— 直接 drawImage 一个 SVG 的话，屏幕上 170 只怪
+     就是每帧 170 次矢量重绘，手机上扛不住。烤一次，之后全是普通贴图。 */
+  function raster(svg, size, out, key){
+    var im = new Image();
+    im.onload = function(){
+      var c = document.createElement('canvas');
+      c.width = c.height = size;
+      c.getContext('2d').drawImage(im, 0, 0, size, size);
+      out[key] = c;
+    };
+    im.src = svgURI(svg);
+  }
+  Object.keys(ENEMY_ART).forEach(function(id){ raster(ENEMY_ART[id], 128, ENEMY_ICON, id); });
+  Object.keys(BULLET_ART).forEach(function(id){ raster(BULLET_ART[id], 96, BULLET_ICON, id); });
 
   /* 本地有照片就盖掉画像 */
   CHARS.forEach(function(c){
@@ -430,7 +566,7 @@ cv.addEventListener('touchend', touchDone);
 cv.addEventListener('touchcancel', touchDone);
 
 /* ==================== 时间 ==================== */
-var RUN_SEC = 300;                 // 一局真实时长（秒）
+var RUN_SEC = 180;                 // 一局真实时长（秒）—— 3 分钟，摊开来是 36 个游戏分钟
 var CLOCK_SPAN = 36;               // 显示 22:00 → 22:36
 function clockText(sec){
   var m = 22*60 + Math.round(sec/RUN_SEC*CLOCK_SPAN);
@@ -453,10 +589,16 @@ function newGame(charId){
     mods: { spd:1, dmg:1, rng:1, cd:1, mealHp:0 },
     weapons: [], perks:{},
     enemies:[], bullets:[], gems:[], fx:[],
-    boss:null, bossSpawned:false, bossWarn:-1,
+    boss:null, bossSpawned:false,
     spawnT:0, shake:0,
-    toastT:0
+    toastT:0,
+    quizT:0, planOn:false, plan:null
   };
+  /* 时间轴事件每局都得重新武装一遍 */
+  for (var e=0;e<EVENTS.length;e++) EVENTS[e].done = false;
+  document.getElementById('plan').classList.remove('on');
+  document.getElementById('say').classList.remove('on');
+  planLastSig = '';
 }
 function addWeapon(k){
   G.weapons.push({ k:k, lv:1, t:0 });
@@ -475,21 +617,33 @@ function wpnStats(w){
 }
 
 /* ==================== 生成 ==================== */
-function spawnEnemy(){
+function spawnEnemy(mode){
+  if (G.enemies.length > 170) return;            /* 手机上别把屏幕塞爆 */
+  var r = G.t/RUN_SEC, i;
   var pool = [];
-  for (var i=0;i<ENEMY_TYPES.length;i++){
-    if (G.t >= ENEMY_TYPES[i].from) pool.push(ENEMY_TYPES[i]);
+  for (i=0;i<ENEMY_TYPES.length;i++){
+    if (r >= ENEMY_TYPES[i].from) pool.push(ENEMY_TYPES[i]);
   }
   if (!pool.length) pool.push(ENEMY_TYPES[0]);
-  var ty = pool[Math.floor(Math.random()*pool.length)];
+  var ty;
+  if (mode === 'quiz'){                          /* 突击小测：只考卷子和铅笔头 */
+    var qp = [];
+    for (i=0;i<pool.length;i++){
+      if (pool[i].id==='paper' || pool[i].id==='chalk') qp.push(pool[i]);
+    }
+    ty = qp.length ? qp[Math.floor(Math.random()*qp.length)] : pool[0];
+  } else {
+    ty = pool[Math.floor(Math.random()*pool.length)];
+  }
   var a = Math.random()*Math.PI*2;
   var d = Math.max(W,H)*0.62 + Math.random()*140;
-  var diff = 1 + G.t/RUN_SEC*0.55;
+  var diff = 1 + r*0.55;
   G.enemies.push({
     t:ty, x:G.p.x+Math.cos(a)*d, y:G.p.y+Math.sin(a)*d,
     hp: ty.hp*diff, maxHp: ty.hp*diff, dmg: ty.dmg*diff, r: ty.r,
     /* 越到后面跑得越快，否则永远追不上玩家，遛狗就无敌了 */
-    spd: ty.spd*(1 + G.t/RUN_SEC*0.50)*(1+Math.random()*0.18), flash:0, kb:{x:0,y:0}
+    spd: ty.spd*(1 + r*0.50)*(1+Math.random()*0.18)*(G.planOn?1.22:1),
+    flash:0, kb:{x:0,y:0}
   });
 }
 function spawnRate(){
@@ -503,24 +657,31 @@ function spawnBoss(){
   var d = Math.max(W,H)*0.7;
   G.boss = {
     x:G.p.x+Math.cos(a)*d, y:G.p.y+Math.sin(a)*d,
-    hp: 1700, maxHp: 1700, r:44,
-    state:'chase', t:0, atkT:3.5, cur:null, warn:null, flash:0,
-    phase:0, quoteCd:6, quote:null, quoteT:0
+    hp: 1150, maxHp: 1150, r:44,
+    state:'chase', t:0, atkT:3.0, cur:null, warn:null, flash:0,
+    phase:0, qi:0, quote:null, quoteT:0
   };
-  toast('他来了。');
 }
+/* 他随口说的话，轮到哪句说哪句 */
 var BOSS_QUOTES = [
   '两个走竞赛，两个走强基，两个走裸分',
   '当了这么久班干，不要晚节不保',
   '来化学竞赛吧，你这脑子学别的可惜了',
-  '今天的每日计划，写了吗？'
+  '这道题我讲了多少遍了',
+  '我翻译笔呢？谁看见我翻译笔了'
 ];
+function nextQuote(b){
+  var q = BOSS_QUOTES[b.qi % BOSS_QUOTES.length];
+  b.qi++;
+  return q;
+}
 
 function bossAttack(){
   var b = G.boss, pick = Math.floor(Math.random()*3);
   if (pick===0){
     b.state='spit'; b.t=0; b.cur='spit';
     b.warn = { x:G.p.x, y:G.p.y, t:0.95, max:0.95 };
+    b.quote = nextQuote(b); b.quoteT = 2.4;
   } else if (pick===1){
     b.state='call'; b.t=0; b.cur='call';
     b.summon = [
@@ -537,6 +698,133 @@ function bossAttack(){
 function summonType(id){
   for (var i=0;i<ENEMY_TYPES.length;i++) if (ENEMY_TYPES[i].id===id) return ENEMY_TYPES[i];
   return ENEMY_TYPES[0];
+}
+
+/* ==================== 晚自习时间轴 ====================
+   m = 游戏里的第几分钟（从 22:00 起算）。到点就触发。
+   时刻是按「游戏分钟」写的，改 RUN_SEC 不用动这一块。
+   ==================================================== */
+function evTime(m){ return m/CLOCK_SPAN*RUN_SEC; }
+var EVENTS = [
+  { m: 6,  key:'hw',   go: evHomework },
+  { m: 14, key:'boss', go: evBoss },
+  { m: 22, key:'quiz', go: evQuiz },
+  { m: 30, key:'plan', go: evPlan },
+  { m: 35, key:'last', go: evLastMinute }
+];
+
+/* lg7 / 广播 的语音条（跟右下角的小 toast 不是一回事） */
+var sayEl = document.getElementById('say'), sayTxtEl = document.getElementById('sayTxt'),
+    sayWho = sayEl.querySelector('b'), sayTimer = null;
+function say(who, msg){
+  sayWho.textContent = who;
+  sayTxtEl.textContent = msg;
+  sayEl.classList.add('on');
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(function(){ sayEl.classList.remove('on'); }, 3400);
+}
+
+/* 22:06 收作业 —— 一整摞从走廊那头推过来 */
+function evHomework(){
+  say('lg7', '作业都收上来了吗？没交的，放学留下来。');
+  var base = Math.random()*Math.PI*2;
+  var d = Math.max(W,H)*0.62;
+  var diff = 1 + G.t/RUN_SEC*0.55;
+  for (var i=0;i<14;i++){
+    var ty = summonType(i<3 ? 'book' : (i%3===0 ? 'chalk' : 'paper'));
+    var a = base + (Math.random()-0.5)*1.6;
+    G.enemies.push({
+      t:ty, x:G.p.x+Math.cos(a)*d, y:G.p.y+Math.sin(a)*d,
+      hp: ty.hp*diff, maxHp: ty.hp*diff, dmg: ty.dmg*diff, r: ty.r,
+      spd: ty.spd*(1 + G.t/RUN_SEC*0.50), flash:0, kb:{x:0,y:0}
+    });
+  }
+}
+
+/* 22:14 lg7 到场 */
+function evBoss(){
+  say('lg7', '两个走竞赛，两个走强基，两个走裸分。');
+  spawnBoss();
+}
+
+/* 22:22 突击小测 —— 卷子和铅笔头暴涨一阵 */
+function evQuiz(){
+  G.quizT = 15;
+  say('lg7', '都把书收起来，突击小测。');
+}
+
+/* 22:30 每日计划 —— 终局 */
+function evPlan(){
+  G.planOn = true;
+  G.plan = PLAN_ITEMS.map(function(x){ return { id:x.id, need:x.need, got:0 }; });
+  say('lg7', '今天的每日计划，写了吗？写完才能走。');
+  buildPlanChips();
+  document.getElementById('plan').classList.add('on');
+  G.spawnT = 0.4;
+}
+
+/* 22:35 */
+function evLastMinute(){
+  say('广播', '距离下课，还有一分钟。');
+}
+
+/* ---- 每日计划清单 ---- */
+var PLAN_ITEMS = [
+  { id:'paper', need:24 },
+  { id:'chalk', need:24 },
+  { id:'flask', need:18 },
+  { id:'book',  need:12 }
+];
+var planLastSig = '';
+function planSig(){
+  if (!G.plan) return '';
+  return G.plan.map(function(x){ return x.got; }).join(',');
+}
+function buildPlanChips(){
+  var el = document.getElementById('planChips');
+  el.innerHTML = '';
+  G.plan.forEach(function(x){
+    var d = document.createElement('div');
+    d.className = 'chip';
+    d.textContent = summonType(x.id).n + ' 0/' + x.need;
+    el.appendChild(d);
+  });
+  planLastSig = planSig();
+}
+function updatePlanChips(){
+  if (!G.plan) return;
+  var sig = planSig();
+  if (sig === planLastSig) return;
+  planLastSig = sig;
+  var el = document.getElementById('planChips');
+  for (var i=0;i<G.plan.length;i++){
+    var x = G.plan[i], chip = el.children[i];
+    if (!chip) continue;
+    var done = x.got >= x.need;
+    chip.textContent = (done?'✅ ':'') + summonType(x.id).n + ' ' +
+                       Math.min(x.got, x.need) + '/' + x.need;
+    chip.className = 'chip' + (done ? ' done' : '');
+  }
+}
+/* 交掉一份 —— 每次击杀都要过一遍这里 */
+function planProgress(id){
+  if (!G.plan) return;
+  for (var i=0;i<G.plan.length;i++){
+    var x = G.plan[i];
+    if (x.id !== id || x.got >= x.need) continue;
+    x.got++;
+    updatePlanChips();
+    if (x.got >= x.need){
+      G.p.hp = Math.min(G.p.maxHp, G.p.hp + 16);
+      G.p.shield = Math.max(G.p.shield, 1.8);
+      addFx(G.p.x, G.p.y, '#7c9c6b', 34, 0.7);
+      toast('✅ ' + summonType(x.id).n + ' 交齐了');
+      var all = true;
+      for (var j=0;j<G.plan.length;j++) if (G.plan[j].got < G.plan[j].need) all = false;
+      if (all) endGame(true, 'plan');
+    }
+    return;
+  }
 }
 
 /* ==================== 特殊技 ==================== */
@@ -603,22 +891,22 @@ function update(dt){
   /* --- 连杀 --- */
   if (p.comboT>0){ p.comboT -= dt; if (p.comboT<=0) p.combo=0; }
 
-  /* --- 刷怪 --- */
-  G.spawnT -= dt;
-  if (G.spawnT<=0 && !G.bossSpawned){
-    G.spawnT = spawnRate();
-    var batch = 1 + Math.floor(G.t/RUN_SEC*1.8);
-    for (var i=0;i<batch;i++) spawnEnemy();
-  } else if (G.spawnT<=0 && G.bossSpawned){
-    G.spawnT = spawnRate()*1.5;
-    for (var j=0;j<2;j++) spawnEnemy();
+  /* --- 晚自习时间轴：到点出事 --- */
+  if (G.quizT > 0) G.quizT -= dt;
+  for (var ev=0; ev<EVENTS.length; ev++){
+    var EV = EVENTS[ev];
+    if (!EV.done && G.t >= evTime(EV.m)){ EV.done = true; EV.go(); }
   }
 
-  /* --- BOSS 出场 --- */
-  if (!G.bossSpawned && G.t >= RUN_SEC*0.40){
-    if (G.bossWarn < 0) { G.bossWarn = 3.0; toast('走廊尽头，有个身影…'); }
-    G.bossWarn -= dt;
-    if (G.bossWarn <= 0) spawnBoss();
+  /* --- 刷怪 --- */
+  G.spawnT -= dt;
+  if (G.spawnT <= 0){
+    var rate = spawnRate(), batch = 1 + Math.floor(G.t/RUN_SEC*1.8);
+    if (G.bossSpawned){ rate *= 1.5; batch = Math.max(batch, 2); }
+    if (G.quizT > 0){ rate *= 0.40; batch += 2; }   /* 小测：猛刷卷子 */
+    if (G.planOn){ rate *= 0.55; batch += 2; }      /* 每日计划：全场压上 */
+    G.spawnT = rate;
+    for (var si=0; si<batch; si++) spawnEnemy(G.quizT > 0 ? 'quiz' : null);
   }
 
   /* --- 武器 --- */
@@ -739,10 +1027,12 @@ function damageEnemy(idx, dmg){
   if (en.hp <= 0){
     addFx(en.x, en.y, '#a8a29e', 10, 0.3);
     G.gems.push({ x:en.x, y:en.y, v:en.t.xp });
+    var killed = en.t.id;
     G.enemies.splice(idx,1);
     if (G.char.special === 'combo'){
       p.combo++; p.comboT = 2.2;
     }
+    planProgress(killed);
   }
 }
 function damageBoss(dmg){
@@ -977,8 +1267,12 @@ function render(){
     if (bl.kind==='book'){
       var k4 = bl.t/bl.dur;
       cx.globalAlpha = 1-k4*0.4;
-      if (bFont !== '30px serif'){ cx.font = '30px serif'; bFont = '30px serif'; }
-      cx.fillText('📚', bl.x, bl.y - (1-k4)*90);
+      var bkArt = ENEMY_ICON.book;
+      if (bkArt) cx.drawImage(bkArt, bl.x-16, bl.y-(1-k4)*90-16, 32, 32);
+      else {
+        if (bFont !== '30px serif'){ cx.font = '30px serif'; bFont = '30px serif'; }
+        cx.fillText('📚', bl.x, bl.y - (1-k4)*90);
+      }
       if (k4>0.55){
         cx.globalAlpha = (1-k4)*2*0.6;
         cx.strokeStyle = bl.color; cx.lineWidth = 5;
@@ -986,21 +1280,33 @@ function render(){
       }
       cx.globalAlpha = 1; continue;
     }
-    /* 普通子弹 */
-    if (bFont !== '18px serif'){ cx.font = '18px serif'; bFont = '18px serif'; }
-    var icon = bl.kind==='pen'?'✏️': bl.kind==='note'?'📝':'🥤';
-    cx.fillText(icon, bl.x, bl.y);
+    /* 普通子弹 —— 画的图标，没加载出来才退回 emoji */
+    var bimg = BULLET_ICON[bl.kind];
+    if (bimg){
+      cx.drawImage(bimg, bl.x-12, bl.y-12, 24, 24);
+    } else {
+      if (bFont !== '18px serif'){ cx.font = '18px serif'; bFont = '18px serif'; }
+      var icon = bl.kind==='pen'?'✏️': bl.kind==='note'?'📝':'🥤';
+      cx.fillText(icon, bl.x, bl.y);
+    }
   }
 
-  /* 敌人 */
+  /* 敌人 —— 画的图标。drawImage 比 fillText 省事，也不用管字体缓存 */
   cx.textAlign='center'; cx.textBaseline='middle';
   var curFont = '';
   for (var e=0;e<G.enemies.length;e++){
     var en = G.enemies[e];
-    var f = en.t.font || (en.t.font = Math.round(en.t.r*2.1)+'px serif');
-    if (f !== curFont){ cx.font = f; curFont = f; }
     if (en.flash>0) cx.globalAlpha = 0.55;
-    cx.fillText(en.t.e, en.x, en.y);
+    var art = ENEMY_ICON[en.t.id];
+    if (art){
+      var sz = en.t.r*2.5;
+      cx.drawImage(art, en.x-sz*0.5, en.y-sz*0.5, sz, sz);
+    } else {
+      /* 图还没加载好就退回 emoji */
+      var f = en.t.font || (en.t.font = Math.round(en.t.r*2.1)+'px serif');
+      if (f !== curFont){ cx.font = f; curFont = f; }
+      cx.fillText(en.t.e, en.x, en.y);
+    }
     cx.globalAlpha = 1;
   }
 
@@ -1118,6 +1424,7 @@ function updateHud(){
     bossBar.classList.add('on');
     bossFg.style.width = Math.max(0,(G.boss.hp/G.boss.maxHp*100))+'%';
   } else bossBar.classList.remove('on');
+  updatePlanChips();
   updateSkillBtn();
 }
 
@@ -1215,21 +1522,33 @@ function applyPerk(k){
 /* ==================== 结束 ==================== */
 var scEnd=document.getElementById('scEnd'), endTitle=document.getElementById('endTitle'),
     endStat=document.getElementById('endStat');
-function endGame(win){
+function endGame(win, reason){
   if (G.scene==='over') return;
   G.scene='over';
   var p=G.p;
+  var secs = Math.round(realTime(G.t));          /* 显示用：你熬到了几点 */
+  /* 记分用：提前把每日计划交齐的按满分算，
+     否则「提前走人」反而比熬到铃响分低，纪录就反着来了 */
+  var recT = (reason==='plan') ? CLOCK_SPAN*60 : secs;
   var best = loadBest();
-  var secs = Math.round(realTime(G.t));
-  var rec = { char:G.char.id, t:secs, lv:p.lvl };
-  var isNew = secs > (best.t||0);
+  var rec = { char:G.char.id, t:recT, lv:p.lvl, win:!!win };
+  var isNew = isBetter(rec, best);
   if (isNew){ best = rec; saveBest(best); }
-  endTitle.textContent = win? '放学了' : '你倒下了';
+  endTitle.textContent = reason==='plan' ? '提前走人'
+                       : win ? '放学了' : '你倒下了';
+  var todo = '';
+  if (G.plan){
+    var done=0;
+    for (var i=0;i<G.plan.length;i++) if (G.plan[i].got >= G.plan[i].need) done++;
+    todo = '<br>每日计划：'+done+'/'+G.plan.length+' 条' +
+           (done===G.plan.length ? ' —— 全交齐了' : '');
+  }
   endStat.innerHTML =
     '角色：'+G.char.name+'<br>'+
     '存活：'+fmt(secs)+'<br>'+
-    '等级：Lv.'+p.lvl+'<br>'+
-    (isNew? '<br>🏆 新纪录！' : '<br>最高纪录：'+fmt(best.t));
+    '等级：Lv.'+p.lvl+
+    todo + '<br>' +
+    (isNew? '🏆 新纪录！' : '最高纪录：'+bestText(best));
   scEnd.classList.add('on');
   document.getElementById('hud').classList.remove('on');
   skillEl.classList.remove('on');
@@ -1239,22 +1558,31 @@ function fmt(s){
   var m=Math.floor(s/60), ss=s%60;
   return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;
 }
+/* 谁的成绩更好：先看有没有放学，再看熬到几点 */
+function isBetter(a, b){
+  if (!!a.win !== !!b.win) return !!a.win;
+  return a.t > (b.t||0);
+}
+function bestText(b){
+  if (!b || !b.t) return '无';
+  return b.win ? ('放学了 '+fmt(b.t)) : fmt(b.t);
+}
 
-/* ==================== 存档 ==================== */
-var SAVE_KEY = 'lg7.save.v1';
+/* ==================== 存档 ====================
+   v1 那会儿一局是 5 分钟，时间对不上，所以直接换 key 从头记。
+   ============================================ */
+var SAVE_KEY = 'lg7.save.v2';
 function loadBest(){
   try{
     var raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return {t:0,char:null,lv:0};
+    if (!raw) return { t:0, char:null, lv:0, win:false };
     var d = JSON.parse(raw);
-    if (!d || typeof d.t !== 'number') return {t:0};
-    if (d.v !== 1) return migrate(d);
-    return d;
-  }catch(e){ return {t:0}; }
+    if (!d || typeof d.t !== 'number') return { t:0, char:null, lv:0, win:false };
+    return { t:d.t, char:d.char||null, lv:d.lv||0, win:!!d.win };
+  }catch(e){ return { t:0, char:null, lv:0, win:false }; }
 }
-function migrate(d){ return { v:1, t: d.t||0, char: d.char||null, lv: d.lv||0 }; }
 function saveBest(b){
-  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({ v:1, t:b.t, char:b.char, lv:b.lv })); }catch(e){}
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({ v:2, t:b.t, char:b.char, lv:b.lv, win:!!b.win })); }catch(e){}
 }
 
 /* ==================== 界面流程 ==================== */
@@ -1310,7 +1638,7 @@ document.getElementById('btnSwap').onclick=function(){
   if (b.t>0){
     var nm = '—';
     for (var i=0;i<CHARS.length;i++) if (CHARS[i].id===b.char) nm=CHARS[i].name;
-    el.innerHTML = '最高纪录：'+fmt(b.t)+'（'+nm+'）';
+    el.innerHTML = '最高纪录：'+bestText(b)+'（'+nm+'）';
   } else {
     el.textContent = '还没有记录。';
   }
