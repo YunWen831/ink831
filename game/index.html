@@ -177,6 +177,111 @@ var CHARS = [
     special:'toilet' }
 ];
 
+/* ==================== 画像 ====================
+   照着照片画的矢量小像，不是照片本身。
+   特征都留着：水哥圆脸粗眉、logic 黑框方眼镜、牢李胡茬加大拇指的笑、
+   班主任是珊瑚色 polo 加那本蓝皮《无机化学》。
+   ============================================= */
+function svgo(inner){ return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">' +
+  '<defs><clipPath id="k"><circle cx="50" cy="50" r="50"/></clipPath></defs>' +
+  '<g clip-path="url(#k)">' + inner + '</g></svg>'; }
+
+var AVATARS = {
+
+  /* 水哥：脸圆、眉毛粗、眼睛小、平头 —— 一脸憨厚 */
+  shui: svgo(
+    '<rect width="100" height="100" fill="#4a423c"/>' +
+    '<path d="M4 100 Q6 74 30 69 L70 69 Q94 74 96 100 Z" fill="#dcd9d4"/>' +
+    '<rect x="41" y="56" width="18" height="18" rx="7" fill="#cf9f76"/>' +
+    '<ellipse cx="19" cy="47" rx="5" ry="7.5" fill="#e0b085"/>' +
+    '<ellipse cx="81" cy="47" rx="5" ry="7.5" fill="#e0b085"/>' +
+    '<ellipse cx="50" cy="43" rx="31" ry="30" fill="#eec29a"/>' +
+    '<path d="M19 42 Q18 10 50 10 Q82 10 81 42 Q79 29 66 25 Q54 21 38 25 Q21 29 19 42 Z" fill="#17130f"/>' +
+    '<rect x="29" y="37.5" width="16" height="4.4" rx="2.2" fill="#17130f"/>' +
+    '<rect x="55" y="37.5" width="16" height="4.4" rx="2.2" fill="#17130f"/>' +
+    '<ellipse cx="37" cy="49" rx="5.4" ry="3.5" fill="#2b2119"/>' +
+    '<ellipse cx="63" cy="49" rx="5.4" ry="3.5" fill="#2b2119"/>' +
+    '<circle cx="38.8" cy="47.7" r="1.3" fill="#ffffff" opacity="0.72"/>' +
+    '<circle cx="64.8" cy="47.7" r="1.3" fill="#ffffff" opacity="0.72"/>' +
+    '<path d="M50 50 Q46.5 58 51 59.5" stroke="#d09b73" stroke-width="2.8" fill="none" stroke-linecap="round"/>' +
+    '<ellipse cx="50" cy="64.5" rx="5.5" ry="3.4" fill="#8c4a3f"/>'),
+
+  /* logic：脸长、黑框方眼镜、白 T、厚嘴唇 */
+  logic: svgo(
+    '<rect width="100" height="100" fill="#33443c"/>' +
+    '<path d="M4 100 Q6 74 30 69 L70 69 Q94 74 96 100 Z" fill="#f4f4f2"/>' +
+    '<rect x="42" y="56" width="16" height="18" rx="6" fill="#cf9f76"/>' +
+    '<ellipse cx="22" cy="48" rx="4.5" ry="7" fill="#e0b085"/>' +
+    '<ellipse cx="78" cy="48" rx="4.5" ry="7" fill="#e0b085"/>' +
+    '<ellipse cx="50" cy="43" rx="26" ry="31" fill="#f0c69f"/>' +
+    '<path d="M24 40 Q23 9 50 9 Q77 9 76 40 Q74 27 61 23 Q50 20 39 23 Q26 27 24 40 Z" fill="#161210"/>' +
+    '<rect x="30" y="36" width="15" height="4.5" rx="2.2" fill="#161210"/>' +
+    '<rect x="55" y="36" width="15" height="4.5" rx="2.2" fill="#161210"/>' +
+    '<ellipse cx="37.5" cy="47" rx="4.4" ry="2.9" fill="#241c16"/>' +
+    '<ellipse cx="62.5" cy="47" rx="4.4" ry="2.9" fill="#241c16"/>' +
+    '<circle cx="39.1" cy="45.9" r="1.15" fill="#ffffff" opacity="0.72"/>' +
+    '<circle cx="64.1" cy="45.9" r="1.15" fill="#ffffff" opacity="0.72"/>' +
+    '<path d="M50 49 Q47 57 51 58" stroke="#d09b73" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+    '<path d="M41 65 Q50 61 59 65 Q50 70.5 41 65 Z" fill="#a25a4d"/>' +
+    '<g fill="none" stroke="#14110f" stroke-width="3.2">' +
+      '<rect x="28" y="41" width="20" height="14" rx="3.5"/>' +
+      '<rect x="52" y="41" width="20" height="14" rx="3.5"/>' +
+      '<path d="M48 47 h4"/><path d="M28 46 l-7 -2.5"/><path d="M72 46 l7 -2.5"/>' +
+    '</g>'),
+
+  /* 牢李：圆角眼镜、下巴胡茬、咧嘴笑露牙、灰夹克配蓝 T */
+  laoli: svgo(
+    '<rect width="100" height="100" fill="#39424b"/>' +
+    '<path d="M2 100 Q5 73 30 68 L70 68 Q95 73 98 100 Z" fill="#b6bbbf"/>' +
+    '<path d="M40 70 L60 70 L57 100 L43 100 Z" fill="#7fa8cc"/>' +
+    '<rect x="41" y="55" width="18" height="18" rx="7" fill="#cf9f76"/>' +
+    '<ellipse cx="21" cy="47" rx="5" ry="7.5" fill="#e0b085"/>' +
+    '<ellipse cx="79" cy="47" rx="5" ry="7.5" fill="#e0b085"/>' +
+    '<ellipse cx="50" cy="43" rx="28.5" ry="30" fill="#eec29a"/>' +
+    '<path d="M33 56 Q50 74 67 56 Q66 68 50 70 Q34 68 33 56 Z" fill="#c69c78" opacity="0.5"/>' +
+    '<path d="M21 40 Q20 9 50 9 Q80 9 79 40 Q77 27 64 23 Q52 20 36 23 Q23 27 21 40 Z" fill="#17130f"/>' +
+    '<rect x="29" y="36" width="16" height="4.6" rx="2.3" fill="#17130f"/>' +
+    '<rect x="55" y="36" width="16" height="4.6" rx="2.3" fill="#17130f"/>' +
+    '<ellipse cx="37" cy="47" rx="4.6" ry="3" fill="#241c16"/>' +
+    '<ellipse cx="63" cy="47" rx="4.6" ry="3" fill="#241c16"/>' +
+    '<circle cx="38.6" cy="45.8" r="1.2" fill="#ffffff" opacity="0.72"/>' +
+    '<circle cx="64.6" cy="45.8" r="1.2" fill="#ffffff" opacity="0.72"/>' +
+    '<path d="M50 49 Q47 56 51 57.5" stroke="#d09b73" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+    '<path d="M38 62 Q50 75 62 62 Z" fill="#7d3a33"/>' +
+    '<path d="M41 63.5 h18 l-1.8 3.2 h-14.4 Z" fill="#ffffff"/>' +
+    '<g fill="none" stroke="#14110f" stroke-width="3.2">' +
+      '<rect x="27" y="41" width="21" height="14.5" rx="5"/>' +
+      '<rect x="52" y="41" width="21" height="14.5" rx="5"/>' +
+      '<path d="M48 47 h4"/><path d="M27 46 l-6.5 -2.5"/><path d="M73 46 l6.5 -2.5"/>' +
+    '</g>')
+};
+
+/* 班主任：细长脸、细圆框眼镜、珊瑚色 polo、抱着蓝皮《无机化学》 */
+var BOSS_AVATAR = svgo(
+  '<rect width="100" height="100" fill="#4a3134"/>' +
+  '<path d="M2 100 Q5 73 30 68 L70 68 Q95 73 98 100 Z" fill="#d9776b"/>' +
+  '<path d="M40 69 L50 81 L60 69 L55 67 L50 72 L45 67 Z" fill="#c4675c"/>' +
+  '<g transform="rotate(-13 62 90)">' +
+    '<rect x="47" y="78" width="30" height="23" rx="2" fill="#2f6bb5"/>' +
+    '<rect x="49" y="81" width="26" height="4.5" rx="1" fill="#ffffff" opacity="0.92"/>' +
+    '<rect x="49" y="88" width="17" height="2.6" rx="1" fill="#ffffff" opacity="0.6"/>' +
+  '</g>' +
+  '<rect x="42" y="54" width="16" height="18" rx="6" fill="#cf9f76"/>' +
+  '<ellipse cx="24" cy="47" rx="4.5" ry="7" fill="#e0b085"/>' +
+  '<ellipse cx="76" cy="47" rx="4.5" ry="7" fill="#e0b085"/>' +
+  '<ellipse cx="50" cy="42" rx="25" ry="31" fill="#eec29a"/>' +
+  '<path d="M26 40 Q25 8 50 8 Q75 8 74 40 Q73 26 60 22 Q47 19 36 25 Q28 29 26 40 Z" fill="#14100e"/>' +
+  '<rect x="31" y="35" width="14" height="4" rx="2" fill="#14100e"/>' +
+  '<rect x="55" y="35" width="14" height="4" rx="2" fill="#14100e"/>' +
+  '<ellipse cx="38" cy="46" rx="4" ry="2.7" fill="#241c16"/>' +
+  '<ellipse cx="62" cy="46" rx="4" ry="2.7" fill="#241c16"/>' +
+  '<path d="M50 48 Q47 56 51 57" stroke="#d09b73" stroke-width="2.6" fill="none" stroke-linecap="round"/>' +
+  '<path d="M43.5 64 h13" stroke="#8a5148" stroke-width="3.2" stroke-linecap="round"/>' +
+  '<g fill="none" stroke="#3d3733" stroke-width="2.2">' +
+    '<circle cx="38" cy="46" r="10.5"/><circle cx="62" cy="46" r="10.5"/>' +
+    '<path d="M48.5 46 h3"/><path d="M27.5 44 l-5 -2"/><path d="M72.5 44 l5 -2"/>' +
+  '</g>');
+
 /* ==================== 敌人 ==================== */
 var ENEMY_TYPES = [
   { id:'paper', e:'📄', hp:11,  spd:62, dmg:5,  r:15, xp:1, from:0  },
@@ -226,19 +331,37 @@ function resize(){
 }
 window.addEventListener('resize', resize); resize();
 
-/* ==================== 图片 ==================== */
-var IMGS = {};
+/* ==================== 头像加载 ====================
+   IMGS  = 画的画像（一定有，随页面一起走）
+   PHOTO = 真人照片（只有本地放了 img/ 才有，永远不会被推上去）
+   显示时优先用照片，没有就退回画像。
+   ================================================ */
+var IMGS = {}, PHOTO = {};
+function svgURI(s){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(s); }
+function faceOf(id){ return PHOTO[id] || IMGS[id]; }
+
 (function(){
-  if (location.search.indexOf('emoji') >= 0) return;   /* 想强制看 emoji 就加 ?emoji */
-  CHARS.forEach(function(c){
+  if (location.search.indexOf('emoji') >= 0) return;   /* 兜底：?emoji 强制回 emoji */
+
+  Object.keys(AVATARS).forEach(function(id){
     var im = new Image();
-    im.onload  = function(){ IMGS[c.id] = im; buildCharList(); };
-    im.onerror = function(){};                          /* 没有就静默用 emoji */
-    im.src = c.img;
+    im.onload = function(){ IMGS[id] = im; buildCharList(); };
+    im.src = svgURI(AVATARS[id]);
   });
   var bi = new Image();
-  bi.onload = function(){ IMGS.boss = bi; };
-  bi.src = 'img/lg7.png';
+  bi.onload = function(){ IMGS.boss = bi; buildCharList(); };
+  bi.src = svgURI(BOSS_AVATAR);
+
+  /* 本地有照片就盖掉画像 */
+  CHARS.forEach(function(c){
+    var im = new Image();
+    im.onload  = function(){ PHOTO[c.id] = im; buildCharList(); };
+    im.onerror = function(){};
+    im.src = c.img;
+  });
+  var bp = new Image();
+  bp.onload = function(){ PHOTO.boss = bp; };
+  bp.src = 'img/lg7.png';
 })();
 
 /* ==================== 输入 ==================== */
@@ -893,10 +1016,11 @@ function render(){
       cx.globalAlpha = 1;
     }
     if (b.flash>0) cx.globalAlpha = 0.6;
-    if (IMGS.boss){
+    var bface = faceOf('boss');
+    if (bface){
       cx.save();
       cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.clip();
-      cx.drawImage(IMGS.boss, b.x-b.r, b.y-b.r, b.r*2, b.r*2);
+      cx.drawImage(bface, b.x-b.r, b.y-b.r, b.r*2, b.r*2);
       cx.restore();
       cx.strokeStyle='#e05252'; cx.lineWidth=3;
       cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.stroke();
@@ -915,13 +1039,16 @@ function render(){
 
   /* 玩家 */
   var pd = p.spdDebuff>0;
+  var ar = p.r + 6;              /* 画得比碰撞体大一圈，小屏幕上才看得清 */
+  var face = faceOf(p.id_);
   cx.save();
   if (p.shield>0){ cx.globalAlpha = 0.45; }
   if (p.inv>0 && Math.floor(p.inv*20)%2===0) cx.globalAlpha = 0.4;
-  if (IMGS[p.id_]){
-    cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.clip();
-    cx.drawImage(IMGS[p.id_], p.x-p.r, p.y-p.r, p.r*2, p.r*2);
+  if (face){
+    cx.beginPath(); cx.arc(p.x, p.y, ar, 0, 7); cx.clip();
+    cx.drawImage(face, p.x-ar, p.y-ar, ar*2, ar*2);
     cx.restore(); cx.save();
+    cx.globalAlpha = 1;
   } else {
     cx.font = '34px serif';
     cx.fillText(G.char.emoji, p.x, p.y);
@@ -929,10 +1056,10 @@ function render(){
   cx.restore();
   cx.strokeStyle = pd ? '#e05252' : '#c2703a';
   cx.lineWidth = 3;
-  cx.beginPath(); cx.arc(p.x, p.y, p.r+4, 0, 7); cx.stroke();
+  cx.beginPath(); cx.arc(p.x, p.y, ar+2, 0, 7); cx.stroke();
   if (p.shield>0){
     cx.globalAlpha = 0.6; cx.strokeStyle='#7c9c6b'; cx.lineWidth=4;
-    cx.beginPath(); cx.arc(p.x, p.y, p.r+13, 0, 7); cx.stroke();
+    cx.beginPath(); cx.arc(p.x, p.y, ar+9, 0, 7); cx.stroke();
     cx.globalAlpha = 1;
   }
 
@@ -1142,7 +1269,8 @@ function buildCharList(){
   CHARS.forEach(function(c){
     var d=document.createElement('div');
     d.className='char';
-    var av = IMGS[c.id] ? '<img src="'+c.img+'" alt="">' : c.emoji;
+    var f = faceOf(c.id);
+    var av = f ? '<img src="'+f.src+'" alt="">' : c.emoji;
     d.innerHTML='<div class="av">'+av+'</div><div class="nm">'+c.name+
                 '</div><div class="ds">'+c.tag+'<br>'+c.note+'</div>';
     d.onclick=function(){ startRun(c.id); };
