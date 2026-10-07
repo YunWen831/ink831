@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>十点三十六</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#12100e;
+    font-family: system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    color:#f5f5f4;
+    user-select:none; -webkit-user-select:none; -webkit-touch-callout:none;
+    touch-action:none; overscroll-behavior:none; }
+  @supports (height:100dvh) { html,body { height:100dvh; } }  /* 躲开手机地址栏 */
+  canvas { display:block; width:100%; height:100%; touch-action:none; }
+
+  .screen { position:absolute; inset:0; display:none; flex-direction:column;
+    align-items:center; justify-content:center; gap:18px; padding:24px; z-index:10; }
+  .screen.on { display:flex; }
+  .screen.dim { background:rgba(18,16,14,.92); backdrop-filter:blur(4px); }
+
+  h1 { font-size:clamp(28px,7vw,52px); letter-spacing:.2em; font-weight:700; }
+  h1 small { display:block; font-size:.32em; letter-spacing:.35em; opacity:.45; margin-top:10px; font-weight:400; }
+  h2 { font-size:clamp(18px,4.5vw,26px); font-weight:600; letter-spacing:.06em; }
+
+  .chars { display:flex; gap:clamp(10px,2.5vw,22px); flex-wrap:wrap; justify-content:center; }
+  .char { width:clamp(88px,26vw,132px); background:#1f1c19; border:2px solid #33302c;
+    border-radius:16px; padding:14px 8px 12px; cursor:pointer; text-align:center;
+    transition:.15s; }
+  .char:hover, .char:active { border-color:#c2703a; transform:translateY(-4px); }
+  .char .av { width:clamp(56px,17vw,84px); height:clamp(56px,17vw,84px); margin:0 auto 10px;
+    border-radius:50%; overflow:hidden; border:2px solid #44403c; background:#292524;
+    display:flex; align-items:center; justify-content:center; font-size:clamp(26px,8vw,40px); }
+  .char .av img { width:100%; height:100%; object-fit:cover; }
+  .char .nm { font-size:clamp(13px,3.4vw,16px); font-weight:600; }
+  .char .ds { font-size:clamp(10px,2.6vw,12px); opacity:.5; margin-top:5px; line-height:1.4; }
+
+  .btn { padding:13px 34px; border:2px solid #57534e; border-radius:12px; background:#1f1c19;
+    color:#f5f5f4; font-size:clamp(14px,3.6vw,17px); cursor:pointer; font-family:inherit;
+    transition:.15s; letter-spacing:.05em; }
+  .btn:hover, .btn:active { background:#c2703a; border-color:#c2703a; color:#fff; }
+  .btn.pri { background:#c2703a; border-color:#c2703a; }
+
+  .ups { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; max-width:760px; }
+  .up { width:clamp(140px,29vw,208px); background:#1f1c19; border:2px solid #44403c;
+    border-radius:14px; padding:18px 14px; cursor:pointer; text-align:center; transition:.15s; }
+  .up:hover, .up:active { border-color:#c2703a; transform:translateY(-4px); }
+  .up .ic { font-size:clamp(26px,7vw,38px); margin-bottom:9px; }
+  .up .nm { font-size:clamp(13px,3.4vw,16px); font-weight:600; margin-bottom:6px; }
+  .up .ds { font-size:clamp(10px,2.7vw,13px); opacity:.55; line-height:1.5; }
+  .up .lv { font-size:10px; opacity:.4; margin-top:7px; letter-spacing:.1em; }
+
+  .tip { font-size:clamp(11px,3vw,14px); opacity:.4; text-align:center; line-height:1.8; max-width:560px; }
+  .kbd { display:inline-block; padding:1px 7px; border:1px solid #57534e; border-radius:5px;
+    font-size:.85em; opacity:.85; margin:0 2px; }
+
+  #hud { position:absolute; top:0; left:0; right:0; padding:12px 16px; z-index:5;
+    display:none; pointer-events:none; }
+  #hud.on { display:block; }
+  #hud .row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  #clock { font-size:clamp(17px,4.6vw,24px); font-weight:700; letter-spacing:.06em;
+    font-variant-numeric:tabular-nums; }
+  #clock.warn { color:#e8a33d; }
+  #clock.final { color:#e05252; animation:blink .7s infinite; }
+  @keyframes blink { 50% { opacity:.35 } }
+  #hpwrap { flex:0 0 clamp(96px,32vw,190px); height:11px; background:#292524;
+    border-radius:6px; overflow:hidden; }
+  #hpbar { height:100%; width:100%; background:linear-gradient(90deg,#c2703a,#e8a33d);
+    transition:width .12s; }
+  #lv { font-size:clamp(12px,3.2vw,15px); opacity:.75; letter-spacing:.05em; }
+  #xpwrap { margin-top:7px; height:4px; background:#292524; border-radius:3px; overflow:hidden; }
+  #xpbar { height:100%; width:0; background:#7c9c6b; transition:width .12s; }
+  #bossbar { margin-top:10px; display:none; }
+  #bossbar.on { display:block; }
+  #bossbar .nm { font-size:clamp(11px,3vw,14px); color:#e05252; letter-spacing:.1em; margin-bottom:5px; }
+  #bossbar .bg { height:9px; background:#292524; border-radius:5px; overflow:hidden; }
+  #bossbar .fg { height:100%; width:100%; background:linear-gradient(90deg,#8b2f2f,#e05252); transition:width .15s; }
+
+  #stick { position:absolute; z-index:6; display:none; }
+  #stick.on { display:block; }
+
+  /* 手机上的技能键（牢李的「跑厕所」） */
+  #skill { position:absolute; right:20px; bottom:30px; z-index:7; display:none;
+    width:clamp(72px,20vw,96px); height:clamp(72px,20vw,96px); border-radius:50%;
+    border:3px solid #7c9c6b; background:rgba(31,28,25,.78); color:#cfe0c4;
+    font-family:inherit; font-size:clamp(12px,3.2vw,15px); font-weight:600;
+    line-height:1.3; letter-spacing:.06em; cursor:pointer; touch-action:none;
+    -webkit-user-select:none; user-select:none; padding:0; }
+  #skill.on { display:block; }
+  #skill.cool { border-color:#44403c; color:#6b6560; background:rgba(31,28,25,.55); }
+  #skill:active { transform:scale(.93); }
+
+  .toast { position:absolute; left:50%; top:26%; transform:translateX(-50%); z-index:8;
+    font-size:clamp(14px,4vw,20px); font-weight:600; text-align:center; padding:11px 24px;
+    background:rgba(31,28,25,.94); border:1px solid #57534e; border-radius:12px;
+    white-space:nowrap; opacity:0; transition:opacity .35s; pointer-events:none; }
+  .toast.on { opacity:1; }
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div class="row">
+    <div id="clock">22:00</div>
+    <div id="hpwrap"><div id="hpbar"></div></div>
+    <div id="lv">Lv.1</div>
+  </div>
+  <div id="xpwrap"><div id="xpbar"></div></div>
+  <div id="bossbar"><div class="nm">班主任 lg7</div><div class="bg"><div class="fg"></div></div></div>
+</div>
+
+<div id="stick"><div id="knob"></div></div>
+<button id="skill" type="button">跑厕所<br>就绪</button>
+<div class="toast" id="toast"></div>
+
+<div class="screen on" id="scTitle">
+  <h1>十点三十六<small>生存模拟</small></h1>
+  <div class="tip">
+    <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 移动　·　手机用左下摇杆<br>
+    攻击全自动。活到放学。
+  </div>
+  <button class="btn pri" id="btnStart">开始</button>
+  <div id="best" class="tip"></div>
+</div>
+
+<div class="screen" id="scSelect">
+  <h2>选一个同学</h2>
+  <div class="chars" id="charList"></div>
+  <button class="btn" id="btnBack">返回</button>
+</div>
+
+<div class="screen dim" id="scUp">
+  <h2>升级！</h2>
+  <div class="ups" id="upList"></div>
+</div>
+
+<div class="screen dim" id="scEnd">
+  <h1 id="endTitle">放学</h1>
+  <div class="tip" id="endStat"></div>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center">
+    <button class="btn pri" id="btnAgain">再来一局</button>
+    <button class="btn" id="btnSwap">换个角色</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ==================== 头像 ====================
+   自动识别：img/ 里有照片就用照片，没有就用 emoji。
+   - 公开版（GitHub Pages）：没有 img/ → emoji
+   - 本地版：把照片放进 img/ → 自动变真人
+   img/ 已被 .gitignore 排除，永远不会被推上去。
+   ============================================ */
+
+/* ==================== 角色 ==================== */
+var CHARS = [
+  { id:'shui', name:'水哥', emoji:'🙂', img:'img/shuige.jpg', tag:'憨厚老实',
+    hp:150, spd:146, note:'受伤二次结算',
+    special:'twice' },
+  { id:'logic', name:'logic', emoji:'🤓', img:'img/logic.jpg', tag:'自认聪明',
+    hp:95, spd:186, note:'连杀增伤，断了清零',
+    special:'combo' },
+  { id:'laoli', name:'牢李', emoji:'😌', img:'img/laoli.png', tag:'可靠',
+    hp:115, spd:166, note:'空格：跑厕所，无敌3秒',
+    special:'toilet' }
+];
+
+/* ==================== 敌人 ==================== */
+var ENEMY_TYPES = [
+  { id:'paper', e:'📄', hp:11,  spd:62, dmg:5,  r:15, xp:1, from:0  },
+  { id:'chalk', e:'✏️', hp:7,   spd:98, dmg:4,  r:14, xp:1, from:0  },
+  { id:'flask', e:'🧪', hp:17,  spd:56, dmg:8,  r:17, xp:2, from:40 },
+  { id:'bell',  e:'🔔', hp:24,  spd:74, dmg:9,  r:18, xp:2, from:80 },
+  { id:'book',  e:'📚', hp:46,  spd:42, dmg:14, r:22, xp:3, from:130}
+];
+
+/* ==================== 武器 ==================== */
+var WEAPONS = {
+  pen:    { name:'圆珠笔',  ic:'✏️', max:8, desc:'向前射出，可穿透',
+            lv:{ cd:0.72, dmg:11, num:1, pierce:1 } },
+  note:   { name:'小抄',    ic:'📝', max:8, desc:'向四周撒出一圈',
+            lv:{ cd:1.7,  dmg:9,  num:6, pierce:2 } },
+  cup:    { name:'水杯',    ic:'🥤', max:8, desc:'弹射，命中后跳向下一只',
+            lv:{ cd:1.15, dmg:13, num:1, pierce:3 } },
+  eraser: { name:'橡皮擦',  ic:'🧽', max:8, desc:'清除身边一圈敌人',
+            lv:{ cd:2.5,  dmg:22, num:1, pierce:99 } },
+  book:   { name:'作业本',  ic:'📚', max:8, desc:'从天上砸下来',
+            lv:{ cd:2.0,  dmg:26, num:2, pierce:99 } },
+  bell:   { name:'课铃',    ic:'🔔', max:8, desc:'全屏音波，震退一切',
+            lv:{ cd:4.2,  dmg:17, num:1, pierce:99 } }
+};
+var WKEYS = ['pen','note','cup','eraser','book','bell'];
+
+/* ==================== 强化 ==================== */
+var PERKS = {
+  shoe: { name:'跑鞋',   ic:'👟', desc:'移速 +12%' },
+  pow:  { name:'力量',   ic:'💪', desc:'伤害 +18%' },
+  rng:  { name:'尺度',   ic:'📏', desc:'范围 +15%' },
+  hnd:  { name:'手速',   ic:'⏱️', desc:'冷却 -12%' },
+  vit:  { name:'体质',   ic:'❤️', desc:'血上限 +22，并回满' },
+  meal: { name:'饭卡',   ic:'🍚', desc:'每秒回复 +0.7' }
+};
+var PKEYS = ['shoe','pow','rng','hnd','vit','meal'];
+
+/* ==================== 画布 ==================== */
+var cv = document.getElementById('cv'), cx = cv.getContext('2d');
+var W=0, H=0, DPR=1;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.floor(W*DPR); cv.height = Math.floor(H*DPR);
+  cv.style.width = W+'px'; cv.style.height = H+'px';
+  cx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize', resize); resize();
+
+/* ==================== 图片 ==================== */
+var IMGS = {};
+(function(){
+  if (location.search.indexOf('emoji') >= 0) return;   /* 想强制看 emoji 就加 ?emoji */
+  CHARS.forEach(function(c){
+    var im = new Image();
+    im.onload  = function(){ IMGS[c.id] = im; buildCharList(); };
+    im.onerror = function(){};                          /* 没有就静默用 emoji */
+    im.src = c.img;
+  });
+  var bi = new Image();
+  bi.onload = function(){ IMGS.boss = bi; };
+  bi.src = 'img/lg7.png';
+})();
+
+/* ==================== 输入 ==================== */
+var keys = {};
+window.addEventListener('keydown', function(e){
+  keys[e.key.toLowerCase()] = true;
+  if ([' ','arrowup','arrowdown','arrowleft','arrowright'].indexOf(e.key.toLowerCase())>=0) e.preventDefault();
+  if (e.key === ' ' && G.scene === 'play') useSpecial();
+});
+window.addEventListener('keyup', function(e){ keys[e.key.toLowerCase()] = false; });
+
+var stick = { active:false, id:null, bx:0, by:0, dx:0, dy:0, r:58 };
+var stickEl = document.getElementById('stick'), knobEl = document.getElementById('knob');
+var kb = { x:0, y:0 };
+
+function stickStart(x,y,id){
+  stick.active=true; stick.id=id; stick.bx=x; stick.by=y; stick.dx=0; stick.dy=0;
+  stickEl.classList.add('on');
+  stickEl.style.left=(x-stick.r)+'px'; stickEl.style.top=(y-stick.r)+'px';
+  stickEl.style.width=(stick.r*2)+'px'; stickEl.style.height=(stick.r*2)+'px';
+  stickEl.style.borderRadius='50%';
+  stickEl.style.background='rgba(120,113,108,.28)';
+  stickEl.style.border='2px solid rgba(168,162,158,.4)';
+  knobEl.style.width='52px'; knobEl.style.height='52px'; knobEl.style.borderRadius='50%';
+  knobEl.style.background='rgba(194,112,58,.85)';
+  knobEl.style.position='absolute'; knobEl.style.left='50%'; knobEl.style.top='50%';
+  knobEl.style.transform='translate(-50%,-50%)';
+  moveKnob(0,0);
+}
+function moveKnob(dx,dy){
+  knobEl.style.transform='translate(calc(-50% + '+dx+'px), calc(-50% + '+dy+'px))';
+}
+function stickMove(x,y){
+  var dx=x-stick.bx, dy=y-stick.by, d=Math.hypot(dx,dy);
+  if(d>stick.r){ dx=dx/d*stick.r; dy=dy/d*stick.r; }
+  stick.dx=dx/stick.r; stick.dy=dy/stick.r; moveKnob(dx,dy);
+}
+function stickEnd(){
+  stick.active=false; stick.id=null; stick.dx=0; stick.dy=0;
+  stickEl.classList.remove('on');
+}
+
+cv.addEventListener('touchstart', function(e){
+  if (G.scene !== 'play') return;
+  e.preventDefault();
+  for (var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if (!stick.active && t.clientX < W*0.5){
+      stickStart(t.clientX, t.clientY, t.identifier);
+    }
+  }
+}, {passive:false});
+cv.addEventListener('touchmove', function(e){
+  e.preventDefault();
+  for (var i=0;i<e.changedTouches.length;i++){
+    var t=e.changedTouches[i];
+    if (stick.active && t.identifier===stick.id) stickMove(t.clientX, t.clientY);
+  }
+}, {passive:false});
+function touchDone(e){
+  for (var i=0;i<e.changedTouches.length;i++){
+    if (e.changedTouches[i].identifier===stick.id) stickEnd();
+  }
+}
+cv.addEventListener('touchend', touchDone);
+cv.addEventListener('touchcancel', touchDone);
+
+/* ==================== 时间 ==================== */
+var RUN_SEC = 300;                 // 一局真实时长（秒）
+var CLOCK_SPAN = 36;               // 显示 22:00 → 22:36
+function clockText(sec){
+  var m = 22*60 + Math.round(sec/RUN_SEC*CLOCK_SPAN);
+  var hh = Math.floor(m/60), mm = m%60;
+  return (hh<10?'0':'')+hh+':'+(mm<10?'0':'')+mm;
+}
+function realTime(sec){ return sec/RUN_SEC*CLOCK_SPAN*60; }
+
+/* ==================== 游戏状态 ==================== */
+var G = null;
+function newGame(charId){
+  var c = null;
+  for (var i=0;i<CHARS.length;i++) if (CHARS[i].id===charId) c=CHARS[i];
+  G = {
+    scene:'play', char:c,
+    t:0, last:0,
+    p: { x:0, y:0, r:16, hp:c.hp, maxHp:c.hp, spd:c.spd, face:1,
+         inv:0, lvl:1, xp:0, need:5, combo:0, comboT:0, meal:0,
+         specialCd:0, shield:0 },
+    mods: { spd:1, dmg:1, rng:1, cd:1, mealHp:0 },
+    weapons: [], perks:{},
+    enemies:[], bullets:[], gems:[], fx:[],
+    boss:null, bossSpawned:false, bossWarn:-1,
+    spawnT:0, shake:0,
+    toastT:0
+  };
+}
+function addWeapon(k){
+  G.weapons.push({ k:k, lv:1, t:0 });
+}
+function wpnStats(w){
+  var base = WEAPONS[w.k].lv, lv = w.lv;
+  var scale = 1 + (lv-1)*0.50;
+  var nerf = G.p.atkDebuff > 0 ? 0.65 : 1;   /* 晚节不保 */
+  return {
+    cd:   base.cd * Math.pow(0.92, lv-1) * G.mods.cd,
+    dmg:  base.dmg * scale * G.mods.dmg * nerf,
+    num:  base.num + Math.floor((lv-1)/3),
+    pierce: base.pierce + Math.floor((lv-1)/2),
+    range: (base.ring||110) * G.mods.rng
+  };
+}
+
+/* ==================== 生成 ==================== */
+function spawnEnemy(){
+  var pool = [];
+  for (var i=0;i<ENEMY_TYPES.length;i++){
+    if (G.t >= ENEMY_TYPES[i].from) pool.push(ENEMY_TYPES[i]);
+  }
+  if (!pool.length) pool.push(ENEMY_TYPES[0]);
+  var ty = pool[Math.floor(Math.random()*pool.length)];
+  var a = Math.random()*Math.PI*2;
+  var d = Math.max(W,H)*0.62 + Math.random()*140;
+  var diff = 1 + G.t/RUN_SEC*0.55;
+  G.enemies.push({
+    t:ty, x:G.p.x+Math.cos(a)*d, y:G.p.y+Math.sin(a)*d,
+    hp: ty.hp*diff, maxHp: ty.hp*diff, dmg: ty.dmg*diff, r: ty.r,
+    /* 越到后面跑得越快，否则永远追不上玩家，遛狗就无敌了 */
+    spd: ty.spd*(1 + G.t/RUN_SEC*0.50)*(1+Math.random()*0.18), flash:0, kb:{x:0,y:0}
+  });
+}
+function spawnRate(){
+  return 1.25 - G.t/RUN_SEC*0.60;
+}
+
+/* ==================== BOSS ==================== */
+function spawnBoss(){
+  G.bossSpawned = true;
+  var a = Math.random()*Math.PI*2;
+  var d = Math.max(W,H)*0.7;
+  G.boss = {
+    x:G.p.x+Math.cos(a)*d, y:G.p.y+Math.sin(a)*d,
+    hp: 1700, maxHp: 1700, r:44,
+    state:'chase', t:0, atkT:3.5, cur:null, warn:null, flash:0,
+    phase:0, quoteCd:6, quote:null, quoteT:0
+  };
+  toast('他来了。');
+}
+var BOSS_QUOTES = [
+  '两个走竞赛，两个走强基，两个走裸分',
+  '当了这么久班干，不要晚节不保',
+  '来化学竞赛吧，你这脑子学别的可惜了',
+  '今天的每日计划，写了吗？'
+];
+
+function bossAttack(){
+  var b = G.boss, pick = Math.floor(Math.random()*3);
+  if (pick===0){
+    b.state='spit'; b.t=0; b.cur='spit';
+    b.warn = { x:G.p.x, y:G.p.y, t:0.95, max:0.95 };
+  } else if (pick===1){
+    b.state='call'; b.t=0; b.cur='call';
+    b.summon = [
+      {k:'chalk', n:2}, {k:'book', n:2}, {k:'paper', n:2}
+    ];
+    b.summonIdx = 0; b.summonT = 0;
+    b.quote = '两个走竞赛，两个走强基，两个走裸分'; b.quoteT = 2.6;
+  } else {
+    b.state='yell'; b.t=0; b.cur='yell';
+    b.warn = { x:G.p.x, y:G.p.y, t:0.7, max:0.7 };
+    b.quote = '当了这么久班干，不要晚节不保'; b.quoteT = 2.4;
+  }
+}
+function summonType(id){
+  for (var i=0;i<ENEMY_TYPES.length;i++) if (ENEMY_TYPES[i].id===id) return ENEMY_TYPES[i];
+  return ENEMY_TYPES[0];
+}
+
+/* ==================== 特殊技 ==================== */
+function useSpecial(){
+  if (!G || G.scene!=='play') return;
+  var p = G.p;
+  if (G.char.special === 'toilet'){
+    if (p.specialCd > 0) return;
+    p.specialCd = 20; p.shield = 3;
+    toast('牢李：去趟厕所');
+  }
+}
+/* 手机上的技能键（键盘按空格也行） */
+var skillEl = document.getElementById('skill');
+(function(){
+  function hit(ev){ ev.preventDefault(); ev.stopPropagation(); useSpecial(); }
+  skillEl.addEventListener('touchstart', hit, {passive:false});
+  skillEl.addEventListener('click', hit);
+})();
+var skillLastTxt = '';
+function updateSkillBtn(){
+  if (!G) return;
+  if (G.char.special !== 'toilet'){ skillEl.classList.remove('on'); return; }
+  skillEl.classList.add('on');
+  var cd = G.p.specialCd;
+  var txt = cd > 0 ? ('跑厕所<br>' + cd.toFixed(0) + 's') : '跑厕所<br>就绪';
+  if (txt !== skillLastTxt){
+    skillEl.innerHTML = txt;
+    skillEl.classList.toggle('cool', cd > 0);
+    skillLastTxt = txt;
+  }
+}
+
+/* ==================== 更新 ==================== */
+function update(dt){
+  var p = G.p;
+  G.t += dt;
+  if (G.shake > 0) G.shake -= dt;
+
+  /* 撑到放学 */
+  if (G.t >= RUN_SEC){ G.t = RUN_SEC; endGame(true); return; }
+
+  /* --- 移动 --- */
+  var ix = 0, iy = 0;
+  if (keys['a']||keys['arrowleft'])  ix -= 1;
+  if (keys['d']||keys['arrowright']) ix += 1;
+  if (keys['w']||keys['arrowup'])    iy -= 1;
+  if (keys['s']||keys['arrowdown'])  iy += 1;
+  if (stick.active){ ix += stick.dx; iy += stick.dy; }
+  var m = Math.hypot(ix,iy);
+  if (m>1){ ix/=m; iy/=m; }
+  var spd = p.spd * G.mods.spd;
+  if (p.spdDebuff > 0) spd *= 0.6;          /* 晚节不保 */
+  p.x += ix*spd*dt; p.y += iy*spd*dt;
+  if (Math.abs(ix)>0.05) p.face = ix>0?1:-1;
+
+  /* --- 恢复 / 无敌 --- */
+  if (p.inv>0) p.inv -= dt;
+  if (p.shield>0) p.shield -= dt;
+  if (p.specialCd>0) p.specialCd -= dt;
+  var regen = G.mods.mealHp + (G.perks.meal||0)*0.7;
+  if (regen>0 && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + regen*dt);
+
+  /* --- 连杀 --- */
+  if (p.comboT>0){ p.comboT -= dt; if (p.comboT<=0) p.combo=0; }
+
+  /* --- 刷怪 --- */
+  G.spawnT -= dt;
+  if (G.spawnT<=0 && !G.bossSpawned){
+    G.spawnT = spawnRate();
+    var batch = 1 + Math.floor(G.t/RUN_SEC*1.8);
+    for (var i=0;i<batch;i++) spawnEnemy();
+  } else if (G.spawnT<=0 && G.bossSpawned){
+    G.spawnT = spawnRate()*1.5;
+    for (var j=0;j<2;j++) spawnEnemy();
+  }
+
+  /* --- BOSS 出场 --- */
+  if (!G.bossSpawned && G.t >= RUN_SEC*0.40){
+    if (G.bossWarn < 0) { G.bossWarn = 3.0; toast('走廊尽头，有个身影…'); }
+    G.bossWarn -= dt;
+    if (G.bossWarn <= 0) spawnBoss();
+  }
+
+  /* --- 武器 --- */
+  for (var w=0; w<G.weapons.length; w++){
+    var wp = G.weapons[w];
+    wp.t -= dt;
+    if (wp.t > 0) continue;
+    var st = wpnStats(wp);
+    wp.t = st.cd;
+    fireWeapon(wp, st);
+  }
+
+  /* --- 子弹 --- */
+  for (var b=G.bullets.length-1; b>=0; b--){
+    var bl = G.bullets[b];
+    bl.x += bl.vx*dt; bl.y += bl.vy*dt;
+    bl.life -= dt;
+    if (bl.arc){ bl.t += dt; bl.x = bl.ox + Math.cos(bl.a0 + bl.t*bl.spin)*bl.rad;
+                 bl.y = bl.oy + Math.sin(bl.a0 + bl.t*bl.spin)*bl.rad; }
+    if (bl.life<=0){ G.bullets.splice(b,1); continue; }
+    if (bl.kind === 'eraser' || bl.kind === 'bell'){
+      if (bl.t > bl.dur){ G.bullets.splice(b,1); continue; }
+      continue;
+    }
+    /* 命中 —— 用平方距离，省掉开方（手机上快很多） */
+    var br = (bl.r||7);
+    for (var e=G.enemies.length-1; e>=0; e--){
+      var en = G.enemies[e];
+      var hx = en.x-bl.x, hy = en.y-bl.y, hr = en.r + br;
+      if (hx*hx + hy*hy < hr*hr){
+        damageEnemy(e, bl.dmg);
+        if (bl.pierce > 0){ bl.pierce--; }
+        else { G.bullets.splice(b,1); }
+        break;
+      }
+    }
+    if (G.boss && G.bullets[b]){
+      var bb = G.bullets[b];
+      var bx = G.boss.x-bb.x, by = G.boss.y-bb.y, brr = G.boss.r + (bb.r||7);
+      if (bx*bx + by*by < brr*brr){
+        damageBoss(bb.dmg);
+        if (bb.pierce>0) bb.pierce--; else G.bullets.splice(b,1);
+      }
+    }
+  }
+
+  /* --- 敌人 --- */
+  for (var i=G.enemies.length-1; i>=0; i--){
+    var en2 = G.enemies[i];
+    if (en2.flash>0) en2.flash -= dt;
+    var dx = p.x-en2.x, dy = p.y-en2.y;
+    var dd = Math.sqrt(dx*dx + dy*dy) || 1;
+    en2.x += (dx/dd)*en2.spd*dt + en2.kb.x*dt;
+    en2.y += (dy/dd)*en2.spd*dt + en2.kb.y*dt;
+    en2.kb.x *= 0.88; en2.kb.y *= 0.88;
+    /* 撞玩家 */
+    var hitR = en2.r + p.r;
+    if (dd*dd < hitR*hitR){
+      if (p.inv<=0 && p.shield<=0) hitPlayer(en2.dmg);
+    }
+  }
+
+  /* --- 经验球 --- */
+  for (var g=G.gems.length-1; g>=0; g--){
+    var gm = G.gems[g];
+    var gdx = p.x-gm.x, gdy = p.y-gm.y;
+    var gd2 = gdx*gdx + gdy*gdy;
+    if (gd2 < 22500){                       /* 150^2 */
+      var gd = Math.sqrt(gd2) || 1;
+      gm.x += (gdx/gd)*280*dt; gm.y += (gdy/gd)*280*dt;
+    }
+    if (gd2 < (p.r+10)*(p.r+10)){ G.gems.splice(g,1); gainXp(gm.v); }
+  }
+
+  /* --- BOSS 行为 --- */
+  if (G.boss) updateBoss(dt);
+
+  /* --- 特效 --- */
+  for (var f=G.fx.length-1; f>=0; f--){
+    var fx = G.fx[f];
+    fx.t += dt;
+    if (fx.t > fx.dur) G.fx.splice(f,1);
+  }
+}
+
+function gainXp(v){
+  var p = G.p;
+  p.xp += v;
+  while (p.xp >= p.need){
+    p.xp -= p.need;
+    p.lvl++;
+    p.need = Math.floor(p.need*1.32 + 2);
+    pendingLevel++;
+  }
+}
+var pendingLevel = 0;
+
+function hitPlayer(dmg){
+  var p = G.p;
+  var real = dmg;
+  if (G.char.special === 'twice'){
+    /* 水哥：受伤二次结算，但总量打折 */
+    real = dmg*0.62*2;
+  }
+  p.hp -= real;
+  p.inv = 0.55;
+  G.shake = 0.18;
+  addFx(p.x, p.y, real>12?'#e05252':'#e8a33d', 16, 0.4);
+  if (G.char.special === 'combo'){ p.combo = 0; p.comboT = 0; }
+  if (p.hp <= 0){ p.hp = 0; endGame(false); }
+}
+
+function damageEnemy(idx, dmg){
+  var en = G.enemies[idx];
+  var p = G.p;
+  en.hp -= dmg;
+  en.flash = 0.12;
+  if (en.hp <= 0){
+    addFx(en.x, en.y, '#a8a29e', 10, 0.3);
+    G.gems.push({ x:en.x, y:en.y, v:en.t.xp });
+    G.enemies.splice(idx,1);
+    if (G.char.special === 'combo'){
+      p.combo++; p.comboT = 2.2;
+    }
+  }
+}
+function damageBoss(dmg){
+  var b = G.boss;
+  b.hp -= dmg; b.flash = 0.1;
+  if (b.hp <= 0) killBoss();
+}
+function killBoss(){
+  var b = G.boss;
+  addFx(b.x, b.y, '#e8a33d', 90, 1.4);
+  G.boss = null;
+  toast('他走了。剩下的时间，是你自己的。');
+}
+
+function addFx(x,y,color,n,dur){
+  for (var i=0;i<Math.max(4,n/3);i++){
+    var a = Math.random()*Math.PI*2, s = 40+Math.random()*180;
+    G.fx.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+                t:0, dur:dur, color:color, r:2+Math.random()*3 });
+  }
+}
+
+/* ==================== 武器开火 ==================== */
+function fireWeapon(wp, st){
+  var p = G.p;
+  var rng = 110*G.mods.rng;
+  switch (wp.k){
+    case 'pen': {
+      var n = st.num, spread = 0.3;
+      var aim = nearestAngle();
+      for (var i=0;i<n;i++){
+        var a = aim + (i-(n-1)/2)*spread;
+        G.bullets.push({ x:p.x, y:p.y, vx:Math.cos(a)*520, vy:Math.sin(a)*520,
+          dmg:st.dmg, pierce:st.pierce, life:1.0, kind:'pen', r:6, color:'#e8e6e3' });
+      }
+      break;
+    }
+    case 'note': {
+      var n2 = st.num;
+      for (var j=0;j<n2;j++){
+        var a2 = j/n2*Math.PI*2 + Math.random()*0.15;
+        G.bullets.push({ x:p.x, y:p.y, vx:Math.cos(a2)*300, vy:Math.sin(a2)*300,
+          dmg:st.dmg, pierce:st.pierce, life:1.1, kind:'note', r:8, color:'#e8d9a8' });
+      }
+      break;
+    }
+    case 'cup': {
+      var aim2 = nearestAngle();
+      G.bullets.push({ x:p.x, y:p.y, vx:Math.cos(aim2)*380, vy:Math.sin(aim2)*380,
+        dmg:st.dmg, pierce:st.pierce, life:1.6, kind:'cup', r:8, color:'#9cc4e4',
+        bounce:true });
+      break;
+    }
+    case 'eraser': {
+      G.bullets.push({ x:p.x, y:p.y, vx:0, vy:0, dmg:st.dmg, pierce:99,
+        life:0.28, t:0, dur:0.28, kind:'eraser', r:rng*0.72, color:'#d6d3d1' });
+      break;
+    }
+    case 'book': {
+      for (var k=0;k<st.num;k++){
+        var a3 = Math.random()*Math.PI*2, d3 = 40+Math.random()*rng*1.6;
+        G.bullets.push({ x:p.x+Math.cos(a3)*d3, y:p.y+Math.sin(a3)*d3, vx:0, vy:0,
+          dmg:st.dmg, pierce:99, life:0.42, t:0, dur:0.42,
+          kind:'book', r:rng*0.48, color:'#c9b8a4', fall:true });
+      }
+      break;
+    }
+    case 'bell': {
+      G.bullets.push({ x:p.x, y:p.y, vx:0, vy:0, dmg:st.dmg, pierce:99,
+        life:0.72, t:0, dur:0.72, kind:'bell', r:rng*2.6, color:'#e8a33d' });
+      /* 震退（倒序，因为 damageEnemy 会删元素） */
+      for (var e=G.enemies.length-1;e>=0;e--){
+        var en=G.enemies[e];
+        var dx=en.x-p.x, dy=en.y-p.y, d=Math.hypot(dx,dy)||1;
+        if (d < rng*2.6){
+          damageEnemy(e, st.dmg);
+          if (G.enemies[e]) { G.enemies[e].kb.x += (dx/d)*340; G.enemies[e].kb.y += (dy/d)*340; }
+        }
+      }
+      break;
+    }
+  }
+}
+function nearestAngle(){
+  var p = G.p, best=null, bd=1e9;
+  for (var i=0;i<G.enemies.length;i++){
+    var d = Math.hypot(G.enemies[i].x-p.x, G.enemies[i].y-p.y);
+    if (d<bd){ bd=d; best=G.enemies[i]; }
+  }
+  if (G.boss){
+    var db = Math.hypot(G.boss.x-p.x, G.boss.y-p.y);
+    if (db<bd){ best = G.boss; }
+  }
+  if (!best) return p.face>0?0:Math.PI;
+  return Math.atan2(best.y-p.y, best.x-p.x);
+}
+
+/* ==================== BOSS 更新 ==================== */
+function updateBoss(dt){
+  var b = G.boss, p = G.p;
+  if (b.flash>0) b.flash -= dt;
+  b.t += dt;
+  if (b.quoteT>0) b.quoteT -= dt;
+
+  /* 血量阶段 */
+  var frac = b.hp/b.maxHp;
+  var ph = frac>0.66?0 : frac>0.33?1 : 2;
+
+  if (b.state==='chase'){
+    var dx=p.x-b.x, dy=p.y-b.y, d=Math.hypot(dx,dy)||1;
+    var sp = 92 + ph*22;
+    b.x += (dx/d)*sp*dt; b.y += (dy/d)*sp*dt;
+    if (d < b.r+p.r && p.inv<=0 && p.shield<=0) hitPlayer(16+ph*4);
+    b.atkT -= dt;
+    if (b.atkT<=0){ bossAttack(); b.atkT = 3.4 - ph*0.6; }
+  }
+  else if (b.state==='spit'){
+    b.warn.t -= dt;
+    if (b.warn.t<=0){
+      var tx=b.warn.x, ty=b.warn.y;
+      addFx(tx, ty, '#8a7a5c', 40, 0.7);
+      G.bullets.push({ x:tx, y:ty, vx:0, vy:0, dmg:0, kind:'puddle',
+        r:58, life:2.4, t:0, dur:2.4, color:'#8a7a5c' });
+      /* 砸中玩家 */
+      if (Math.hypot(p.x-tx,p.y-ty) < 58 && p.inv<=0 && p.shield<=0) hitPlayer(22);
+      G.shake = 0.3;
+      b.state='chase'; b.warn=null;
+    }
+  }
+  else if (b.state==='yell'){
+    b.warn.t -= dt;
+    if (b.warn.t<=0){
+      if (Math.hypot(p.x-b.warn.x, p.y-b.warn.y) < 120){
+        p.spdDebuff = 5; p.atkDebuff = 5;
+        toast('晚节不保！');
+      }
+      b.state='chase'; b.warn=null;
+    }
+  }
+  else if (b.state==='call'){
+    b.summonT -= dt;
+    if (b.summonT<=0 && b.summonIdx < b.summon.length){
+      var s = b.summon[b.summonIdx];
+      var ty2 = summonType(s.k);
+      var lab = ['两个走竞赛！','两个走强基！','两个走裸分！'][b.summonIdx];
+      b.quote = lab; b.quoteT = 1.8;
+      for (var i=0;i<s.n;i++){
+        var a = Math.random()*Math.PI*2, dd = 160+Math.random()*80;
+        G.enemies.push({
+          t:ty2, x:b.x+Math.cos(a)*dd, y:b.y+Math.sin(a)*dd,
+          hp: ty2.hp*1.6, maxHp: ty2.hp*1.6, dmg: ty2.dmg*1.3, r: ty2.r,
+          spd: ty2.spd*1.25, flash:0, kb:{x:0,y:0}
+        });
+      }
+      b.summonIdx++;
+      b.summonT = 0.55;
+    } else if (b.summonIdx >= b.summon.length){
+      b.state='chase';
+    }
+  }
+
+  /* 玩家 debuff */
+  if (p.spdDebuff>0){ p.spdDebuff -= dt; if (p.spdDebuff<=0) p.spdDebuff=0; }
+}
+
+/* ==================== 渲染 ==================== */
+var camX=0, camY=0;
+function render(){
+  var p = G.p;
+  camX += (p.x - camX)*0.14;
+  camY += (p.y - camY)*0.14;
+  var sx = 0, sy = 0;
+  if (G.shake>0){ sx=(Math.random()-0.5)*10; sy=(Math.random()-0.5)*10; }
+
+  cx.save();
+  cx.translate(W/2 + sx, H/2 + sy);
+  cx.translate(-camX, -camY);
+
+  /* 地板 */
+  cx.fillStyle = '#1a1816';
+  cx.fillRect(camX-W/2-40, camY-H/2-40, W+80, H+80);
+  var grid = 64;
+  cx.strokeStyle = 'rgba(120,113,108,.09)'; cx.lineWidth = 1;
+  var x0 = Math.floor((camX-W/2)/grid)*grid, y0 = Math.floor((camY-H/2)/grid)*grid;
+  cx.beginPath();
+  for (var gx=x0; gx<camX+W/2+grid; gx+=grid){ cx.moveTo(gx, camY-H/2); cx.lineTo(gx, camY+H/2); }
+  for (var gy=y0; gy<camY+H/2+grid; gy+=grid){ cx.moveTo(camX-W/2, gy); cx.lineTo(camX+W/2, gy); }
+  cx.stroke();
+
+  /* 经验球 */
+  for (var i=0;i<G.gems.length;i++){
+    var gm = G.gems[i];
+    cx.fillStyle = '#7c9c6b';
+    cx.beginPath(); cx.arc(gm.x, gm.y, 5, 0, 7); cx.fill();
+  }
+
+  /* 特效 */
+  for (var f=0;f<G.fx.length;f++){
+    var fx = G.fx[f], k = fx.t/fx.dur;
+    cx.globalAlpha = 1-k;
+    cx.fillStyle = fx.color;
+    cx.beginPath(); cx.arc(fx.x+fx.vx*fx.t, fx.y+fx.vy*fx.t, fx.r*(1-k*0.5), 0, 7); cx.fill();
+  }
+  cx.globalAlpha = 1;
+
+  /* 子弹 —— 地面层（橡皮擦/课铃/书/污渍） */
+  var bFont = '';
+  cx.textAlign='center'; cx.textBaseline='middle';
+  for (var b=0;b<G.bullets.length;b++){
+    var bl = G.bullets[b];
+    if (bl.kind==='puddle'){
+      cx.globalAlpha = 0.5;
+      cx.fillStyle = bl.color;
+      cx.beginPath(); cx.arc(bl.x, bl.y, bl.r, 0, 7); cx.fill();
+      cx.globalAlpha = 1;
+      continue;
+    }
+    if (bl.kind==='eraser'){
+      var k2 = bl.t/bl.dur;
+      cx.globalAlpha = (1-k2)*0.85;
+      cx.strokeStyle = bl.color; cx.lineWidth = 10;
+      cx.beginPath(); cx.arc(bl.x, bl.y, bl.r*(0.4+k2*0.75), 0, 7); cx.stroke();
+      cx.globalAlpha = 1; continue;
+    }
+    if (bl.kind==='bell'){
+      var k3 = bl.t/bl.dur;
+      cx.globalAlpha = (1-k3)*0.5;
+      cx.strokeStyle = bl.color; cx.lineWidth = 7;
+      cx.beginPath(); cx.arc(bl.x, bl.y, bl.r*k3, 0, 7); cx.stroke();
+      cx.globalAlpha = 1; continue;
+    }
+    if (bl.kind==='book'){
+      var k4 = bl.t/bl.dur;
+      cx.globalAlpha = 1-k4*0.4;
+      if (bFont !== '30px serif'){ cx.font = '30px serif'; bFont = '30px serif'; }
+      cx.fillText('📚', bl.x, bl.y - (1-k4)*90);
+      if (k4>0.55){
+        cx.globalAlpha = (1-k4)*2*0.6;
+        cx.strokeStyle = bl.color; cx.lineWidth = 5;
+        cx.beginPath(); cx.arc(bl.x, bl.y, bl.r, 0, 7); cx.stroke();
+      }
+      cx.globalAlpha = 1; continue;
+    }
+    /* 普通子弹 */
+    if (bFont !== '18px serif'){ cx.font = '18px serif'; bFont = '18px serif'; }
+    var icon = bl.kind==='pen'?'✏️': bl.kind==='note'?'📝':'🥤';
+    cx.fillText(icon, bl.x, bl.y);
+  }
+
+  /* 敌人 */
+  cx.textAlign='center'; cx.textBaseline='middle';
+  var curFont = '';
+  for (var e=0;e<G.enemies.length;e++){
+    var en = G.enemies[e];
+    var f = en.t.font || (en.t.font = Math.round(en.t.r*2.1)+'px serif');
+    if (f !== curFont){ cx.font = f; curFont = f; }
+    if (en.flash>0) cx.globalAlpha = 0.55;
+    cx.fillText(en.t.e, en.x, en.y);
+    cx.globalAlpha = 1;
+  }
+
+  /* 污渍减速判定留给 update —— 这里只画 */
+
+  /* BOSS */
+  if (G.boss){
+    var b = G.boss;
+    if (b.warn){
+      cx.globalAlpha = 0.35;
+      cx.strokeStyle='#e05252'; cx.lineWidth=4;
+      cx.beginPath(); cx.arc(b.warn.x, b.warn.y, 58, 0, 7); cx.stroke();
+      cx.globalAlpha = 1;
+    }
+    if (b.flash>0) cx.globalAlpha = 0.6;
+    if (IMGS.boss){
+      cx.save();
+      cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.clip();
+      cx.drawImage(IMGS.boss, b.x-b.r, b.y-b.r, b.r*2, b.r*2);
+      cx.restore();
+      cx.strokeStyle='#e05252'; cx.lineWidth=3;
+      cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 7); cx.stroke();
+    } else {
+      cx.font = (b.r*2)+'px serif';
+      cx.fillText('🧑🏫', b.x, b.y);
+    }
+    cx.globalAlpha = 1;
+    if (b.quoteT>0){
+      cx.font = 'bold 17px system-ui,sans-serif';
+      cx.fillStyle = '#f5d7a8';
+      cx.fillText(b.quote, b.x, b.y - b.r - 22);
+      cx.fillStyle = '#f5f5f4';
+    }
+  }
+
+  /* 玩家 */
+  var pd = p.spdDebuff>0;
+  cx.save();
+  if (p.shield>0){ cx.globalAlpha = 0.45; }
+  if (p.inv>0 && Math.floor(p.inv*20)%2===0) cx.globalAlpha = 0.4;
+  if (IMGS[p.id_]){
+    cx.beginPath(); cx.arc(p.x, p.y, p.r, 0, 7); cx.clip();
+    cx.drawImage(IMGS[p.id_], p.x-p.r, p.y-p.r, p.r*2, p.r*2);
+    cx.restore(); cx.save();
+  } else {
+    cx.font = '34px serif';
+    cx.fillText(G.char.emoji, p.x, p.y);
+  }
+  cx.restore();
+  cx.strokeStyle = pd ? '#e05252' : '#c2703a';
+  cx.lineWidth = 3;
+  cx.beginPath(); cx.arc(p.x, p.y, p.r+4, 0, 7); cx.stroke();
+  if (p.shield>0){
+    cx.globalAlpha = 0.6; cx.strokeStyle='#7c9c6b'; cx.lineWidth=4;
+    cx.beginPath(); cx.arc(p.x, p.y, p.r+13, 0, 7); cx.stroke();
+    cx.globalAlpha = 1;
+  }
+
+  cx.restore();
+}
+
+/* ==================== 主循环 ==================== */
+var lastT = 0;
+function loop(ts){
+  requestAnimationFrame(loop);
+  var dt = Math.min((ts-lastT)/1000, 0.05); lastT = ts;
+  if (!G) { return; }
+  if (G.scene === 'play'){
+    update(dt);
+    if (G.scene === 'play') applyPuddles(dt);
+    if (pendingLevel > 0 && G.scene === 'play'){ showLevelUp(); }
+    updateHud();
+  }
+  render();
+  if (G) renderOverlayText();
+}
+requestAnimationFrame(loop);
+
+function applyPuddles(dt){
+  var p = G.p;
+  if (p.shield>0) return;
+  for (var i=0;i<G.bullets.length;i++){
+    var bl = G.bullets[i];
+    if (bl.kind !== 'puddle') continue;
+    if (Math.hypot(p.x-bl.x, p.y-bl.y) < bl.r){
+      /* 持续掉血，不给无敌帧，否则站在里面反而不掉血 */
+      p.hp -= 15*dt;
+      if (p.hp <= 0){ p.hp = 0; endGame(false); return; }
+    }
+  }
+}
+
+function renderOverlayText(){
+  if (G.boss && G.boss.quoteT>0) return;
+}
+
+/* ==================== HUD ==================== */
+var clockEl=document.getElementById('clock'), hpEl=document.getElementById('hpbar'),
+    lvEl=document.getElementById('lv'), xpEl=document.getElementById('xpbar'),
+    bossBar=document.getElementById('bossbar'), bossFg=bossBar.querySelector('.fg');
+
+function updateHud(){
+  var p=G.p;
+  clockEl.textContent = clockText(G.t);
+  var frac = G.t/RUN_SEC;
+  clockEl.className = frac>0.9?'final': frac>0.7?'warn':'';
+  hpEl.style.width = Math.max(0,(p.hp/p.maxHp*100))+'%';
+  lvEl.textContent = 'Lv.'+p.lvl;
+  xpEl.style.width = (p.xp/p.need*100)+'%';
+  if (G.boss){
+    bossBar.classList.add('on');
+    bossFg.style.width = Math.max(0,(G.boss.hp/G.boss.maxHp*100))+'%';
+  } else bossBar.classList.remove('on');
+  updateSkillBtn();
+}
+
+/* ==================== 提示 ==================== */
+var toastEl = document.getElementById('toast'), toastTimer=null;
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function(){ toastEl.classList.remove('on'); }, 2200);
+}
+
+/* ==================== 升级界面 ==================== */
+var scUp=document.getElementById('scUp'), upList=document.getElementById('upList');
+function showLevelUp(){
+  pendingLevel--;
+  G.scene = 'levelup';
+  var opts = rollUpgrades();
+  upList.innerHTML = '';
+  opts.forEach(function(o){
+    var d = document.createElement('div');
+    d.className='up';
+    d.innerHTML = '<div class="ic">'+o.ic+'</div><div class="nm">'+o.nm+'</div>'+
+                  '<div class="ds">'+o.ds+'</div>'+(o.lv?'<div class="lv">'+o.lv+'</div>':'');
+    d.onclick = function(){ pickUpgrade(o); };
+    upList.appendChild(d);
+  });
+  scUp.classList.add('on');
+}
+function rollUpgrades(){
+  var pool = [];
+  /* 新武器 */
+  for (var i=0;i<WKEYS.length;i++){
+    var k=WKEYS[i], has=false;
+    for (var j=0;j<G.weapons.length;j++) if (G.weapons[j].k===k) has=true;
+    if (!has && G.weapons.length<6){
+      pool.push({ kind:'new', k:k, ic:WEAPONS[k].ic, nm:WEAPONS[k].name,
+                  ds:WEAPONS[k].desc, weight:3 });
+    }
+  }
+  /* 升武器 */
+  for (var w=0;w<G.weapons.length;w++){
+    var wp=G.weapons[w];
+    if (wp.lv < WEAPONS[wp.k].max){
+      pool.push({ kind:'up', k:wp.k, ic:WEAPONS[wp.k].ic, nm:WEAPONS[wp.k].name,
+                  ds:'伤害 / 数量 / 穿透 全面提升', lv:'Lv.'+wp.lv+' → '+(wp.lv+1),
+                  weight:4 });
+    }
+  }
+  /* 强化 */
+  for (var p2=0;p2<PKEYS.length;p2++){
+    var pk=PKEYS[p2], cur=G.perks[pk]||0;
+    if (cur < 5){
+      pool.push({ kind:'perk', k:pk, ic:PERKS[pk].ic, nm:PERKS[pk].name,
+                  ds:PERKS[pk].desc, lv: cur? ('Lv.'+cur+' → '+(cur+1)) : '',
+                  weight:3 });
+    }
+  }
+  /* 加权抽 3 */
+  var out=[];
+  for (var n=0;n<3 && pool.length;n++){
+    var total=0;
+    for (var q=0;q<pool.length;q++) total += pool[q].weight;
+    var r = Math.random()*total, acc=0, idx=0;
+    for (var z=0;z<pool.length;z++){ acc += pool[z].weight; if (r<=acc){ idx=z; break; } }
+    out.push(pool[idx]); pool.splice(idx,1);
+  }
+  return out;
+}
+function pickUpgrade(o){
+  var p=G.p;
+  if (o.kind==='new') addWeapon(o.k);
+  else if (o.kind==='up'){
+    for (var i=0;i<G.weapons.length;i++) if (G.weapons[i].k===o.k) G.weapons[i].lv++;
+  } else {
+    G.perks[o.k] = (G.perks[o.k]||0)+1;
+    applyPerk(o.k);
+  }
+  scUp.classList.remove('on');
+  if (pendingLevel>0){ showLevelUp(); }
+  else { G.scene='play'; lastT = performance.now(); }
+}
+function applyPerk(k){
+  var lv = G.perks[k];
+  switch(k){
+    case 'shoe': G.mods.spd = 1 + lv*0.12; break;
+    case 'pow':  G.mods.dmg = 1 + lv*0.18; break;
+    case 'rng':  G.mods.rng = 1 + lv*0.15; break;
+    case 'hnd':  G.mods.cd  = Math.pow(0.88, lv); break;
+    case 'vit':  G.p.maxHp += 22; G.p.hp = G.p.maxHp; break;
+    case 'meal': break; /* 在 update 里读 */
+  }
+}
+
+/* ==================== 结束 ==================== */
+var scEnd=document.getElementById('scEnd'), endTitle=document.getElementById('endTitle'),
+    endStat=document.getElementById('endStat');
+function endGame(win){
+  if (G.scene==='over') return;
+  G.scene='over';
+  var p=G.p;
+  var best = loadBest();
+  var secs = Math.round(realTime(G.t));
+  var rec = { char:G.char.id, t:secs, lv:p.lvl };
+  var isNew = secs > (best.t||0);
+  if (isNew){ best = rec; saveBest(best); }
+  endTitle.textContent = win? '放学了' : '你倒下了';
+  endStat.innerHTML =
+    '角色：'+G.char.name+'<br>'+
+    '存活：'+fmt(secs)+'<br>'+
+    '等级：Lv.'+p.lvl+'<br>'+
+    (isNew? '<br>🏆 新纪录！' : '<br>最高纪录：'+fmt(best.t));
+  scEnd.classList.add('on');
+  document.getElementById('hud').classList.remove('on');
+  skillEl.classList.remove('on');
+  stickEnd();
+}
+function fmt(s){
+  var m=Math.floor(s/60), ss=s%60;
+  return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss;
+}
+
+/* ==================== 存档 ==================== */
+var SAVE_KEY = 'lg7.save.v1';
+function loadBest(){
+  try{
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return {t:0,char:null,lv:0};
+    var d = JSON.parse(raw);
+    if (!d || typeof d.t !== 'number') return {t:0};
+    if (d.v !== 1) return migrate(d);
+    return d;
+  }catch(e){ return {t:0}; }
+}
+function migrate(d){ return { v:1, t: d.t||0, char: d.char||null, lv: d.lv||0 }; }
+function saveBest(b){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify({ v:1, t:b.t, char:b.char, lv:b.lv })); }catch(e){}
+}
+
+/* ==================== 界面流程 ==================== */
+function show(id){
+  var all=['scTitle','scSelect','scUp','scEnd'];
+  for (var i=0;i<all.length;i++) document.getElementById(all[i]).classList.remove('on');
+  if (id) document.getElementById(id).classList.add('on');
+}
+function buildCharList(){
+  var list = document.getElementById('charList');
+  list.innerHTML='';
+  CHARS.forEach(function(c){
+    var d=document.createElement('div');
+    d.className='char';
+    var av = IMGS[c.id] ? '<img src="'+c.img+'" alt="">' : c.emoji;
+    d.innerHTML='<div class="av">'+av+'</div><div class="nm">'+c.name+
+                '</div><div class="ds">'+c.tag+'<br>'+c.note+'</div>';
+    d.onclick=function(){ startRun(c.id); };
+    list.appendChild(d);
+  });
+}
+function startRun(id){
+  pendingLevel=0;
+  newGame(id);
+  G.p.id_ = id;
+  /* 每人都先给一把圆珠笔 */
+  addWeapon('pen');
+  show(null);
+  scEnd.classList.remove('on');
+  document.getElementById('hud').classList.add('on');
+  skillLastTxt = ''; updateSkillBtn();   /* 立刻按角色显示/隐藏技能键 */
+  lastT = performance.now();
+  toast('活到放学。');
+}
+
+document.getElementById('btnStart').onclick=function(){ show('scSelect'); };
+document.getElementById('btnBack').onclick=function(){ show('scTitle'); };
+document.getElementById('btnAgain').onclick=function(){
+  var id = G? G.char.id : 'shui';
+  scEnd.classList.remove('on');
+  startRun(id);
+};
+document.getElementById('btnSwap').onclick=function(){
+  scEnd.classList.remove('on');
+  buildCharList();
+  show('scSelect');
+};
+
+(function initBest(){
+  var b = loadBest();
+  var el = document.getElementById('best');
+  if (b.t>0){
+    var nm = '—';
+    for (var i=0;i<CHARS.length;i++) if (CHARS[i].id===b.char) nm=CHARS[i].name;
+    el.innerHTML = '最高纪录：'+fmt(b.t)+'（'+nm+'）';
+  } else {
+    el.textContent = '还没有记录。';
+  }
+  buildCharList();
+})();
+
+</script>
+</body>
+</html>
