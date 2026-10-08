@@ -16,6 +16,9 @@
   }
   .card {
     width: min(28rem, 100%);
+    /* border-box 不能少：宽度算的是「内容区」，不带上 padding 的话
+       在窄屏上整张卡会往右溢出（一直有这毛病，描述写长了才看出来） */
+    box-sizing: border-box;
     padding: 2.5rem clamp(1.25rem, 5vw, 2.5rem) 1.75rem;
     border: 1px solid #e7e5e4;
     border-radius: 16px;
@@ -59,6 +62,12 @@
 
     <ul class="works">
       <!-- 加新作品：照抄一个 li，改 nm / desc / href 就行 -->
+      <li>
+        <a href="./campus/">
+          <span class="nm">在校园里乱逛</span>
+          <span class="desc">地图探索 —— 教学楼、操场、食堂、水房都能走进去，走到人跟前说两句话。lg7 蹲在水房门口。</span>
+        </a>
+      </li>
     </ul>
 
     <p class="foot">最近更新 2026.10.08</p>
