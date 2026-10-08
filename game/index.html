@@ -37,7 +37,8 @@
   .pick .av { width:clamp(42px,11vw,58px); height:clamp(42px,11vw,58px); flex:0 0 auto;
     border-radius:50%; overflow:hidden; border:2px solid #44403c; background:#292524;
     display:flex; align-items:center; justify-content:center; font-size:clamp(20px,5vw,28px); }
-  .pick .av img { width:100%; height:100%; object-fit:cover; }
+  /* pixelated：立绘是像素画，缩放开插值就白画了 */
+  .pick .av img { width:100%; height:100%; object-fit:cover; image-rendering:pixelated; }
   .pick .nm { font-size:clamp(14px,3.6vw,17px); font-weight:600; }
   .pick .tm { font-size:clamp(10px,2.6vw,12px); opacity:.45; letter-spacing:.08em; margin-top:3px;
     font-variant-numeric:tabular-nums; }
