@@ -657,6 +657,24 @@ function floor2Layout(){
   NAME(39, 2, 7, 22, '45班');           // 楼上也有一间 45 班
 }
 
+/* ================== 三号图：男厕所 ==================
+   原来厕所只是教学楼里的一间屋，跟教室长一个样 —— 进去一点"换了地方"
+   的感觉都没有。现在单独一张图：一格一格的门、一排池子、一面镜子。
+   三个教学楼的厕所都通到这儿，出来的时候回你刚才进的那间。 */
+function toiletLayout(){
+  var W = 18, H = 14;
+  R('wall', 1, 1, W-2, H-2);              // 一圈墙
+  R('floor', 2, 2, W-4, H-4);             // cols 2..15, rows 2..11
+  /* 北边四间隔间 */
+  R('wall', 2, 5, 12, 1);                 // 门脸那道墙（cols 2..13）
+  [5, 8, 11].forEach(function(sx){ R('wall', sx, 2, 1, 4); });      // 隔断
+  [3, 6, 9, 12].forEach(function(dx){ R('door', dx, 5, 2, 1); });   // 四个门
+  /* 西边一排洗手池：只有半截，挡不到去南边的路 */
+  R('wall', 2, 9, 6, 1);
+  NAME(1, 1, 13, 4, '隔间');
+  NAME(1, 9, 7, 1, '洗手池');
+}
+
 /* ================== 登记两张图 ================== */
 makeMap('campus', {
   w: 80, h: 125,
@@ -683,7 +701,11 @@ makeMap('campus', {
   ],
   /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
   portals: [
-    { x:13, y:73, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' }
+    { x:13, y:73, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
+    /* 三个教学楼的厕所门 —— 进去是另一张图。出来的时候回你刚才进的那间 */
+    { x:6,  y:83, w:2, h:1, to:'toilet', tx:8, ty:10 },
+    { x:6,  y:59, w:2, h:1, to:'toilet', tx:8, ty:10 },
+    { x:58, y:83, w:2, h:1, to:'toilet', tx:8, ty:10 }
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -715,7 +737,6 @@ makeMap('campus', {
     { x:16, y:80, w:2, h:2, once:true, if:'该查名单了', talk:'pz_rollcall' },
     /* 镜子要"站着不动"才显字 —— 可守则第四条就写着不要在玻璃前面停。
        管不管厕所的镜子，得玩家自己判断 */
-    { x:5,  y:85, w:2, h:2, once:true, if:'该查名单了', still:2.0, talk:'pz_mirror' },
 
     /* ---- 水哥那条的谜题：后山墙上六块苔，按守则的条数擦 ---- */
     { x:8,  y:20, w:2, h:2, once:true, if:'该去后山了', talk:'wipe_intro' },
@@ -747,7 +768,6 @@ makeMap('campus', {
     { x:13, y:85, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_game' },
 
     /* ---- 三段专属吓点：只有那个人会走到那儿 ---- */
-    { x:7,  y:88, w:2, h:2, once:true, if:'镜子上三个字', talk:'ld_toilet' },
     { x:16, y:74, w:2, h:2, once:true, if:'擦完墙', talk:'sh_laugh' },
 
     /* ---- 水哥那条线的分岔：撞见 logic 从楼上下来 ---- */
@@ -765,6 +785,23 @@ makeMap('campus', {
     { x:38, y:35, w:2, h:2, once:true, if:'被追了', talk:'chase_bell', endchase:true }
   ]
 }, campusLayout);
+
+makeMap('toilet', {
+  w: 18, h: 14,
+  base: 'void',
+  spawn: [8, 10],
+  portals: [
+    /* 从哪儿进来的回哪儿去 —— 三个教学楼的厕所都通到这一张图 */
+    { x:8, y:11, w:2, h:1, to:'campus', tx:6, ty:86, back:true }
+  ],
+  triggers: [
+    /* 镜子在西墙。得站着不动才显字 —— 跟守则第四条那面玻璃是同一个道理，
+       可这儿是厕所，不是"走廊尽头" */
+    { x:2, y:6, w:1, h:3, once:true, still:2.0, talk:'pz_mirror' },
+    /* 水声：出来一看池子全是干的 */
+    { x:13, y:6, w:2, h:3, once:true, if:'镜子上三个字', talk:'ld_toilet' }
+  ]
+}, toiletLayout);
 
 makeMap('floor2', {
   w: 48, h: 26,
@@ -1101,8 +1138,10 @@ var TALK = {
      得按条数擦 —— 擦错顺序，墙后面的声音就停。 */
   wipe_intro: { nodes:{
     s:{ text:'林子尽头那堵墙上，长了六块苔。', next:'t' },
-    t:{ text:'每块苔底下都压着一个字 —— 你拿手指蹭了一下，蹭掉一小片。', next:'u' },
-    u:{ text:'（擦的顺序不对，墙后面的声音会停。）', set:'看到六块苔', end:true }
+    t:{ text:'（你拿手指挨个蹭了一下。\n　每块底下都刻着一个字，蹭开一点就认得出。）', next:'u' },
+    u:{ text:'（从西头往东数，依次是：）\n\n　如　上　数　玻　门　师', next:'v' },
+    v:{ text:'（守则六条的头一个字，正好就是这六个。）\n\n（那就按条数擦 —— \n　第一条"上"、第二条"师"、第三条"如"……）', next:'w' },
+    w:{ text:'（擦的顺序不对，墙后面的声音会停。）', set:'看到六块苔', end:true }
   }},
 
   wipe_1: { nodes:{ s:{ text:'你擦开第一块苔。\n石头上刻着一个字：「上」。', set:'擦墙1', end:true }}},
@@ -1931,12 +1970,21 @@ var CROWD = [];
 (function(){
   var ids = ['deskmate', 'logic', 'shui', 'deskmate', 'laoli', 'logic', 'shui'];
   var k = 0;
+  /* 46 班里坐着的（desk:true 会给他们画张桌子） */
   for (var r=0; r<5; r++) for (var c=0; c<4; c++){
     var gx = 19 + c, gy = 74 + r;                 // 46 班：cols 19..22, rows 74..78
     if (gx === 19 && gy === 74) continue;         // 同桌那个位子留出来
     if (gx === 21 && gy === 74) continue;         // 老师站着的地方
-    CROWD.push({ map:'campus', x:gx, y:gy, id:ids[k++ % ids.length] });
+    CROWD.push({ map:'campus', x:gx, y:gy, id:ids[k++ % ids.length], desk:true });
   }
+  /* 校园里站着的 —— 一所学校不该只有你一个人。
+     走廊、主干道、广场、校门口都该有人。
+     他们全都是布景：不能对话，但 stare 那几秒会一起转过头 */
+  [[16,86],[16,79],[25,20],[50,20],[30,26],[36,26],[43,26],
+   [30,35],[45,40],[34,118],[41,118],[8,26],[12,26],[66,26],[70,26],
+   [24,95],[52,95],[39,60],[39,106],[60,40]].forEach(function(p){
+    CROWD.push({ map:'campus', x:p[0], y:p[1], id:ids[k++ % ids.length] });
+  });
 })();
 
 var TOILETS = [
@@ -1945,6 +1993,7 @@ var TOILETS = [
   { map:'campus', x:57, y:84, w:4, h:7 }    // 第三教学楼西翼南排
 ];
 function inToilet(){
+  if (M.map === 'toilet') return true;        // 厕所现在是一张单独的图
   var tx = Math.floor(M.p.x/TILE), ty = Math.floor(M.p.y/TILE);
   for (var i=0;i<TOILETS.length;i++){
     var T = TOILETS[i];
@@ -2606,7 +2655,7 @@ function update(dt){
 
   /* 快跑：键盘按住 Shift，手机靠右下那个「跑」圆键切换。
      后面再乘测试加速（「疾」，默认 1×） */
-  var running = !!(keys['shift'] || M.run);
+  var running = !!(keys['shift'] || M.run) && !flagOn('憋着');   // 憋着跑不起来
   var spd = SPD * (running ? RUN_MULT : 1) * TEST_SPEEDS[M.fast || 0];
   if (flagOn('憋着')) spd *= 0.62;      // 牢李憋着的时候走不快
 
@@ -2645,9 +2694,11 @@ function update(dt){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
-      if (P.if && !flagOn(P.if)) continue;          // 条件没到，这扇"门"还没开
+      if (P.if && !flagOn(P.if)) continue;
+      if (P.to === 'toilet') M.backTo = { map: M.map, tx: ptx, ty: pty + 1 };          // 条件没到，这扇"门"还没开
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
-        loadMap(P.to, P.tx, P.ty);
+        if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty);
+        else loadMap(P.to, P.tx, P.ty);
         break;
       }
     }
@@ -2919,6 +2970,7 @@ function render(){
     /* 画完整小人，再把桌子压在他腿前面 —— 挡住腿就是"坐着"。
        （先前想裁掉下半身，裁切没生效，人整个不见了） */
     drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
+    if (!c.desk) return;                    // 校园里站着的人，前面没有桌子
     var w = 16*2;
     cx.fillStyle = '#7d5530';
     cx.fillRect(cxp - w/2 - 2, cyp - 15, w + 4, 16);
@@ -3508,8 +3560,11 @@ clockEl.style.display = 'none';
           M.talk.open = false;
           return t;
         }
-        out.push('厕所·拿牢李旗标 → ' + hitAt(7, 88, ['镜子上三个字']));
-        out.push('厕所·拿水哥旗标 → ' + hitAt(7, 88, ['擦完墙']));
+        /* 厕所那段已经搬成单独一张图了 */
+        loadMap('toilet', 8, 10);
+        out.push('厕所·拿牢李旗标 → ' + hitAt(13, 7, ['镜子上三个字']));
+        out.push('厕所·拿水哥旗标 → ' + hitAt(13, 7, ['擦完墙']));
+        loadMap('campus', 39, 122);
         out.push('走廊·拿水哥旗标 → ' + hitAt(16, 74, ['擦完墙']));
         out.push('走廊·拿牢李旗标 → ' + hitAt(16, 74, ['镜子上三个字']));
       }
