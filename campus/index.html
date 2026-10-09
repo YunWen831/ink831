@@ -678,8 +678,10 @@ makeMap('campus', {
     { x:6,  y:78, w:3, h:2, once:true, if:'该查名单了', talk:'ld_45' },
     { x:38, y:104, w:4, h:4, once:true, if:'该查名单了', talk:'ld_steps' },
     { x:39, y:25, w:2, h:2, once:true, if:'该去后山了', talk:'sh_group' },
+    { x:39, y:28, w:2, h:2, once:true, if:'班级群那张照片', talk:'sh_chat' },
     { x:9,  y:8,  w:2, h:2, once:true, if:'擦完墙', talk:'sh_lunch' },
     { x:13, y:80, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx' },
+    { x:13, y:88, w:2, h:2, once:true, if:'zzx上楼了', talk:'lg_told' },
     { x:13, y:85, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_game' },
 
     /* ---- 三段专属吓点：只有那个人会走到那儿 ---- */
@@ -726,7 +728,9 @@ makeMap('floor2', {
     /* 牢李那条线收口：拿名单跟笔记上的签名对 */
     { x:40, y:13, w:4, h:2, once:true, if:'拿过名单', talk:'f2_name' },
     /* logic 那条线专属：他在那间教室坐的那个位子 */
-    { x:43, y:20, w:2, h:2, once:true, if:'是:logic', talk:'lg_chair' }
+    { x:43, y:20, w:2, h:2, once:true, if:'是:logic', talk:'lg_chair' },
+    /* 牢李那根私线的收口：二楼那间 45 班 */
+    { x:40, y:16, w:4, h:2, once:true, if:'是:laoli', talk:'ld_45room' }
   ]
 }, floor2Layout);
 function tileAt(tx, ty){
@@ -1091,12 +1095,14 @@ var TALK = {
     x:{ text:'（你站在原地，把整条广播听完了。）\n\n（46 班念了两遍。）', set:'广播念了两遍', end:true }
   }},
 
-  /* 牢李 · 45 班的门：他知道里面是谁的位子 */
+  /* 牢李 · 45 班的门：那个人他小学就认识 */
   ld_45: { nodes:{
     s:{ text:'（你走到 45 班门口。）\n\n（门虚掩着。）', next:'t' },
-    t:{ text:'（你上个月在这儿站过很多次。）\n\n（你知道第三排靠窗是谁的位子。你知道那排桌角上刻的是什么字。）',
-        next:'u' },
-    u:{ text:'（——可 45 班上周就搬走了。）\n\n（你把手从门把上拿开了。）', set:'在45班门口站过', end:true }
+    t:{ text:'（你小学就认识的那个人在这个班。）\n\n同过桌，同过一把伞，同过一条回家的路。', next:'u' },
+    u:{ text:'（他上周跟着班一起搬走了。）\n\n（你知道他们搬到哪儿。你去找过。）', next:'v' },
+    v:{ text:'（你在他们新教室门口站了半天。）', next:'w' },
+    w:{ text:'（里面有人问你找谁。）\n\n（你把他的名字说了。）', next:'x' },
+    x:{ text:'（那人想了想。）\n\n（……我们班没有这个人。）', set:'45班那个人', end:true }
   }},
 
   /* 牢李 · 主干道上那脚步：一步不差 */
@@ -1174,6 +1180,50 @@ var TALK = {
     u:{ text:'（你摸了摸桌面。）\n\n（桌面是凉的。）', next:'v' },
     v:{ text:'（你摸桌肚。凉的。）\n（你摸椅背。凉的。）', next:'w' },
     w:{ text:'（只有坐垫是热的。\n\n（像是有人刚站起来。）', set:'热椅子', end:true }
+  }},
+
+  /* ==================== 三段有分量的专属戏 ====================
+     上面那些是三行的吓点。这三段是三分钟的戏 ——
+     各自把那个人身上最大的一根线讲明白。
+     ======================================================== */
+
+  /* 牢李：二楼那间多余教室的门牌，也写着 45 班。
+     而里面坐着的那个人，是"我们班没有这个人"的那个人 */
+  ld_45room: { nodes:{
+    s:{ text:'（门牌上写着 45 班。）', next:'t' },
+    t:{ text:'（——他们不是搬走了吗。）', next:'u' },
+    u:{ text:'（你推开门。）', next:'v' },
+    v:{ text:'（最后一排靠门那个位子上坐着人。）\n\n（趴着，在睡。）', next:'w' },
+    w:{ text:'（那是他的位子。）\n（他上课老睡。老师叫他，他先抬头，再睁眼。）', next:'x' },
+    x:{ text:'（你走过去，站在他桌子边上。）', next:'y' },
+    y:{ text:'（他抬起头。）', next:'z' },
+    z:{ text:'（——就是那张脸。小学那张。\n（一点没老。十岁似的。））', next:'aa' },
+    aa:{ text:'（他看了你一会儿。）\n\n（又把头埋回去了。）', next:'ab' },
+    ab:{ text:'（桌上摊着一本作业。）\n\n（姓名那一栏，空着。）', set:'45班那间教室', end:true }
+  }},
+
+  /* 水哥：往上翻，找到让他笑出来的那条 */
+  sh_chat: { nodes:{
+    s:{ text:'（你在群里往上翻。）\n\n（翻到昨晚十一点。）', next:'t' },
+    t:{ text:'（就是这条。你当时笑出声了。）', next:'u' },
+    u:{ text:'「46 班 46 个人，名不虚传。」', next:'v' },
+    v:{ text:'（lg7 就是从这一句开始盯上你的。）\n（他站在讲台边上，看了你整整半节课。）', next:'w' },
+    w:{ text:'（你想看看是谁发的。）', next:'x' },
+    x:{ text:'（头像点开。\n空白。\n\n昵称也是空白。）', next:'y' },
+    y:{ text:'（发送时间：昨晚 23:00。）\n\n（跟那张照片，是同一条。）', set:'群里那条消息', end:true }
+  }},
+
+  /* logic：他不是不想说，是说了没人信 */
+  lg_told: { nodes:{
+    s:{ text:'（你试过。）', next:'t' },
+    t:{ text:'（开学第二周，你带 zzx 上来过。）', next:'u' },
+    u:{ text:'（他在门口站了一分钟。）\n\n"这儿不就三间教室吗。"', next:'v' },
+    v:{ text:'"哪有什么第四间。"', next:'w' },
+    w:{ text:'（你带他数了一遍。）\n\n（四间。）', next:'x' },
+    x:{ text:'（他说，你数错了吧。）', next:'y' },
+    y:{ text:'（后来他就不提了。）\n（你也不提了。）', next:'z' },
+    z:{ text:'（这半年，你一个人在这儿。）\n\n（你不是不想说。）\n\n（你是说了，没人信。）',
+        set:'带zzx上过二楼', end:true }
   }},
 
   /* ==================== 最后一段 ==================== */
@@ -2277,8 +2327,13 @@ function update(dt){
      记号记在 FLAGS 里，所以跟着存档一起走 */
   if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR && CUR.triggers){
     var gtx = Math.floor(M.p.x/TILE), gty = Math.floor(M.p.y/TILE);
-    for (var gi=0; gi<CUR.triggers.length; gi++){
-      var G = CUR.triggers[gi], gk = '@' + M.map + ':' + gi;
+    /* 把这张图的触发区数组抓在手里：跑到一半要是换了图，
+       数组就短了，再往下读会读到 undefined 直接炸 */
+    var trigs = CUR.triggers;
+    for (var gi=0; gi<trigs.length; gi++){
+      if (CUR.triggers !== trigs) break;            // 换图了，这一趟作废
+      var G = trigs[gi], gk = '@' + M.map + ':' + gi;
+      if (!G) continue;            // 数组里有个空洞（多写了个逗号），跳过它
       if (G.once && FLAGS[gk]) continue;
       if (G.if && !flagOn(G.if)) continue;
       var inG = gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h;
@@ -2560,12 +2615,17 @@ clockEl.style.display = 'none';
    @x / @y      ?x=20&y=25 覆盖出生点（截图定位用，省得手动走）
    ============================================ */
 (function probe(){
+  /* 探针里抛异常以前是静默的 —— 输出直接空白，看不出为什么。
+     接上 onerror，至少能看见是哪一行 */
+  var probeErr = '';
+  window.onerror = function(msg, src, line){ probeErr = '!!' + msg + ' @' + line; return true; };
   var q = location.search;
   var m = /[?&]probe=(\w+)/.exec(q);
   if (!m) return;
   var mode = m[1];
   var out = [];
   setTimeout(function(){
+    try {
     /* 选人页只有在点了「出门」之后才出现，无头截图点不了按钮，
        所以给它一个直接跳过去的开关 */
     if (mode === 'pick'){ buildPick(); return; }
@@ -2991,7 +3051,8 @@ clockEl.style.display = 'none';
           update(1/60);
           var t = M.talk.open
             ? (M.talk.script.nodes[M.talk.nodeId].text||'').replace(/\s+/g,'').slice(0,7)
-            : '（没触发）';
+            : '（没触发 screen=' + M.screen + ' cool=' + M.portalCool.toFixed(2) +
+              ' 格=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) + '）';
           M.talk.open = false;
           return t;
         }
@@ -3088,7 +3149,12 @@ clockEl.style.display = 'none';
       }
     }
     var pre = document.getElementById('probe');
-    pre.textContent = 'PROBE ' + out.join(' || ');
+    pre.textContent = 'PROBE ' + out.join(' || ') + (probeErr ? ' || ' + probeErr : '');
+    } catch (e){
+      /* 跑到一半炸了：把已经攒下的输出带出来，顺便报是哪一步 */
+      document.getElementById('probe').textContent =
+        'PROBE !! 抛异常: ' + (e && e.message) + ' || 已跑到: ' + out.join(' || ');
+    }
   }, 700);
 })();
 
