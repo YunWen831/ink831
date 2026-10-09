@@ -148,6 +148,23 @@
     opacity:0; transition:opacity .25s; max-width:86vw; }
   #toast.on { opacity:1; }
 
+  /* 追逐战的时候，右上角挂个计时 */
+  #chase { position:absolute; z-index:6; pointer-events:none; display:none;
+    right:calc(16px + env(safe-area-inset-right,0px));
+    top:calc(12px + env(safe-area-inset-top,0px));
+    text-align:right; text-shadow:0 2px 6px rgba(0,0,0,.8); }
+  #chase.on { display:block; }
+  #chase .big { font-size:clamp(18px,5vw,26px); font-weight:700; color:#e05a4a;
+    letter-spacing:.06em; }
+  #chase .sm { font-size:clamp(10px,2.8vw,13px); opacity:.75; letter-spacing:.1em; }
+
+  /* 结算屏 */
+  #scOver { background:rgba(8,7,6,.97); }
+  #overTxt { width:min(92vw,600px); text-align:left; }
+  #overTxt p { font-size:clamp(13px,3.5vw,16px); line-height:2; margin:0 0 14px; }
+  #overTxt h1 { font-size:clamp(20px,5.5vw,30px); letter-spacing:.14em; margin-bottom:22px;
+    font-weight:700; color:#e8a33d; }
+
   /* 本子那一屏 */
   #scBook { justify-content:flex-start; padding-top:calc(64px + env(safe-area-inset-top,0px)); }
   #bookList { width:min(92vw,640px); text-align:left; }
@@ -187,6 +204,12 @@
 <button id="btnBook" type="button">本</button>
 <button id="btnFast" type="button">疾</button>
 <div id="toast"></div>
+<div id="chase"><div class="big"></div><div class="sm">离下课铃</div></div>
+
+<div class="screen" id="scOver">
+  <div id="overTxt"></div>
+  <button class="btn" id="btnAgain">再来一次</button>
+</div>
 
 <div class="screen" id="scBook">
   <h2>本子</h2>
@@ -647,7 +670,13 @@ makeMap('campus', {
 
     /* ---- 水哥③ 树阵：走错不是死，是"又回到墙根" ---- */
     { x:8,  y:22, w:2, h:1, once:true, if:'擦完墙', talk:'pz_trees' },
-    { x:8,  y:12, w:2, h:2, once:true, if:'擦完墙', talk:'loop_back', warp:[9,7] }
+    { x:8,  y:12, w:2, h:2, once:true, if:'擦完墙', talk:'loop_back', warp:[9,7] },
+
+    /* ---- 水哥那条线的分岔：撞见 logic 从楼上下来 ---- */
+    { x:13, y:82, w:2, h:2, once:true, if:'看懂树阵', talk:'shui_fork' },
+
+    /* ---- 从二楼下来，整队就开始了 ---- */
+    { x:13, y:78, w:2, h:2, once:true, if:'该跑了', talk:'chase_go', chase:true }
   ]
 }, campusLayout);
 
@@ -669,7 +698,9 @@ makeMap('floor2', {
     /* 门后面那间。黑板、桌子、黑板中间那块白的 */
     { x:40, y:4,  w:4, h:2, once:true, talk:'f2_roster' },
     { x:40, y:8,  w:4, h:2, once:true, talk:'f2_pen' },
-    { x:40, y:18, w:4, h:2, once:true, talk:'f2_phone' }
+    { x:40, y:18, w:4, h:2, once:true, talk:'f2_phone' },
+    /* 从屋里出来，楼下已经开始整队了 */
+    { x:40, y:11, w:5, h:2, once:true, if:'译出化学笔记', talk:'f2_alarm' }
   ]
 }, floor2Layout);
 function tileAt(tx, ty){
@@ -1003,10 +1034,36 @@ var TALK = {
     text:'你走了很久。\n\n……墙根。\n\n（六块苔，你已经擦干净了。）',
     end:true }}},
 
+  /* ==================== 最后一段 ==================== */
+  /* 水哥那条线的分岔：撞见 logic 从楼上下来。帮谁，看你 */
+  shui_fork: { nodes:{
+    s:{ text:'（天井里站着个人。）', next:'t' },
+    t:{ text:'（是 logic。他从楼梯上下来，手里捏着一张卷子。）', next:'u' },
+    u:{ text:'……你也在二楼。', next:'v' },
+    v:{ text:'（他不等你答。）\n\n……你别跟别人说。', opts:[
+         { t:'（答应他）',           go:'help' },
+         { t:'（还是告诉值周生）',   go:'tell' } ]},
+    help: { text:'（他点了下头，走了。）\n\n（那张卷子上，一道题都没做。）', set:'帮logic', end:true },
+    tell: { text:'（他看了你一会儿。）\n\n……随便你。', set:'帮值周生', end:true }
+  }},
+
+  chase_go: { nodes:{
+    s:{ text:'（整队的声音从楼下上来了。）', next:'t' },
+    t:{ text:'你跑出教学楼。\n\n操场上、广场上、主干道上 —— 全是人。', next:'u' },
+    u:{ text:'（他们排成一排，面朝校门。一个一个地，开始点数。）', next:'v' },
+    v:{ text:'（守则里没写这一条。）\n\n（你只剩六分钟。）', set:'被追了', end:true }
+  }},
+
   /* ==================== 二楼 ====================
      这一层的吓点不靠跳，靠"对不上"：教室数对不上、日期对上了星期对不上、
      一局棋下不完。整层楼没有一个人。
      ============================================ */
+  f2_alarm: { nodes:{
+    s:{ text:'（你从屋里出来。）', next:'t' },
+    t:{ text:'（楼下有人在整队。）\n\n（脚步声一层一层往上扫。）', next:'u' },
+    u:{ text:'（该走了。）', set:'该跑了', end:true }
+  }},
+
   lg7_pen: { nodes:{
     s:{ text:'（楼梯口站着人。）\n\n……你要上去。', next:'t' },
     t:{ text:'（是 lg7。他手里捏着个东西。）', next:'u' },
@@ -1365,6 +1422,96 @@ function die(why, delay){
   M.dying = delay || 1.1;
   if (why) toast(why, 2.6);
 }
+/* ==================== 追逐战 ====================
+   十点半，外面整队。追你的不是怪物，是那个 46 班 ——
+   他们一个一个把人数进去，数到你就算完了。
+   难度就三条：比你走快、比你跑慢（所以必须一直按着 Shift），六分钟。
+   守则照旧管用：玻璃前面不能停。逃跑的时候你还得记着这条。
+   ============================================ */
+var CHASE_SPD   = 150;                 // 追的人：比走路(108)快，比快跑(259)慢
+var CHASE_RATE  = 6 / 90;              // 六分钟游戏时间，压进大约 90 秒
+var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic'];
+var chaseEl = document.getElementById('chase');
+
+function startChase(){
+  if (M.chase) return;
+  setClock(10*60 + 30);
+  M.chase = { hounds: [] };
+  /* 他们不追你 —— 他们整队。队形横在回校门那条路上，你得从缝里钻过去 */
+  [[30,96],[37,101],[44,96],[33,109],[46,109],[39,115]].forEach(function(p, i){
+    M.chase.hounds.push({
+      x: p[0]*TILE + TILE/2, y: p[1]*TILE + TILE/2,
+      dir:'up', anim: 0, id: CHASE_FACES[i % CHASE_FACES.length]
+    });
+  });
+  checkpoint();                        // 死在半路就从这儿重来
+  toast('整队了。', 2.4);
+  if (chaseEl) chaseEl.classList.add('on');
+}
+function chaseTick(dt){
+  var C = M.chase, k = 0;
+  M.clock += dt * CHASE_RATE;
+  if (clockEl) clockEl.textContent = clockText(M.clock);
+  if (chaseEl){
+    chaseEl.querySelector('.big').textContent = clockText(M.clock);
+    chaseEl.querySelector('.sm').textContent =
+      '离下课铃 ' + Math.max(0, Math.ceil(CLOCK_END - M.clock)) + ' 分';
+  }
+  for (k = 0; k < C.hounds.length; k++){
+    var h = C.hounds[k];
+    var dx = M.p.x - h.x, dy = M.p.y - h.y, d = Math.hypot(dx, dy) || 1;
+    var vx = dx/d*CHASE_SPD*dt, vy = dy/d*CHASE_SPD*dt;
+    if (canWalk(h.x+vx, h.y)) h.x += vx;
+    if (canWalk(h.x, h.y+vy)) h.y += vy;
+    h.dir = (Math.abs(vx) > Math.abs(vy)) ? (vx>0?'right':'left') : (vy>0?'down':'up');
+    h.anim += dt;
+    if (Math.hypot(M.p.x-h.x, M.p.y-h.y) < 17) return die('被数进去了。');
+  }
+  if (M.p.y > 122*TILE) return endChase();                    // 出校门了
+  if (M.clock >= CLOCK_END) return die('下课铃响了。\n你没走出去。', 2.0);
+}
+function endChase(){
+  M.chase = null;
+  if (chaseEl) chaseEl.classList.remove('on');
+  showOver(endingFor());
+}
+/* 三个角色三个结局；水哥那个看你前面选帮谁 */
+function endingFor(){
+  var me = M.me ? M.me.id : 'laoli';
+  var told = flagOn('译出化学笔记');
+  var tail = told
+    ? ['（你把那页笔记念给他听了。）', '（他蹲在墙根听完，没说话。）', '（第二天他又在墙根。）']
+    : ['（墙根那个人，你没告诉他。）'];
+  if (me === 'logic') return { title:'留在二楼', lines:[
+    '……你停下了。', '整队的声音从楼下过去，一间一间地数。', '数到二楼的时候，跳过去了。',
+    '你没在名单上。', '你回到那间教室，坐回最后一排靠窗的位置。',
+    '屏幕还亮着。那一局还没打完。', '——永远打不完。' ] };
+  if (me === 'shui' && flagOn('帮logic')) return { title:'换了个班号', lines:[
+    '你什么都没说。', '那一层楼还在。', '新学期开学，二楼走廊尽头那间挂上了新的班号。',
+    '点名的时候，还是多一个。' ].concat(tail) };
+  if (me === 'shui') return { title:'封了那扇门', lines:[
+    '你把值周生叫来了。', '当天下午，二楼那间教室被砌死，连窗户一起。',
+    '名单上那个名字，第一次没答"到"。' ].concat(tail) };
+  return { title:'名字被划掉了', lines:[
+    '你把名单交了出去。', '当天下午，二楼那间教室被砌死了。',
+    '下一周的点名册上，46 班十九个人。', '——本来就是十九个。',
+    '（只有你还记得，有一个名字被红笔划穿过纸。）' ].concat(tail) };
+}
+function showOver(e){
+  M.screen = 'over';
+  document.getElementById('overTxt').innerHTML =
+    '<h1>' + escapeHTML(e.title) + '</h1>' +
+    e.lines.map(function(s){ return '<p>' + escapeHTML(s) + '</p>'; }).join('');
+  show(document.getElementById('scOver'));
+  whereEl.style.display = 'none';
+  clockEl.style.display = 'none';
+  actEl.classList.remove('on'); runEl.classList.remove('on');
+  bookBtn.classList.remove('on'); fastBtn.classList.remove('on');
+}
+document.getElementById('btnAgain').addEventListener('click', function(){
+  location.href = location.pathname;      // 从头来一遍
+});
+
 /* 屏幕中间飘一行字，过两秒自己没。存档点、死亡提示、剧情提醒都用它 */
 function toast(msg, secs){
   M.toastT = secs || 2.2;
@@ -1789,6 +1936,12 @@ function update(dt){
     M.p.anim = 0;
   }
 
+  /* 追逐战。被追上或者过了下课铃都会死 —— 死在哪儿就从哪个存档点重来 */
+  if (M.chase && M.screen === 'play' && !M.talk.open && !M.book){
+    chaseTick(dt);
+    if (M.dying > 0 || M.screen !== 'play') return;
+  }
+
   /* 踩到出口就换图。刚落地那 0.7 秒不判，免得在门口来回弹 */
   if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
@@ -1837,6 +1990,7 @@ function update(dt){
         M.p.y = G.warp[1]*TILE + TILE/2;
         M.portalCool = 0.4;
       }
+      if (G.chase) startChase();                        // 踩到这儿，整队开始
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
       if (G.say) toast(G.say);                          // 或者只飘一行字
       if (G.talk) openScript(G.talk);
@@ -1980,10 +2134,16 @@ function render(){
   /* 小人按 y 排序再画，下面的挡住上面的 —— 就这一点就分出前后了 */
   var order = M.npcs.slice();
   order.push({ id:'__me', me:true, x:M.p.x, y:M.p.y });
+  if (M.chase) M.chase.hounds.forEach(function(h){
+    order.push({ id:h.id, hound:true, x:h.x, y:h.y, dir:h.dir, anim:h.anim });
+  });
   order.sort(function(a,b){ return a.y - b.y; });
   order.forEach(function(o){
     if (o.me){
       drawSprite(M.me.id, M.p.x, M.p.y, M.p.dir, M.p.anim, M.p.moving, 2);
+    } else if (o.hound){
+      /* 整队追过来的那些。不挂名字 —— 你知道那是谁，可你不想认 */
+      drawSprite(o.id, o.x, o.y, o.dir, o.anim, true, 2);
     } else {
       /* NPC 站着不动。给过它一个周期性小动作，结果看着像抽搐，就去掉了 */
       drawSprite(o.id, o.x, o.y, o.dir, 0, false, 2);
@@ -2282,6 +2442,66 @@ clockEl.style.display = 'none';
           for (var kk=0; kk<n; kk++) update(1/60);
           if (M.talk.open){ M.talk.typed = 6; drawText(); }   // 出几个字够看排版
         }
+      }
+      if (mode === 'chase'){
+        setFlag('被追了');
+        loadMap('campus', 39, 100);
+        M.fade = 0;
+        startChase();
+        out.push('开追 ' + clockText(M.clock) + ' 人数=' + M.chase.hounds.length);
+        /* ① 站着不动：该被追上 */
+        var ck = 0; while (ck++ < 240 && M.dying <= 0) update(1/60);
+        out.push('站着不动 ' + (ck/60).toFixed(1) + '秒 → dying=' + (M.dying||0).toFixed(2));
+        M.dying = 0;
+        respawn();
+        out.push('复活在 ' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' 还在追=' + !!M.chase);
+        /* ② 一路直冲校门：路上有人拦，看能不能硬冲过去 */
+        startChase();
+        var g2 = 0;
+        while (g2++ < 2000 && M.screen === 'play' && M.dying <= 0){
+          keys['s'] = true; keys['shift'] = true; update(1/60);
+        }
+        keys['s'] = false; keys['shift'] = false;
+        out.push('直冲校门 → 屏幕=' + M.screen + ' dying=' + (M.dying||0).toFixed(2) +
+                 ' 走到=' + Math.floor(M.p.y/TILE) + ' 几点=' + clockText(M.clock));
+        /* ②b 换个跑法：不直冲，绕校园西边那条空的，应该能出去。
+           得先 respawn 一下 —— 不然上一场那六个还贴在你脸上 */
+        M.dying = 0; respawn(); M.screen = 'play';
+        /* 挑一条真能走的：x=8 往南是行政楼，会堵死。
+           西边那条竖路(x=25..28)从教学楼一直通到校门那头 */
+        M.p.x = 26*TILE + TILE/2; M.p.y = 92*TILE + TILE/2;
+        startChase();
+        var g3 = 0;
+        while (g3++ < 3000 && M.screen === 'play' && M.dying <= 0){
+          keys['s'] = true; keys['shift'] = true; update(1/60);
+        }
+        keys['s'] = false; keys['shift'] = false;
+        var nearD = 9999;
+        if (M.chase) M.chase.hounds.forEach(function(h){
+          nearD = Math.min(nearD, Math.hypot(M.p.x-h.x, M.p.y-h.y)/TILE);
+        });
+        out.push('绕西边跑 → 屏幕=' + M.screen + ' dying=' + (M.dying||0).toFixed(2) +
+                 ' 走到=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 '(' + tileAt(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE)) + ')' +
+                 ' 还能往南=' + canWalk(M.p.x, M.p.y + TILE) +
+                 ' 最近的人=' + nearD.toFixed(1) + '格');
+        /* ③ 过了下课铃还没出去，该死。时钟每帧只走 0.067 秒，得多跑一会儿 */
+        M.dying = 0; M.screen = 'play';
+        startChase();
+        M.chase.hounds.length = 0;                 // 把人清开，单看时限
+        M.p.x = 39*TILE + TILE/2; M.p.y = 60*TILE + TILE/2;
+        M.clock = CLOCK_END - 0.05;
+        var g4 = 0; while (g4++ < 600 && M.dying <= 0) update(1/60);
+        out.push('拖到下课铃 → dying=' + (M.dying||0).toFixed(2));
+        M.dying = 0;
+        /* ④ 跑到校门该结算 */
+        M.chase = M.chase || { hounds: [] };
+        M.chase.hounds.length = 0;
+        M.p.y = 123*TILE + TILE/2; M.clock = 10*60+34;
+        update(1/60);
+        out.push('出校门 → 屏幕=' + M.screen + ' 标题=' +
+                 (document.getElementById('overTxt').querySelector('h1') || {}).textContent);
       }
       if (mode === 'floor2'){
         /* 上楼 → 念名字起 → 这声没过去就推门该当死 → 退回楼梯口等 → 再推门 */
