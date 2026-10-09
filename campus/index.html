@@ -69,18 +69,18 @@
      刻意不用页面那套暗色卡片风 —— 这里是"游戏里"，要跟外面区分开 */
   #dlg { position:absolute; z-index:9; left:50%; transform:translateX(-50%);
     bottom:calc(16px + env(safe-area-inset-bottom,0px));
-    width:min(94vw,720px); display:none; }
+    width:min(96vw,880px); display:none; }
   #dlg.on { display:block; }
   #dlgBox { position:relative; display:flex; gap:14px; align-items:flex-start;
     background:#000; border:4px solid #fff; border-radius:4px;
-    padding:14px 16px; min-height:128px; box-shadow:0 8px 30px rgba(0,0,0,.6); }
-  #dlgAv { flex:0 0 auto; width:96px; height:96px; image-rendering:pixelated;
+    padding:20px 22px; min-height:178px; box-shadow:0 8px 30px rgba(0,0,0,.6); }
+  #dlgAv { flex:0 0 auto; width:118px; height:118px; image-rendering:pixelated;
     background:#1a1a1a; border:2px solid #444; border-radius:3px; }
   #dlgBody { flex:1 1 auto; min-width:0; }
-  #dlgWho { font-size:13px; letter-spacing:.14em; color:#e8a33d; margin-bottom:7px; }
-  #dlgTxt { font-size:clamp(14px,3.5vw,18px); line-height:1.75; white-space:pre-wrap; }
+  #dlgWho { font-size:15px; letter-spacing:.14em; color:#e8a33d; margin-bottom:7px; }
+  #dlgTxt { font-size:clamp(16px,4vw,22px); line-height:1.9; white-space:pre-wrap; }
   #dlgOpts { list-style:none; margin-top:11px; }
-  #dlgOpts li { font-size:clamp(13px,3.3vw,17px); padding:5px 9px; border-radius:4px;
+  #dlgOpts li { font-size:clamp(15px,3.8vw,20px); padding:8px 12px; border-radius:4px;
     cursor:pointer; line-height:1.5; }
   #dlgOpts li .k { display:inline-block; width:1.6em; color:#8a8a8a; }
   #dlgOpts li.sel { background:#3a3a3a; }
@@ -90,8 +90,8 @@
   #dlgMore.on { opacity:1; animation:bv .9s infinite; }
   @keyframes bv { 50% { transform:translateY(3px); opacity:.35 } }
   @media (max-width:520px){
-    #dlgAv { width:64px; height:64px; }
-    #dlgBox { min-height:104px; }
+    #dlgAv { width:80px; height:80px; }
+    #dlgBox { min-height:150px; padding:16px; }
   }
 
   #stick { position:absolute; z-index:6; display:none; }
@@ -698,7 +698,8 @@ makeMap('campus', {
     { x:6,  y:75,  w:3, h:3, once:true, if:'看过守则', talk:'scare_45' },
     /* 守则第四条：不要在玻璃前面停下来。停够 1.6 秒就死 ——
        这一条不写 once，破了守则死一次，读档回来还能再撞一遍 */
-    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death' },
+    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death',
+      killMsg:'你破了守则第四条 ——\n不要在走廊尽头的玻璃前面停下来。' },
 
     /* 走出教室这一步，三个角色各接到各的。同一格上摞三条，
        每条只认自己那个旗标，所以谁走谁那条，不会串味 */
@@ -779,7 +780,8 @@ makeMap('floor2', {
     { x:4,  y:12, w:2, h:2, once:true, talk:'f2_enter' },              // 刚上来
     { x:30, y:12, w:2, h:2, once:true, talk:'f2_rollcall' },           // 往东走，念名字开始了
     /* 门：念名声还没过去就推门 —— 死 */
-    { x:38, y:12, w:1, h:2, if:'走廊在念名字', kill:true, talk:'f2_door_death' },
+    { x:38, y:12, w:1, h:2, if:'走廊在念名字', kill:true, talk:'f2_door_death',
+      killMsg:'你破了守则 ——\n点名的时候不能进那间教室。' },
     /* 门后面那间。黑板、桌子、黑板中间那块白的 */
     { x:40, y:4,  w:4, h:2, once:true, talk:'f2_roster' },
     { x:40, y:8,  w:4, h:2, once:true, talk:'f2_pen' },
@@ -1067,8 +1069,8 @@ var TALK = {
     z2:{ text:'（然后它绕回来了。）\n\n「牢李。」', next:'z3' },
     z3:{ text:'（这是第三遍了。）\n\n（守则第六条：数第三遍，多的那个就开始数你。）',
         press:{ t:'「到。」', secs:2.2, press:'dead3', miss:'zok' }},
-    dead3:{ text:'「到。」\n\n（它停了。）\n\n（名单上多出来的那一个 —— ）\n\n（现在是你。）',
-            kill:true, end:true },
+    dead3:{ text:'「到。」\n\n（它停了。）\n\n（名单上多出来的那一个 —— ）\n\n（现在是你。）', kill:true,
+        killMsg:'第三遍不该应。\n—— 守则第六条：数第三遍，多的那个就开始数你。', end:true },
     zok:{ text:'（你没出声。）\n\n（它念了第四遍。）\n\n（你还是没出声。）\n\n（它跳过去了。）',
           set:'答过到', end:true },
 
@@ -1080,8 +1082,8 @@ var TALK = {
         press:{ t:'「到。」', secs:2.2, press:'dead', miss:'ok' }},
     ok:{ text:'（它等了一会儿，跳过去了。）\n\n（你听出来了：念到这个名字的时候，它总会顿一下。\n　像在等有人接。）',
          next:'z' },
-    dead:{ text:'「到。」\n\n——那不是你的名字。\n\n（念名字的声音停了。\n　整条走廊都停住了。）\n\n（它开始往这边走。）',
-         kill:true, end:true }
+    dead:{ text:'「到。」\n\n——那不是你的名字。\n\n（念名字的声音停了。\n　整条走廊都停住了。）\n\n（它开始往这边走。）', kill:true,
+        killMsg:'那不是你的名字。\n—— 守则第三条。', end:true }
   }},
 
   /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
@@ -1610,6 +1612,12 @@ var GOALS = [
   {                  map:'campus', t:'先去教室 —— 一号教学楼',  x:23, y:82  }
 ];
 function goalNow(){
+  /* 憋着的时候别管什么剧情了 —— 目标直接换成最近的厕所，
+     箭头也会跟着指过去。不然玩家根本不知道该往哪儿跑 */
+  if (M.urge > 0 || flagOn('憋着')){
+    var T = nearestToilet();
+    if (T) return { t:'厕所 —— 憋着走不快', x:T.x, y:T.y };
+  }
   for (var i=0;i<GOALS.length;i++){
     var G = GOALS[i];
     if (G.if && !flagOn(G.if)) continue;
@@ -1932,16 +1940,30 @@ var CROWD = [];
 })();
 
 var TOILETS = [
-  { x:5, y:84, w:4, h:7 },      // 一号教学楼西翼南排
-  { x:5, y:60, w:4, h:7 }       // 二号教学楼西翼南排
+  { map:'campus', x:5,  y:84, w:4, h:7 },   // 一号教学楼西翼南排
+  { map:'campus', x:5,  y:60, w:4, h:7 },   // 二号教学楼西翼南排
+  { map:'campus', x:57, y:84, w:4, h:7 }    // 第三教学楼西翼南排
 ];
 function inToilet(){
   var tx = Math.floor(M.p.x/TILE), ty = Math.floor(M.p.y/TILE);
   for (var i=0;i<TOILETS.length;i++){
     var T = TOILETS[i];
+    if (T.map && T.map !== M.map) continue;
     if (tx>=T.x && tx<T.x+T.w && ty>=T.y && ty<T.y+T.h) return true;
   }
   return false;
+}
+/* 憋着的时候，离你最近的那间厕所 —— 要找得到才叫"想上厕所" */
+function nearestToilet(){
+  var best = null, bd = 1e9;
+  var px = M.p.x/TILE, py = M.p.y/TILE;
+  TOILETS.forEach(function(T){
+    if (T.map && T.map !== M.map) return;
+    var cx0 = T.x + T.w/2, cy0 = T.y + T.h/2;
+    var d = Math.hypot(cx0 - px, cy0 - py);
+    if (d < bd){ bd = d; best = { x: Math.round(cx0), y: Math.round(cy0) }; }
+  });
+  return best;
 }
 function urgeTick(dt){
   if (!(M.me && M.me.id === 'laoli')) return;
@@ -2400,7 +2422,12 @@ function closeTalk(){
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
   if (M.showOverAfter){ M.showOverAfter = false; showOver(endingFor()); return; }
   if (M.endAfter){ M.endAfter = false; endChase(); return; }
-  if (M.killAfter){ M.killAfter = false; die('你破了那条守则。'); }
+  if (M.killAfter){
+    M.killAfter = false;
+    var dm = M.deathMsg || '你破了那条守则。'; M.deathMsg = '';
+    die(dm);
+    return;
+  }
 }
 function gotoNode(id){
   var node = M.talk.script.nodes[id];
@@ -2416,6 +2443,7 @@ function gotoNode(id){
   }
   /* 答错就死的那种节点：话读完就没了 */
   if (node.kill) M.killAfter = true;
+  if (node.killMsg) M.deathMsg = node.killMsg;
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
   M.talk.sel = 0;
@@ -2506,8 +2534,14 @@ function drawText(){
   dlgTxt.textContent = s;
   dlgMore.classList.toggle('on', s.length >= full.length && !node.opts);
 }
-/* 点对话框本身也推进 —— 手机上没键盘空格，这条是必须的 */
-dlgEl.addEventListener('click', function(){ if (M.talk.open) advanceOrChoose(); });
+/* 点屏幕任何地方都能往下推 —— 只有那个黑框能点，太别扭了。
+   选项和突现按钮自己有 stopPropagation，不会被这条误触 */
+document.addEventListener('click', function(e){
+  if (!M.talk.open) return;
+  var t = e.target;
+  if (t && t.closest && t.closest('#dlgOpts,#press,#act,#run,#btnBook,#btnFast')) return;
+  advanceOrChoose();
+});
 
 /* ==================== 每帧 ==================== */
 function faceTowards(x1,y1,x2,y2){
@@ -2566,7 +2600,7 @@ function update(dt){
 
   /* 打字机：按字走，不是按帧 */
   if (M.talk.open && !nodeDone()){
-    M.talk.typed = Math.min(full.length, M.talk.typed + dt*40);
+    M.talk.typed = Math.min(full.length, M.talk.typed + dt*20);
     drawText();
   }
 
@@ -2669,7 +2703,8 @@ function update(dt){
       if (G.stare) M.stare = G.stare;
       if (G.card){ card(G.card, G.cardSecs); break; }    // 大段旁白走全屏，不走黑框
       if (G.chase) startChase();                        // 踩到这儿，整队开始
-      if (G.kill) M.killAfter = true;                   // 这段话读完就死
+      if (G.kill) M.killAfter = true;
+      if (G.killMsg) M.deathMsg = G.killMsg;                   // 这段话读完就死
       if (G.say) toast(G.say);                          // 或者只飘一行字
       if (G.talk) openScript(G.talk);
       break;
@@ -2873,13 +2908,22 @@ function render(){
     cx.restore();
   });
 
-  /* ---- 坐满的那一屋子人：stare 的时候会一起转过头 ---- */
+  /* ---- 坐满的那一屋子人：stare 的时候会一起转过头 ----
+     直接画站立的小人，一屋子人齐刷刷站着，看着像罚站。
+     现在只画上半身 + 前面补一张桌子 —— 一眼就是"坐在那儿" */
   CROWD.forEach(function(c){
     if (c.map !== M.map) return;
     var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
     var cdir = 'down';
     if (M.stare > 0) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
+    /* 画完整小人，再把桌子压在他腿前面 —— 挡住腿就是"坐着"。
+       （先前想裁掉下半身，裁切没生效，人整个不见了） */
     drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
+    var w = 16*2;
+    cx.fillStyle = '#7d5530';
+    cx.fillRect(cxp - w/2 - 2, cyp - 15, w + 4, 16);
+    cx.fillStyle = '#a8763f';
+    cx.fillRect(cxp - w/2 - 2, cyp - 15, w + 4, 6);
   });
 
   /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
