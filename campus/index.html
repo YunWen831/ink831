@@ -545,25 +545,31 @@ PROPS.forEach(function(p){ R(p.t, p.x, p.y, 1, 1); });
    一条横走廊、南北各几间教室、东头是楼梯口（踩上去回一楼）。
    以后要在这儿加剧情，就往这个函数里加。 */
 function floor2Layout(){
-  var W = 40, H = 26;
+  var W = 48, H = 26;
   R('floor', 1, 1, W-2, H-2);           // 整块楼板
   R('wall', 1, 1, W-2, 1);              // 四面外墙
   R('wall', 1, H-2, W-2, 1);
   R('wall', 1, 1, 1, H-2);
   R('wall', W-2, 1, 1, H-2);
-  R('corridor', 2, 12, W-4, 3);         // 中间一条横走廊
-  R('wall', 2, 11, W-4, 1);             // 教室和走廊之间那两道墙
-  R('wall', 2, 15, W-4, 1);
-  [11, 21, 31].forEach(function(sx){    // 教室之间的隔墙
-    R('wall', sx, 2,  1, 10);
+  R('corridor', 2, 12, 36, 2);          // 横走廊：cols 2..37
+  R('wall', 2, 11, 36, 1);              // 教室和走廊之间那两道墙
+  R('wall', 2, 14, 36, 1);
+  [13, 25].forEach(function(sx){        // 南北各隔出三间
+    R('wall', sx, 2,  1, 9);
     R('wall', sx, 15, 1, 9);
   });
-  [6, 16, 26, 34].forEach(function(dx){ // 每间教室朝走廊开个门
+  [7, 19, 31].forEach(function(dx){     // 每间教室朝走廊开个门 —— 南北各三道
     R('door', dx, 11, 2, 1);
-    R('door', dx, 15, 2, 1);
+    R('door', dx, 14, 2, 1);
   });
-  R('stairs', 35, 12, 3, 3);            // 东头楼梯口
+  R('stairs', 2, 12, 2, 2);             // 西头楼梯口（下楼）
   NAME(1, 1, W-2, H-2, '一号教学楼 · 二楼');
+
+  /* ---- 走廊东头 ---- */
+  R('wall', 38, 2, 1, 22);              // 到这儿就该到头了
+  R('door', 38, 12, 1, 2);              // ……可墙上多了一扇门
+  R('classroom', 39, 2, 7, 22);         // 门后面那间
+  NAME(39, 2, 7, 22, '45班');           // 楼上也有一间 45 班
 }
 
 /* ================== 登记两张图 ================== */
@@ -592,7 +598,7 @@ makeMap('campus', {
   ],
   /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
   portals: [
-    { x:13, y:73, w:2, h:1, to:'floor2', tx:20, ty:13 }
+    { x:13, y:73, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' }
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -616,6 +622,8 @@ makeMap('campus', {
     { x:16, y:76, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic' },
     /* logic 那条：天井北头，快到楼梯口之前那一段 */
     { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' },
+    /* 上楼之前，lg7 把他捏了一年的那支笔塞给你 */
+    { x:13, y:74, w:2, h:1, once:true, if:'可以上去了', talk:'lg7_pen' },
 
     /* ---- 牢李那条的谜题 ---- */
     { x:16, y:80, w:2, h:2, once:true, if:'该查名单了', talk:'pz_rollcall' },
@@ -644,11 +652,24 @@ makeMap('campus', {
 }, campusLayout);
 
 makeMap('floor2', {
-  w: 40, h: 26,
+  w: 48, h: 26,
   base: 'void',                         // 楼板外头是空的，不是草地
-  spawn: [20, 13],
+  spawn: [5, 12],
   portals: [
-    { x:35, y:12, w:3, h:3, to:'campus', tx:13, ty:75 }
+    { x:2, y:12, w:2, h:2, to:'campus', tx:13, ty:75 }   // 西头楼梯口，下楼
+  ],
+  triggers: [
+    /* 这两条压在同一格上：先看"念名字有没有过去"，再轮到"刚上来"。
+       顺序反了的话，等你退回来的时候会又报一次"刚上来" */
+    { x:4,  y:12, w:2, h:2, once:true, if:'走廊在念名字', talk:'f2_wait' },
+    { x:4,  y:12, w:2, h:2, once:true, talk:'f2_enter' },              // 刚上来
+    { x:30, y:12, w:2, h:2, once:true, talk:'f2_rollcall' },           // 往东走，念名字开始了
+    /* 门：念名声还没过去就推门 —— 死 */
+    { x:38, y:12, w:1, h:2, if:'走廊在念名字', kill:true, talk:'f2_door_death' },
+    /* 门后面那间。黑板、桌子、黑板中间那块白的 */
+    { x:40, y:4,  w:4, h:2, once:true, talk:'f2_roster' },
+    { x:40, y:8,  w:4, h:2, once:true, talk:'f2_pen' },
+    { x:40, y:18, w:4, h:2, once:true, talk:'f2_phone' }
   ]
 }, floor2Layout);
 function tileAt(tx, ty){
@@ -982,6 +1003,81 @@ var TALK = {
     text:'你走了很久。\n\n……墙根。\n\n（六块苔，你已经擦干净了。）',
     end:true }}},
 
+  /* ==================== 二楼 ====================
+     这一层的吓点不靠跳，靠"对不上"：教室数对不上、日期对上了星期对不上、
+     一局棋下不完。整层楼没有一个人。
+     ============================================ */
+  lg7_pen: { nodes:{
+    s:{ text:'（楼梯口站着人。）\n\n……你要上去。', next:'t' },
+    t:{ text:'（是 lg7。他手里捏着个东西。）', next:'u' },
+    u:{ text:'——这个。', next:'v' },
+    v:{ text:'（是那支翻译笔。外壳上的字全花了。）\n\n他从水桶里捞出来的。', next:'w' },
+    w:{ text:'（捏了整整一年。）', next:'x' },
+    x:{ text:'带上。\n\n（他没解释，转身就走了。）', set:'有翻译笔', end:true }
+  }},
+
+  f2_enter: { nodes:{
+    s:{ text:'二楼。\n\n走廊、教室、窗户 —— 都对。', next:'t' },
+    t:{ text:'你数了一遍教室的门。\n南北各三道。', next:'u' },
+    u:{ text:'……走廊东头，还有一道。', set:'上过二楼', end:true }
+  }},
+
+  f2_rollcall: { nodes:{
+    s:{ text:'你往东边走。', next:'t' },
+    t:{ text:'（念名字的声音又起来了。）\n\n（就在走廊里，一间一间地过。）', set:'走廊在念名字', end:true }
+  }},
+
+  f2_wait: { nodes:{
+    s:{ text:'（你退回到楼梯口。）', next:'t' },
+    t:{ text:'（声音一间一间地过去。）\n\n（到东头那一间的时候，它停了一下。）', next:'u' },
+    u:{ text:'（停得比别处久。）\n\n（然后往下走了。）', set:'念名声过去了', clear:'走廊在念名字', end:true }
+  }},
+
+  f2_door_death: { nodes:{ s:{
+    text:'你推门进去。\n\n（念名字的声音就在门后面。）\n\n（它念到了你。）',
+    kill:true, end:true }}},
+
+  /* 值日表：日期对得上，星期对不上 —— 这是全篇最关键的一处"对不上" */
+  f2_roster: { nodes:{
+    s:{ text:'黑板擦得很干净。只有右下角留着半块值日表，像是擦不掉。', next:'t' },
+    t:{ text:'　　九月十七日　星期五\n　　值日：████', next:'u' },
+    u:{ text:'（走廊的广播刚念过今天的日期。）\n\n（九月十七日，星期二。）', next:'v' },
+    v:{ text:'（日期一样。）', opts:[
+         { t:'（是日期对不上）', go:'no' },
+         { t:'（是星期对不上）', go:'yes' },
+         { t:'（都对得上）',     go:'no' } ]},
+    yes:{ text:'（九月十七日，星期五。）\n\n（今天也是九月十七日 —— 可是星期二。）\n\n（这块值日表停下来的那天，不是今天。\n　是**某一年**的九月十七日。）',
+          set:'算过值日表', end:true },
+    no: { text:'（日期是对得上的。）', end:true }
+  }},
+
+  /* 那局永远打不完的第五人格 */
+  f2_phone: { nodes:{
+    s:{ text:'最后一排靠窗那张桌上，摆着一台手机。', next:'t' },
+    t:{ text:'屏幕亮着。一局第五人格，还没打完。', next:'u' },
+    u:{ text:'求生者那一栏只有一个头像亮着。\n他的 ID 是一串数字。', next:'v' },
+    v:{ text:'　　　0917', next:'w' },
+    w:{ text:'（九月十七。）', opts:[
+         { t:'（是个学号）',     go:'no' },
+         { t:'（是那天的日期）', go:'yes' },
+         { t:'（是乱码）',       go:'no' } ]},
+    yes:{ text:'（是日期。跟黑板右下角那块值日表，同一天。）', next:'y2' },
+    y2:{ text:'（这一局永远打不完。）\n\n（因为网线那头那个人，一直在等他走下一步。）', set:'看过那局游戏', end:true },
+    no: { text:'（不像。）', end:true }
+  }},
+
+  /* 翻译笔真正用上的地方 */
+  f2_pen: { nodes:{
+    s:{ text:'黑板正中间空着一块 —— 被反复擦过很多次，擦得发白了。', next:'t' },
+    t:{ text:'（你想起兜里那支笔。）', opts:[
+         { t:'（拿笔对着黑板）', go:'use', if:'有翻译笔' },
+         { t:'（收起来）',       go:'off' } ]},
+    use:{ text:'（笔尖亮了一下。）\n\n（空白的黑板上，浮出一整页化学笔记。）', next:'use2' },
+    use2:{ text:'从头到尾，一笔一划，写到一半停住了。\n\n最后一行是：\n\n　　「老师，我明天再来。」',
+           set:'译出化学笔记', end:true },
+    off:{ text:'（你又把笔塞回兜里了。）', end:true }
+  }},
+
   /* 老梗：水池/水桶里那支翻译笔 */
   clue_pen: { nodes:{
     s:{ text:'楼梯拐角放着一个水桶。桶早干了，桶壁上留着一圈黄印子。', next:'t' },
@@ -1110,6 +1206,11 @@ function applyClock(){
     if (m >= b.from && m < b.to) FLAGS[b.flag] = true;
     else delete FLAGS[b.flag];             // 过了点就撤，不然旗标一直挂着
   });
+  /* 三条线各拿各的拼图，拿到哪块都算凑齐了 —— 一条线走到底就够上二楼 */
+  if (!FLAGS['可以上去了'] &&
+      (flagOn('拿过名单') || flagOn('拿回手机') || flagOn('logic承认了')))
+    setFlag('可以上去了');
+
   M.npcs.forEach(function(n){
     var def = null;
     CUR.npcs.forEach(function(d){ if (d.id === n.id) def = d; });
@@ -1530,6 +1631,11 @@ function gotoNode(id){
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
   if (node.set) setFlag(node.set);        // 剧情就是在这儿记下来的
+  /* 也有要撤掉的：旗标只能说"是"，说不了"不是"，所以得能清 */
+  if (node.clear){
+    var cs = (typeof node.clear === 'object') ? node.clear : [node.clear];
+    cs.forEach(function(k){ delete FLAGS[k]; });
+  }
   /* 答错就死的那种节点：话读完就没了 */
   if (node.kill) M.killAfter = true;
   M.talk.typed = 0;                       // 打字机从头开始
@@ -1688,6 +1794,7 @@ function update(dt){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
+      if (P.if && !flagOn(P.if)) continue;          // 条件没到，这扇"门"还没开
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
         loadMap(P.to, P.tx, P.ty);
         break;
@@ -2104,6 +2211,7 @@ clockEl.style.display = 'none';
       }
       if (mode === 'warp'){
         /* 站到出口上，看是不是真换了图、落点对不对，再踩回来 */
+        setFlag('可以上去了');            // 楼梯口现在有门槛，先把拼图凑上
         function step(){
           var P = CUR.portals[0];
           M.p.x = P.x*TILE + TILE/2; M.p.y = P.y*TILE + TILE/2;
@@ -2175,6 +2283,50 @@ clockEl.style.display = 'none';
           if (M.talk.open){ M.talk.typed = 6; drawText(); }   // 出几个字够看排版
         }
       }
+      if (mode === 'floor2'){
+        /* 上楼 → 念名字起 → 这声没过去就推门该当死 → 退回楼梯口等 → 再推门 */
+        setFlag(['可以上去了','有翻译笔']);
+        loadMap('floor2', 5, 12);
+        M.fade = 0;
+        /* pick：选项走第几个。正确的那一项不一定排第一（那是故意的），
+           所以探针得能指定 —— 不然一直在选错的那个 */
+        function f2go(x, y, pick){
+          M.p.x = x*TILE + TILE/2; M.p.y = y*TILE + TILE/2;
+          M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+          M.killAfter = false; M.dying = 0;          // 清掉上一次那条"读完就死"
+          update(1/60);
+          var t = M.talk.open ? (M.talk.script.nodes[M.talk.nodeId].text||'').replace(/\s+/g,'').slice(0,10) : '（没触发）';
+          /* 每进一个新节点 sel 都会归零，所以得等到"站在选项上"那一步再按 */
+          var q = 0;
+          while (M.talk.open && q++ < 20){
+            var nd = M.talk.script.nodes[M.talk.nodeId];
+            if (nd && nd.opts && pick !== undefined)
+              M.talk.sel = Math.min(pick, (M.talk.shown || []).length - 1);
+            M.talk.typed = 1e9; advanceOrChoose();
+          }
+          M.killAfter = false;
+          return t;
+        }
+        out.push('上来 ' + whereText(5,12));
+        out.push('往东 ' + f2go(31,12) + ' → 念名字=' + flagOn('走廊在念名字'));
+        /* 这声还没过去就推门 */
+        M.p.x = 38*TILE + TILE/2; M.p.y = 12*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+        update(1/60);
+        out.push('念名字时推门 → 对话=' + M.talk.open + ' killAfter=' + !!M.killAfter);
+        M.talk.open = false; M.killAfter = false;
+        out.push('退回楼梯口 ' + f2go(5,12) + ' → 过去了=' + flagOn('念名声过去了'));
+        /* 再推门，这回安全 */
+        M.p.x = 38*TILE + TILE/2; M.p.y = 12*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+        update(1/60);
+        out.push('再推门 → killAfter=' + !!M.killAfter + ' 走到=' +
+                 Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE));
+        /* 屋里三样 */
+        out.push('值日表 ' + f2go(41,4,1)  + '=' + flagOn('算过值日表'));
+        out.push('笔记   ' + f2go(41,8)  + '=' + flagOn('译出化学笔记'));
+        out.push('那局   ' + f2go(41,18,1) + '=' + flagOn('看过那局游戏'));
+      }
       if (mode === 'puzzle'){
         /* ① 点名：一路往下推，看"替别人答"是不是真会死 */
         FLAGS = {}; setFlag('是:laoli'); setFlag('该查名单了');
@@ -2233,12 +2385,12 @@ clockEl.style.display = 'none';
         out.push('密码节点=' + M.talk.nodeId);
         M.talk.sel = 1; M.talk.typed = 1e9; advanceOrChoose();   // 选错那个
         out.push('输错 → ' + M.talk.nodeId + ' 开了没=' + flagOn('拿回手机'));
-        M.talk.open = false;
-        M.p.x = D.x*TILE + TILE/2; M.p.y = D.y*TILE + TILE/2;
-        M.portalCool = 0; M.talk.cool = 0; delete FLAGS['@' + M.map + ':23'];
-        update(1/60);
+        /* 重进的时候直接开脚本 —— 别靠触发区下标，加了触发区它就变了 */
+        M.talk.open = false; M.killAfter = false; M.dying = 0;
+        openScript('pw_drawer');
         M.talk.typed = 1e9; advanceOrChoose(); advanceOrChoose();
-        M.talk.sel = 0; M.talk.typed = 1e9; advanceOrChoose();   // 选对那个
+        out.push('二次进入节点=' + M.talk.nodeId);
+        M.talk.sel = 0; M.talk.typed = 1e9; advanceOrChoose();   // 这回选对
         var w2 = 0; while (M.talk.open && w2++ < 10){ M.talk.typed = 1e9; advanceOrChoose(); }
         out.push('输对 → 开了没=' + flagOn('拿回手机'));
       }
