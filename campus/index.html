@@ -49,6 +49,12 @@
     top:calc(12px + env(safe-area-inset-top,0px));
     font-size:clamp(12px,3.2vw,15px); letter-spacing:.1em; opacity:.85;
     text-shadow:0 2px 6px rgba(0,0,0,.7); color:#fff; }
+  /* 几点钟。压在"在哪"底下 */
+  #clock { position:absolute; z-index:5; pointer-events:none;
+    left:calc(14px + env(safe-area-inset-left,0px));
+    top:calc(34px + env(safe-area-inset-top,0px));
+    font-size:clamp(12px,3.2vw,15px); letter-spacing:.1em; opacity:.7;
+    text-shadow:0 2px 6px rgba(0,0,0,.7); color:#e8a33d; }
 
   /* 走到人跟前才出现的那行提示 */
   #hint { position:absolute; z-index:5; pointer-events:none; left:50%; transform:translateX(-50%);
@@ -111,6 +117,26 @@
   #run.on { display:block; }
   #run:active { transform:scale(.93); }
   #run.fast { border-color:#e8a33d; background:rgba(232,163,61,.3); color:#fff; }
+  /* 线索本，跟"跑"并排，都在"说话"上头 */
+  #btnBook { position:absolute; z-index:7; display:none;
+    right:calc(18px + env(safe-area-inset-right,0px) + clamp(52px,14vw,66px) + 10px);
+    bottom:calc(26px + env(safe-area-inset-bottom,0px) + clamp(70px,19vw,92px) + 14px);
+    width:clamp(52px,14vw,66px); height:clamp(52px,14vw,66px); border-radius:50%;
+    border:3px solid #57534e; background:rgba(18,16,14,.75); color:#f5e6c8;
+    font-family:inherit; font-size:clamp(11px,2.9vw,14px); font-weight:600;
+    cursor:pointer; touch-action:none; padding:0; }
+  #btnBook.on { display:block; }
+  #btnBook:active { transform:scale(.93); }
+
+  /* 本子那一屏 */
+  #scBook { justify-content:flex-start; padding-top:calc(64px + env(safe-area-inset-top,0px)); }
+  #bookList { width:min(92vw,640px); text-align:left; }
+  #bookList h3 { font-size:13px; letter-spacing:.14em; color:#e8a33d;
+    margin:20px 0 8px; font-weight:600; }
+  #bookList p { font-size:clamp(12px,3.2vw,15px); line-height:1.8; margin:0 0 8px;
+    padding-left:12px; border-left:3px solid #44403c; }
+  #bookList p.dim { color:#78716c; border-left-color:transparent; padding-left:0; }
+  #bookList b { color:#f5e6c8; font-weight:600; }
 
   #probe { position:absolute; left:0; top:0; z-index:99; font-size:1px; opacity:.01;
     pointer-events:none; }
@@ -120,6 +146,7 @@
 
 <canvas id="cv"></canvas>
 <div id="where"></div>
+<div id="clock"></div>
 <div id="hint"></div>
 
 <div id="dlg">
@@ -137,16 +164,24 @@
 <div id="stick"><div id="knob"></div></div>
 <button id="act" type="button">说话</button>
 <button id="run" type="button">跑</button>
+<button id="btnBook" type="button">本</button>
+
+<div class="screen" id="scBook">
+  <h2>本子</h2>
+  <div id="bookList"></div>
+  <button class="btn" id="btnBookClose">合上</button>
+</div>
 
 <div class="screen on" id="scTitle">
   <h1>在校园里乱逛<small>CAMPUS</small></h1>
   <div class="tip">
-    <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　按住 <span class="kbd">Shift</span> 快跑<br>
-    走到人跟前，按 <b>Z</b> / <b>空格</b> 跟他说话；手机左下拖动走路，右下两个圆键。<br>
-    教学楼里有楼梯口，踩上去能上楼 —— 现在只做了一号教学楼的二楼。<br>
-    没人催你，也没有要躲的东西 —— 就是逛逛。
+    <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　按住 <span class="kbd">Shift</span> 快跑　·　<span class="kbd">Tab</span> 翻本子<br>
+    走到人跟前，按 <b>Z</b> / <b>空格</b> 跟他说话；手机左下拖动走路，右下三个圆键。<br>
+    教学楼里有楼梯口，踩上去能上楼；路上捡到东西会自动记进本子。<br>
+    进度的存着的，关了页再回来能接着走。
   </div>
   <button class="btn" id="btnStart">出门</button>
+  <button class="btn" id="btnCont">接着上次</button>
 </div>
 
 <div class="screen" id="scPick">
@@ -278,8 +313,50 @@ function makeMap(id, def, build){
   def.map     = grid(B.areas, def.w, def.h);
   def.npcs    = def.npcs || [];
   def.portals = def.portals || [];
+  def.triggers = def.triggers || [];
   MAPS[id] = def;
   B = null;
+}
+
+/* 办公楼/展馆那种：一圈外壳，里头一条走廊，走廊一侧隔成几间屋子。
+   side 是走廊贴哪边 —— 也决定正门开在哪边，所以传"朝校园中心"那一面。
+   rooms 是隔几间。屋子都在走廊对面那半边。 */
+function hallBuilding(x, y, w, h, name, side, rooms){
+  R('wall', x, y, w, h);
+  R('floor', x+1, y+1, w-2, h-2);
+  var iw = w-2, ih = h-2, CN = 2;            // 内部尺寸 / 走廊宽两格
+  var vert = (side === 'e' || side === 'w');
+  var i, j, span;
+  if (vert){
+    var c0 = (side === 'e') ? x+w-1-CN : x+1;
+    var wallX = (side === 'e') ? c0-1 : c0+CN;
+    R('corridor', c0, y+1, CN, ih);
+    R('wall', wallX, y+1, 1, ih);
+    var r0 = (side === 'e') ? x+1 : wallX+1;
+    var r1 = (side === 'e') ? wallX-1 : x+w-2;
+    span = r1-r0+1;
+    if (span > 0){
+      for (i=1; i<rooms; i++) R('wall', r0, y + Math.round(i*ih/rooms), span, 1);
+      for (j=0; j<rooms; j++)
+        R('door', wallX, y + Math.round((j+0.5)*ih/rooms), 1, 2);
+      R('door', (side === 'e') ? x+w-1 : x, y + Math.floor(ih/2), 1, 2);
+    }
+  } else {
+    var ry = (side === 's') ? y+h-1-CN : y+1;
+    var wallY = (side === 's') ? ry-1 : ry+CN;
+    R('corridor', x+1, ry, iw, CN);
+    R('wall', x+1, wallY, iw, 1);
+    var t0 = (side === 's') ? y+1 : wallY+1;
+    var t1 = (side === 's') ? wallY-1 : y+h-2;
+    span = t1-t0+1;
+    if (span > 0){
+      for (i=1; i<rooms; i++) R('wall', x + Math.round(i*iw/rooms), t0, 1, span);
+      for (j=0; j<rooms; j++)
+        R('door', x + Math.round((j+0.5)*iw/rooms) - 1, wallY, 2, 1);
+      R('door', x + Math.floor(iw/2), (side === 's') ? y+h-1 : y, 2, 1);
+    }
+  }
+  NAME(x, y, w, h, name);
 }
 
 /* 盖一栋楼：外壳 + 内部地板 + 门。门是 [x,y,w,h]，不写就是没门 */
@@ -370,11 +447,11 @@ R('path', 8,  22, 33, 2);            // 拐向西
 R('path', 8,  6,  2, 18);            // 再往北，奔左上角。到这儿就到头了
 
 /* ---------- 中轴最北：科技楼。压在最里头，比二教三教都远 ---------- */
-house(32, 31, 16, 13, '科技楼', [[39, 43, 2, 1]]);
+hallBuilding(32, 31, 16, 13, '科技楼', 's', 3);       // 中轴上，门朝南冲着广场
 
 /* ---------- 西侧：从大门往里，依次。门一律朝东（冲着校园中心）---------- */
-house(4, 108, 12, 6, '校史馆', [[15, 110, 1, 2]]);    // 离大门最近，也没那么大
-house(4, 96, 20, 10, '行政楼', [[23, 100, 1, 2]]);
+hallBuilding(4, 108, 12, 6, '校史馆', 'e', 2);        // 离大门最近，也没那么大
+hallBuilding(4, 96, 20, 10, '行政楼', 'e', 3);
 bigBuilding(4, 72, '一号教学楼', 'east');
 bigBuilding(4, 48, '二号教学楼', 'east');
 
@@ -469,7 +546,10 @@ makeMap('campus', {
   spawn: [39, 122],                     // 大门口
   statue: STATUE,                       // 只有校园有像，别的图没有就不画
   npcs: [
-    { id:'teacher',   tx:7,  ty:74, face:'down',  talk:'hint_teacher' },
+    /* 老师：晚自习在一号教学楼教室，其余时间在行政楼办公室。
+       sched 就是"到点换地方"：[起始分钟, 结束分钟, x, y] */
+    { id:'teacher',   tx:10, ty:100, face:'down', talk:'hint_teacher',
+      sched:[[19*60, 22*60, 7, 74]] },
     { id:'deskmate',  tx:19, ty:74, face:'left',  talk:'hint_deskmate' },
     { id:'laoli',     tx:11, ty:54, face:'right', talk:'hint_laoli' },
     { id:'logic',     tx:63, ty:60, face:'down',  talk:'hint_logic' },
@@ -481,6 +561,11 @@ makeMap('campus', {
   /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
   portals: [
     { x:13, y:73, w:2, h:1, to:'floor2', tx:20, ty:13 }
+  ],
+  /* 剧情触发区：踩进去就跑一段。once 的只跑一次 */
+  triggers: [
+    /* 韩愈像脚底下那半张纸条 */
+    { x:39, y:106, w:2, h:1, once:true, talk:'note_statue' }
   ]
 }, campusLayout);
 
@@ -532,12 +617,15 @@ var TALK = {
       know2:{ text:'……不过你要真想聊，就站远点聊。', end:true },
       bye:  { text:'嗯。', end:true },
       g: { text:'又是你。', opts:[
-            { t:'（再问一遍后山的事）', go:'g1' },
-            { t:'你真一直蹲在这儿？',   go:'g2' },
-            { t:'打扰了',              go:'g3' } ]},
+            { t:'（再问一遍后山的事）',   go:'g1' },
+            { t:'你真一直蹲在这儿？',     go:'g2' },
+            { t:'（把那张纸条给他看）',   go:'g4', if:'纸条' },
+            { t:'打扰了',                go:'g3' } ]},
       g1: { text:'后山走到头就没路了。你记性真差。', end:'g' },
       g2: { text:'这儿凉快。你有意见？',            end:'g' },
-      g3: { text:'嗯。',                            end:'g' }
+      g3: { text:'嗯。',                            end:'g' },
+      g4: { text:'……哪儿捡的。', set:'给过纸条', next:'g5' },
+      g5: { text:'二楼。\n……你别去。', end:'g' }
     }
   },
 
@@ -546,11 +634,88 @@ var TALK = {
   hint_shui:     { start:'s', again:'s', nodes:{ s:{ text:'你找 lg7 啊？往北一直走，穿过教学楼和科技楼，后山那条路的尽头。', end:true }}},
   hint_logic:    { start:'s', again:'s', nodes:{ s:{ text:'lg7？刚看见他往后山那边去了。', end:true }}},
   hint_laoli:    { start:'s', again:'s', nodes:{ s:{ text:'找 lg7？他这会儿估计又蹲后山去了。', end:true }}},
-  hint_teacher:  { start:'s', again:'s', nodes:{ s:{ text:'上课铃还没响，别在楼里跑。', end:true }}},
+  /* 按时间段换一套话 —— entryBy 从上往下挑第一个条件成立的 */
+  hint_teacher: {
+    start:'cls', again:'cls',
+    entryBy: [ { if:'晚自习', go:'cls' }, { go:'office' } ],
+    nodes:{
+      cls:    { text:'上课铃还没响，别在楼里跑。', end:true },
+      office: { text:'这会儿办公室就我一个。……你有事？', end:true }
+    }
+  },
   hint_dean:     { start:'s', again:'s', nodes:{ s:{ text:'校服拉链拉上。……还有，别在广场上追跑打闹。', end:true }}},
   hint_duty:     { start:'s', again:'s', nodes:{ s:{ text:'同学，你哪个班的？……算了，走吧走吧。', end:true }}},
-  hint_deskmate: { start:'s', again:'s', nodes:{ s:{ text:'你看见我橡皮了吗……刚才还在这儿的。', end:true }}}
+  hint_deskmate: { start:'s', again:'s', nodes:{ s:{ text:'你看见我橡皮了吗……刚才还在这儿的。', end:true }}},
+
+  /* ---------- 剧情片段 ----------
+     旁白：没有脸、没有名字，就是一段字。触发区和"捡到东西"都走这条 */
+  note_statue: { nodes:{ s:{
+    text:'韩愈像的底座边上压着半张作业纸，边角被雨泡皱了。\n上面只有四个字：别去二楼。',
+    set:'纸条', end:true }}}
 };
+/* ==================== 剧情状态 ====================
+   剧情说到底就是"记没记住某件事"。FLAGS 就是那份记忆：
+   键是旗标名，值是 true（或者一句话）。
+
+   三个地方往它里头写：
+     · 对话节点上的 set:'纸条'   —— 说到这儿就记上
+     · 对话选项上的 if:'纸条'    —— 没这条就不出现
+     · 地图触发区上的 set / if   —— 踩进去就记上
+
+   线索本直接读它。加一段剧情，多半就是加几个旗标 + 几行字。
+   ==================================================== */
+var FLAGS = {};
+function flagOn(k){ return !!FLAGS[k]; }
+function setFlag(k, v){
+  if (!k) return;
+  FLAGS[k] = (v === undefined) ? true : v;
+}
+
+/* 线索本。旗标一立，本子上就多一条 —— 加线索只要往这儿添一行 */
+var CLUES = {
+  '纸条': '韩愈像底座边上压着半张作业纸，上面只有四个字：别去二楼。'
+};
+
+/* ==================== 时间 ====================
+   走得很慢：现实 2 秒 = 游戏 1 分钟，一节晚自习大约 5 分钟现实时间。
+   时间段本身也是旗标 —— 对话里 if:'晚自习' 就能用，不用另写一套判断。
+   NPC 可以按点换地方：sched 写 [起始分钟, 结束分钟, x, y]。
+   ============================================ */
+var CLOCK_RATE = 0.5;                    // 每秒现实时间走 0.5 游戏分钟
+var CLOCK_START = 19 * 60;               // 开局 19:00
+var BANDS = [
+  { from:  7*60, to: 11*60+40, flag:'上午' },
+  { from: 14*60, to: 17*60,    flag:'下午' },
+  { from: 19*60, to: 22*60,    flag:'晚自习' }
+];
+function clockText(min){
+  var m = ((Math.floor(min) % 1440) + 1440) % 1440;
+  return ('0' + Math.floor(m/60)).slice(-2) + ':' + ('0' + (m%60)).slice(-2);
+}
+function applyClock(){
+  var m = ((Math.floor(M.clock) % 1440) + 1440) % 1440;
+  BANDS.forEach(function(b){
+    if (m >= b.from && m < b.to) FLAGS[b.flag] = true;
+    else delete FLAGS[b.flag];             // 过了点就撤，不然旗标一直挂着
+  });
+  M.npcs.forEach(function(n){
+    var def = null;
+    CUR.npcs.forEach(function(d){ if (d.id === n.id) def = d; });
+    if (!def) return;
+    var tx = def.tx, ty = def.ty;          // 没写 sched 就一直在原来的站位
+    if (def.sched) def.sched.forEach(function(s){
+      if (m >= s[0] && m < s[1]){ tx = s[2]; ty = s[3]; }
+    });
+    var nx = tx*TILE + TILE/2, ny = ty*TILE + TILE/2;
+    if (n.x === nx && n.y === ny) return;
+    /* 眼皮底下的先别挪 —— 不然人会在你面前"啪"一下换地方 */
+    var seen = n.x > camX - 40 && n.x < camX + W + 40 &&
+               n.y > camY - 40 && n.y < camY + H + 40;
+    if (seen) return;
+    n.x = nx; n.y = ny; n.tx = tx; n.ty = ty;
+  });
+}
+
 /* 说话的人是谁：名字和立绘都从 CHARS 里查。
    广播/旁白没有 face，就只显示名字 */
 function speaker(id){
@@ -572,14 +737,20 @@ window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', function(){ setTimeout(resize, 120); });
 
 /* ==================== 状态 ==================== */
+function freshTalk(){
+  return { open:false, npc:null, who:null, nodeId:null, sel:0, shown:[],
+           script:null, typed:0, cool:0 };
+}
 var M = {
   screen:'title',            // title | pick | play
   me:null,                   // 玩家选的角色
   p:{ x:0, y:0, dir:'down', anim:0, moving:false },
   npcs:[],
-  talk:{ open:false, npc:null, nodeId:null, sel:0, script:null, typed:0, cool:0 },
+  talk:freshTalk(),
   talked:{}, reentry:{},
   run:false,                 // 手机那个「跑」开关。键盘走 Shift，不占这个
+  book:false,                // 线索本开着没
+  clock:0,                   // 游戏里的时间，单位分钟
   map:'',                    // 现在在哪张图
   fade:0,                    // 换图时黑一下，0 就是没有
   portalCool:0,              // 刚落地别马上又被传回去
@@ -607,10 +778,45 @@ function loadMap(id, tx, ty){
   M.near = null;
   M.fade = 0.5;
   M.portalCool = 0.7;
-  M.talk = { open:false, npc:null, nodeId:null, sel:0, script:null, typed:0, cool:0 };
+  M.talk = freshTalk();
   /* 换图时把对话框收掉，别把上一张图的对话带过来 */
   if (typeof dlgEl !== 'undefined') dlgEl.classList.remove('on');
 }
+
+/* ==================== 存档 ====================
+   存的就那点剧情状态：旗标、聊过谁、在哪张图、站哪儿、几点。
+   自动存：每 4 秒一次、切到后台一次、关页面前一次。
+   ============================================ */
+var SAVE_KEY = 'ink831:save';
+function saveGame(){
+  if (M.screen !== 'play' || !M.me) return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      me: M.me.id, map: M.map, x: M.p.x, y: M.p.y, clock: M.clock,
+      flags: FLAGS, talked: M.talked, reentry: M.reentry
+    }));
+  } catch (e){}          // 隐私模式之类存不了就算了，不能因为存档把游戏搞崩
+}
+function hasSave(){
+  try { return !!localStorage.getItem(SAVE_KEY); } catch (e){ return false; }
+}
+function loadGame(){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e){}
+  if (!s || !MAPS[s.map]) return false;
+  startWalk(s.me || 'laoli');            // 先把一切清干净，再拿存档盖上去
+  M.clock = s.clock || CLOCK_START;
+  FLAGS = s.flags || {};
+  M.talked = s.talked || {};
+  M.reentry = s.reentry || {};
+  loadMap(s.map, 0, 0);
+  M.p.x = s.x; M.p.y = s.y;
+  M.fade = 0.5; M.portalCool = 0.8;
+  saveGame();
+  return true;
+}
+window.addEventListener('visibilitychange', function(){ if (document.hidden) saveGame(); });
+window.addEventListener('beforeunload', saveGame);
 
 /* ==================== 开局 ==================== */
 function startWalk(charId){
@@ -618,15 +824,21 @@ function startWalk(charId){
   CHARS.forEach(function(c){ if (c.id===charId) me = c; });
   M.me = me;
   M.talked = {}; M.reentry = {}; M.t = 0;
+  M.clock = CLOCK_START;
+  FLAGS = {};                    // 新开一局，剧情从头记
   loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
   M.run = false;
   M.screen = 'play';
   show(null);
   document.getElementById('where').style.display = '';
+  document.getElementById('clock').style.display = '';
+  if (clockEl) clockEl.textContent = clockText(M.clock);   // 先把时间画上，别空着
   hintEl.classList.remove('on');
   actEl.classList.add('on');
   runEl.classList.remove('fast');
   runEl.classList.add('on');
+  bookBtn.classList.add('on');
+  M.book = false;
   if (hasTouch) stickEl.classList.add('on');
   resize();
 }
@@ -637,13 +849,18 @@ var hasTouch = ('ontouchstart' in window);
 window.addEventListener('keydown', function(e){
   var k = e.key.toLowerCase();
   if (e.repeat) return;                       // 按住不放不该连发
+  if (k === 'tab') e.preventDefault();        // Tab 默认是跳焦点，抢过来当本子用
   if ([' ','arrowup','arrowdown','arrowleft','arrowright'].indexOf(k)>=0) e.preventDefault();
   if (M.screen !== 'play') return;
+  /* 本子：Tab 或 B 开关，Esc 合上 */
+  if (k === 'tab' || k === 'b'){ if (M.book) closeBook(); else openBook(); return; }
+  if (k === 'escape'){ if (M.book) closeBook(); return; }
+  if (M.book) return;                         // 本子开着，别让走路的键漏进去
   if (k==='z' || k===' ' || k==='enter'){ pressAct(); return; }
   if (M.talk.open){
     if (k==='arrowup'   || k==='w') moveSel(-1);
     if (k==='arrowdown' || k==='s') moveSel(1);
-    if (k>='1' && k<='3') pickOpt(parseInt(k,10)-1);
+    if (k>='1' && k<='9') pickOpt(parseInt(k,10)-1);   // 选项个数不固定了，放宽到 9
     return;
   }
   keys[k] = true;
@@ -709,6 +926,47 @@ function toggleRun(){
 runEl.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); toggleRun(); }, {passive:false});
 runEl.addEventListener('mousedown', function(e){ e.preventDefault(); toggleRun(); });
 
+/* ==================== 线索本 ====================
+   内容全从 FLAGS 推出来：旗标一立，本子上就多一条。
+   所以加剧情不用碰这段，往 CLUES 里添一行就行。
+   ============================================ */
+var bookEl = document.getElementById('scBook'), bookList = document.getElementById('bookList');
+function buildBook(){
+  var h = '';
+  var clues = Object.keys(CLUES).filter(function(k){ return flagOn(k); });
+  h += '<h3>线索</h3>';
+  h += clues.length
+    ? clues.map(function(k){
+        return '<p><b>' + escapeHTML(k) + '</b>　' + escapeHTML(CLUES[k]) + '</p>'; }).join('')
+    : '<p class="dim">还什么都没捡到。</p>';
+  /* 见过的人跨所有图算 —— 在二楼聊过的，回楼下也得算 */
+  var met = CHARS.filter(function(c){ return flagOn('见过:' + c.id); });
+  h += '<h3>见过的人</h3>';
+  h += met.length
+    ? met.map(function(c){
+        return '<p><b>' + escapeHTML(c.name) + '</b>　' + escapeHTML(c.tag) + '</p>'; }).join('')
+    : '<p class="dim">还没跟谁说过话。</p>';
+  bookList.innerHTML = h;
+}
+function openBook(){
+  if (M.screen !== 'play' || M.talk.open || M.book) return;
+  M.book = true;
+  buildBook();
+  bookEl.classList.add('on');
+  stickEnd();
+  actEl.classList.remove('on'); runEl.classList.remove('on'); bookBtn.classList.remove('on');
+}
+function closeBook(){
+  M.book = false;
+  bookEl.classList.remove('on');
+  actEl.classList.add('on'); runEl.classList.add('on'); bookBtn.classList.add('on');
+}
+var bookBtn = document.getElementById('btnBook');
+bookBtn.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); openBook(); }, {passive:false});
+bookBtn.addEventListener('mousedown', function(e){ e.preventDefault(); openBook(); });
+document.getElementById('btnBookClose').addEventListener('click', closeBook);
+bookEl.addEventListener('click', function(e){ if (e.target === bookEl) closeBook(); });
+
 /* ==================== 交互 ==================== */
 function nearNpc(){
   var best = null, bd = TALK_R;
@@ -730,26 +988,45 @@ function pressAct(){
 function entryOf(n){
   var s = TALK[n.talk];
   if (!s) return null;
+  /* 进度分支：按顺序挑第一个条件成立的 —— 用来做"先去做 X，回来他就换话" */
+  if (s.entryBy) for (var i=0;i<s.entryBy.length;i++){
+    var e = s.entryBy[i];
+    if (!e.if || flagOn(e.if)) return e.go;
+  }
   if (!M.talked[n.id]) return (s.entry && s.entry[M.me.id]) || s.start;
   return M.reentry[n.id] || s.again || s.start;
 }
-function openTalk(n){
-  var s = TALK[n.talk];
-  if (!s) return;
+function firstNode(s){ return Object.keys(s.nodes)[0]; }
+function beginScript(name, who){
+  var s = TALK[name];
+  if (!s) return false;
   M.talk.script = s;
-  M.talk.npc = n;
+  M.talk.who = who || null;
   M.talk.open = true;
   stickEnd();
   actEl.classList.remove('on');
   dlgEl.classList.add('on');
+  return true;
+}
+function openTalk(n){
+  if (!beginScript(n.talk, n.id)) return;
+  M.talk.npc = n;
   /* 转身面向对方 —— 很便宜，但一下就"对上眼"了 */
   M.p.dir = faceTowards(M.p.x, M.p.y, n.x, n.y);
   gotoNode(entryOf(n));
+}
+/* 旁白走这条：没有脸、没有名字，就是一段字。
+   触发区、捡到东西、走到某处看见什么，全用它 */
+function openScript(name){
+  if (!beginScript(name, null)) return;
+  M.talk.npc = null;
+  gotoNode(M.talk.script.start || firstNode(M.talk.script));
 }
 function closeTalk(){
   var n = M.talk.npc;
   if (n){
     M.talked[n.id] = true;
+    setFlag('见过:' + n.id);              // 线索本要用：见过谁
     var node = M.talk.script.nodes[M.talk.nodeId];
     if (node && typeof node.end === 'string') M.reentry[n.id] = node.end;
   }
@@ -763,24 +1040,30 @@ function gotoNode(id){
   var node = M.talk.script.nodes[id];
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
+  if (node.set) setFlag(node.set);        // 剧情就是在这儿记下来的
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.sel = 0;
   renderNode();
 }
 function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
-  var who = M.talk.npc.id;
-  var sp = speaker(who);
-  dlgWho.textContent = sp ? sp.name : who;
+  var who = M.talk.who;                   // 旁白是 null
+  var sp = who ? speaker(who) : null;
+  dlgWho.textContent = sp ? sp.name : '';
   dlgTxt.textContent = '';
   dlgMore.classList.remove('on');
-  var im = PORTRAIT_IMG[who];
-  dlgAv.src = im ? im.src : 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(PORTRAIT[who] || '');
+  var im = who && PORTRAIT_IMG[who];
+  dlgAv.style.visibility = sp ? '' : 'hidden';   // 旁白不摆脸
+  dlgAv.src = im ? im.src
+    : 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent((who && PORTRAIT[who]) || '');
   optsEl.innerHTML = '';
+  M.talk.shown = [];                      // 这一屏真显示出来的选项，存的是它们在 node.opts 里的下标
   if (node.opts){
     node.opts.forEach(function(o, i){
+      if (o.if && !flagOn(o.if)) return;  // 条件没到，这个选项根本不出现
+      M.talk.shown.push(i);
       var li = document.createElement('li');
-      li.innerHTML = '<span class="k">' + (i+1) + '.</span>' + escapeHTML(o.t);
+      li.innerHTML = '<span class="k">' + M.talk.shown.length + '.</span>' + escapeHTML(o.t);
       li.addEventListener('click', function(e){ e.stopPropagation(); choose(i); });
       optsEl.appendChild(li);
     });
@@ -800,7 +1083,12 @@ function advanceOrChoose(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node) { closeTalk(); return; }
   if (!nodeDone()){ M.talk.typed = full.length; drawText(); return; }  // 没出完就先出完
-  if (node.opts) { choose(M.talk.sel); return; }                      // 有选项必须先选
+  var list = M.talk.shown || [];
+  if (node.opts && list.length){                                       // 有选项必须先选
+    choose(list[Math.min(M.talk.sel, list.length-1)]);
+    return;
+  }
+  /* 选项被条件全挡掉了就当没写 opts，照 next 往下走 */
   if (node.next) { gotoNode(node.next); return; }
   closeTalk();
 }
@@ -810,15 +1098,15 @@ function choose(i){
   gotoNode(node.opts[i].go);
 }
 function moveSel(d){
-  var node = M.talk.script.nodes[M.talk.nodeId];
-  if (!node.opts) return;
-  var n = node.opts.length;
-  M.talk.sel = (M.talk.sel + d + n) % n;
+  var list = M.talk.shown || [];
+  if (!list.length) return;
+  M.talk.sel = (M.talk.sel + d + list.length) % list.length;
   markSel();
 }
+/* 数字键按的是屏幕上第几个，不是 node.opts 里第几个 —— 中间隔着"被条件挡掉"的 */
 function pickOpt(i){
-  var node = M.talk.script.nodes[M.talk.nodeId];
-  if (node.opts && node.opts[i]) choose(i);
+  var list = M.talk.shown || [];
+  if (list[i] !== undefined) choose(list[i]);
 }
 function markSel(){
   for (var i=0;i<optsEl.children.length;i++)
@@ -852,6 +1140,13 @@ function canWalk(x, y){
 var SPD = 108, RUN_MULT = 2.4;
 function update(dt){
   M.t += dt;
+  /* 时间在走：旗标跟着时间段翻，NPC 跟着换地方 */
+  M.clock += dt * CLOCK_RATE;
+  applyClock();
+  if (clockEl) clockEl.textContent = clockText(M.clock);
+  /* 自动存档 */
+  M.saveT = (M.saveT || 0) + dt;
+  if (M.saveT > 4){ M.saveT = 0; saveGame(); }
   if (M.talk.cool > 0) M.talk.cool = Math.max(0, M.talk.cool - dt);
   if (M.fade > 0) M.fade = Math.max(0, M.fade - dt*1.6);
   if (M.portalCool > 0) M.portalCool = Math.max(0, M.portalCool - dt);
@@ -867,7 +1162,7 @@ function update(dt){
   var spd = SPD * (running ? RUN_MULT : 1);
 
   var mvx = 0, mvy = 0;
-  if (M.screen === 'play' && !M.talk.open){
+  if (M.screen === 'play' && !M.talk.open && !M.book){
     if (keys['a']||keys['arrowleft'])  mvx -= 1;
     if (keys['d']||keys['arrowright']) mvx += 1;
     if (keys['w']||keys['arrowup'])    mvy -= 1;
@@ -890,12 +1185,29 @@ function update(dt){
   }
 
   /* 踩到出口就换图。刚落地那 0.7 秒不判，免得在门口来回弹 */
-  if (M.screen === 'play' && !M.talk.open && M.portalCool <= 0 && CUR){
+  if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
         loadMap(P.to, P.tx, P.ty);
+        break;
+      }
+    }
+  }
+
+  /* 踩到剧情触发区就跑一段。once 的跑过就不再跑 ——
+     记号记在 FLAGS 里，所以跟着存档一起走 */
+  if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR && CUR.triggers){
+    var gtx = Math.floor(M.p.x/TILE), gty = Math.floor(M.p.y/TILE);
+    for (var gi=0; gi<CUR.triggers.length; gi++){
+      var G = CUR.triggers[gi], gk = '@' + M.map + ':' + gi;
+      if (G.once && FLAGS[gk]) continue;
+      if (G.if && !flagOn(G.if)) continue;
+      if (gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h){
+        FLAGS[gk] = true;
+        if (G.set) setFlag(G.set);
+        if (G.talk) openScript(G.talk);
         break;
       }
     }
@@ -914,7 +1226,7 @@ function update(dt){
 
   whereEl.textContent = whereText(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE));
 }
-var whereEl = document.getElementById('where');
+var whereEl = document.getElementById('where'), clockEl = document.getElementById('clock');
 
 /* 左上角那行字：站在哪栋楼里，就报楼名；楼里再报一下是走廊还是教室。
    没进楼就只报地形（草地、路、广场…） */
@@ -1117,7 +1429,12 @@ document.getElementById('btnStart').addEventListener('click', function(){
   /* 立绘是异步光栅化的，可能还没好 —— 等一下再建卡片，免得空图 */
   setTimeout(buildPick, 120);
 });
+/* 有存档才显示"接着上次" */
+var btnCont = document.getElementById('btnCont');
+if (!hasSave()) btnCont.style.display = 'none';
+btnCont.addEventListener('click', function(){ loadGame(); });
 whereEl.style.display = 'none';
+clockEl.style.display = 'none';
 
 /* ==================== 调试钩子 ====================
    仿 ?emoji 的先例。没有测试框架，无头浏览器里全靠它把状态带出来：
@@ -1196,6 +1513,9 @@ whereEl.style.display = 'none';
         if (s.entry) Object.keys(s.entry).forEach(function(cid){
           if (!s.nodes[s.entry[cid]]) bad.push(k+'.entry.'+cid+' 指向不存在的节点');
         });
+        if (s.entryBy) s.entryBy.forEach(function(e){
+          if (!s.nodes[e.go]) bad.push(k+'.entryBy → '+e.go+' 不存在');
+        });
       });
       out.push(bad.length ? ('断链 '+bad.length+' 处: '+bad.join(' | ')) : '对话图没问题');
     } else {
@@ -1228,6 +1548,36 @@ whereEl.style.display = 'none';
                    ' NPC' + mp.npcs.length + (bad.length ? ' ← ' + bad.join(' / ') : ' 没问题'));
         });
       }
+      if (mode === 'story'){
+        /* 整条链走一遍：踩触发区 → 旁白 → 立旗标 → lg7 那个选项才出现 */
+        out.push('起始 纸条=' + flagOn('纸条'));
+        var G0 = CUR.triggers[0];
+        M.p.x = G0.x*TILE + TILE/2; M.p.y = G0.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0;
+        update(1/60);
+        out.push('踩过 纸条=' + flagOn('纸条') + ' 对话框=' + M.talk.open +
+                 ' 说话人=' + (M.talk.who || '旁白'));
+        var guard = 0;
+        while (M.talk.open && guard++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('旁白读完 对话框=' + M.talk.open);
+        /* 去找 lg7，走到那个带选项的节点上 */
+        var n0 = null;
+        M.npcs.forEach(function(n){ if (n.id === 'lg7') n0 = n; });
+        M.p.x = n0.x; M.p.y = n0.y + 20;
+        M.talk.cool = 0;
+        M.talked['lg7'] = true;                         // 当成"已经聊过"，走 again 那支
+        openTalk(n0);                                   // 直接落在选项节点上，不用再推
+        function optsNow(){ return (M.talk.shown || []).map(function(k){
+          return M.talk.script.nodes[M.talk.nodeId].opts[k].t; }).join(' / '); }
+        out.push('节点=' + M.talk.nodeId + ' 选项=' + optsNow());
+        /* 把旗标抹掉再渲染一次 —— 直接证明那个选项是"条件出来的"，不是碰巧 */
+        var keep = FLAGS['纸条'];
+        delete FLAGS['纸条']; renderNode();
+        out.push('没旗标时=' + optsNow());
+        FLAGS['纸条'] = keep; renderNode();
+        out.push('有旗标时=' + optsNow());
+        M.talk.open = false;
+      }
       if (mode === 'warp'){
         /* 站到出口上，看是不是真换了图、落点对不对，再踩回来 */
         function step(){
@@ -1238,6 +1588,43 @@ whereEl.style.display = 'none';
           return M.map + '(' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) + ')';
         }
         out.push('站上去 → ' + step() + ' → 再踩回来 ' + step());
+      }
+      if (mode === 'clock'){
+        var tch = null;
+        M.npcs.forEach(function(n){ if (n.id === 'teacher') tch = n; });
+        M.clock = 19*60 + 30; update(1/60);
+        out.push('19:30 晚自习=' + flagOn('晚自习') +
+                 ' 老师=' + Math.floor(tch.x/TILE) + ',' + Math.floor(tch.y/TILE));
+        /* 推到 22:10 —— 晚自习散了，老师该回办公室、话也该换 */
+        M.clock = 22*60 + 10; update(1/60);
+        out.push('22:10 晚自习=' + flagOn('晚自习') +
+                 ' 老师=' + Math.floor(tch.x/TILE) + ',' + Math.floor(tch.y/TILE));
+        M.p.x = tch.x; M.p.y = tch.y + 20; M.talk.cool = 0;
+        openTalk(tch);
+        out.push('老师这句=' + M.talk.script.nodes[M.talk.nodeId].text);
+        M.talk.open = false;
+      }
+      if (mode === 'save'){
+        M.clock = 20*60; setFlag('纸条'); setFlag('见过:lg7'); M.talked['lg7'] = true;
+        M.p.x = 456; M.p.y = 1234;
+        saveGame();
+        out.push('存之前 纸条=' + flagOn('纸条') + ' 几点=' + clockText(M.clock));
+        FLAGS = {}; M.talked = {}; M.clock = 0; M.p.x = 0; M.p.y = 0;
+        out.push('清空后 纸条=' + flagOn('纸条'));
+        var ok = loadGame();
+        out.push('读档 ok=' + ok + ' 纸条=' + flagOn('纸条') + ' 见过lg7=' + flagOn('见过:lg7') +
+                 ' 聊过lg7=' + !!M.talked['lg7'] + ' 几点=' + clockText(M.clock) +
+                 ' 在哪=' + M.map + ' 站位=' + Math.round(M.p.x) + ',' + Math.round(M.p.y));
+      }
+      if (mode === 'book'){
+        /* 先把纸条拿到手、再见两个人，然后翻开本子 —— 截图看排版 */
+        var GB = CUR.triggers[0];
+        M.p.x = GB.x*TILE + TILE/2; M.p.y = GB.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0;
+        update(1/60);
+        var gb = 0; while (M.talk.open && gb++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        setFlag('见过:lg7'); setFlag('见过:teacher');
+        openBook();
       }
       if (mode === 'px'){
         /* 手动画一帧再取个像素 —— 无头里 rAF 不一定跑，得自己调 */
