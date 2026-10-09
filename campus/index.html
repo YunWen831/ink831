@@ -178,6 +178,19 @@
     background:#6d0f0f; opacity:0; }
   #red.on { opacity:.5; transition:opacity .06s; }
 
+  /* 突然冒出来的按钮。
+     点它就是"答应了"；不点就是"没答应"。中间没有别的路 ——
+     比塞进对话框选项里狠得多，因为你手会先动 */
+  #press { position:absolute; z-index:9; left:50%; transform:translateX(-50%);
+    bottom:24%; display:none; }
+  #press.on { display:block; }
+  #press button { font-family:inherit; font-size:clamp(17px,4.6vw,23px); font-weight:700;
+    padding:15px 36px; border-radius:13px; border:3px solid #e8a33d;
+    background:rgba(10,9,8,.92); color:#f5e6c8; cursor:pointer; letter-spacing:.14em;
+    box-shadow:0 0 24px rgba(232,163,61,.35); animation:pp .55s infinite alternate; }
+  @keyframes pp { from { transform:scale(1); } to { transform:scale(1.08); } }
+  #press button:active { transform:scale(.95); }
+
   /* 场景卡：大段旁白走这里，不走聊天框 */
   #card { position:absolute; inset:0; z-index:10; pointer-events:none;
     display:flex; align-items:center; justify-content:center;
@@ -230,6 +243,7 @@
 <div id="goal"></div>
 <div id="arrow"></div>
 <div id="red"></div>
+<div id="press"><button type="button"></button></div>
 <div id="card"><span></span></div>
 <div id="hint"></div>
 
@@ -1037,13 +1051,13 @@ var TALK = {
     s:{ text:'走廊里有人在念名字。声音很平，一遍一遍地过。', next:'t' },
     t:{ text:'"……周…、……黄…、……陈…"', next:'u' },
     u:{ text:'（念到一半，它停了一下。）\n\n「牢李。」', next:'v' },
-    v:{ text:'（守则第二条：点到你必须答"到"。）', opts:[
-         { t:'「到。」',                go:'ans' },
-         { t:'（不出声，等它念下一个）', go:'quiet' } ]},
+    /* 从这儿开始，全是"突然冒出来的按钮"。
+       按 = 答应了；不按（时间到）= 没答应。中间没有第三条路 */
+    v:{ text:'（守则第二条：点到你必须答"到"。）',
+        press:{ t:'「到。」', secs:2.8, press:'ans', miss:'quiet' }},
     ans:  { text:'「到。」\n\n（它往下念了。）', next:'w' },
-    quiet:{ text:'（你没出声。）\n\n（它等了一会儿，又念了一遍。）\n\n「牢李。」', opts:[
-         { t:'「到。」',     go:'ans2' },
-         { t:'（还是不出声）', go:'dead2' } ]},
+    quiet:{ text:'（你没出声。）\n\n（它等了一会儿。）\n\n（又念了一遍。）\n\n「牢李。」',
+        press:{ t:'「到。」', secs:2.4, press:'ans2', miss:'dead2' }},
     ans2: { text:'「到。」\n\n（这回它往下念了。）', next:'w' },
     dead2:{ text:'（它念了第三遍。）\n\n「牢李。」\n「牢李。」\n「牢李。」', kill:true, end:true },
 
@@ -1051,10 +1065,8 @@ var TALK = {
        所以它会把同一个名字念第三遍 —— 这一次答了，就是把自己数进去 */
     z:{ text:'（往下又过了几个名字。）', next:'z2' },
     z2:{ text:'（然后它绕回来了。）\n\n「牢李。」', next:'z3' },
-    z3:{ text:'（这是第三遍了。\n　守则第六条：数第三遍，多的那个就开始数你。）', opts:[
-         { t:'「到。」',     go:'dead3' },
-         { t:'（不出声）',   go:'zok' },
-         { t:'（小声说"我不是"）', go:'dead3' } ]},
+    z3:{ text:'（这是第三遍了。）\n\n（守则第六条：数第三遍，多的那个就开始数你。）',
+        press:{ t:'「到。」', secs:2.2, press:'dead3', miss:'zok' }},
     dead3:{ text:'「到。」\n\n（它停了。）\n\n（名单上多出来的那一个 —— ）\n\n（现在是你。）',
             kill:true, end:true },
     zok:{ text:'（你没出声。）\n\n（它念了第四遍。）\n\n（你还是没出声。）\n\n（它跳过去了。）',
@@ -1064,9 +1076,8 @@ var TALK = {
     /* 陷阱不是"替别人答"——没人会那么干。是同音：你听见的是自己的名字，
        肩膀先动。可那不是你的名字，守则第三条管的就是这个。
        看清楚要读，手快就死。 */
-    x:{ text:'（你的肩膀动了一下。）', opts:[
-         { t:'「到。」',     go:'dead' },
-         { t:'（压住不动）', go:'ok' } ]},
+    x:{ text:'（你的肩膀动了一下。）',
+        press:{ t:'「到。」', secs:2.2, press:'dead', miss:'ok' }},
     ok:{ text:'（它等了一会儿，跳过去了。）\n\n（你听出来了：念到这个名字的时候，它总会顿一下。\n　像在等有人接。）',
          next:'z' },
     dead:{ text:'「到。」\n\n——那不是你的名字。\n\n（念名字的声音停了。\n　整条走廊都停住了。）\n\n（它开始往这边走。）',
@@ -1520,6 +1531,33 @@ var vigEl  = document.getElementById('vig');
 var redEl  = document.getElementById('red');
 var goalEl = document.getElementById('goal');
 var arrowEl= document.getElementById('arrow');
+
+/* ==================== 突现按钮 ====================
+   节点上写 press:{ t:'「到。」', secs:2.8, press:'ans', miss:'quiet',  } ——
+   这一句读出来的时候，屏幕下方会"啪"地冒出一个按钮。
+   按了走 press，没按（时间到）走 miss。
+   点到那个谜题整个就架在这上面：它念你名字，你就得决定按不按。
+   ============================================ */
+var pressEl = document.getElementById('press'), pressBtn = pressEl.firstChild;
+function showPress(node){
+  var P = node.press;
+  pressBtn.textContent = P.t;
+  pressEl.classList.add('on');
+  M.press = { t: P.secs || 2.6, press: P.press, miss: P.miss || P.press };
+  sfxDoor();
+}
+function hidePress(){
+  pressEl.classList.remove('on');
+  M.press = null;
+}
+function hitPress(){
+  if (!M.press) return;
+  var p = M.press;
+  hidePress();
+  gotoNode(p.press);
+}
+pressBtn.addEventListener('click', function(e){ e.stopPropagation(); hitPress(); });
+pressEl.addEventListener('click', function(e){ e.stopPropagation(); });
 
 function card(text, secs){
   cardTxt.textContent = text;
@@ -2126,6 +2164,7 @@ window.addEventListener('keydown', function(e){
     toast(SND ? '声音：开' : '声音：关');
     return;
   }
+  if (M.press && (k==='z' || k===' ' || k==='enter')){ hitPress(); return; }
   if (M.book) return;                         // 本子开着，别让走路的键漏进去
   if (k==='z' || k===' ' || k==='enter'){ pressAct(); return; }
   if (M.talk.open){
@@ -2325,6 +2364,7 @@ function closeTalk(){
   M.talk.npc = null; M.talk.nodeId = null;
   M.talk.cool = 0.2;                      // 关掉之后 0.2 秒内不许再开，防手抖
   dlgEl.classList.remove('on');
+  hidePress();
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
@@ -2336,6 +2376,7 @@ function gotoNode(id){
   var node = M.talk.script.nodes[id];
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
+  hidePress();                            // 换节点就把上一个按钮收掉
   if (node.set && !FLAGS[node.set]) sfxPick();
   if (node.set) setFlag(node.set);        // 剧情就是在这儿记下来的
   /* 也有要撤掉的：旗标只能说"是"，说不了"不是"，所以得能清 */
@@ -2353,6 +2394,7 @@ function gotoNode(id){
 function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
+  if (node.press) showPress(node);        // 这一句会让屏幕下方冒出一个按钮
   if (node.sh) shake(node.sh);            // 这一句该让画面抖一下
   if (node.stare) M.stare = node.stare;   // 这几秒里，所有人都会看着你
   if (node.card){ card(full2(node), 3.4); return; }
@@ -2394,6 +2436,9 @@ function advanceOrChoose(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node) { closeTalk(); return; }
   if (!nodeDone()){ M.talk.typed = full.length; drawText(); return; }  // 没出完就先出完
+  /* 挂着按钮就等着 —— 这一句不能靠空格往下推，
+     不然按一下就把整段对话关掉了（按钮计时也就废了） */
+  if (M.press) return;
   var list = M.talk.shown || [];
   if (node.opts && list.length){                                       // 有选项必须先选
     choose(list[Math.min(M.talk.sel, list.length-1)]);
@@ -2464,6 +2509,10 @@ function update(dt){
   if (M.map === 'floor2') M.flick = (M.flick || 0) + dt * (2 + Math.random()*5);
   else M.flick = 0;
   /* 某些时刻，全校的人会一起转过头看着你 —— 只给一次 */
+  if (M.press){                           // 突现按钮的时限
+    M.press.t -= dt;
+    if (M.press.t <= 0){ var pp = M.press; hidePress(); gotoNode(pp.miss); }
+  }
   if (M.stare > 0) M.stare -= dt;
   if (M.stare > 0 && M.npcs.length){
     M.npcs.forEach(function(n){ n.dir = faceTowards(n.x, n.y, M.p.x, M.p.y); });
@@ -2986,7 +3035,13 @@ clockEl.style.display = 'none';
           });
           if (typeof nd.end === 'string' && !s.nodes[nd.end])
             bad.push(k+'.'+nid+' → end '+nd.end+' 不存在');
-          if (!nd.next && !nd.opts && !nd.end) bad.push(k+'.'+nid+' 是死胡同');
+          if (!nd.next && !nd.opts && !nd.end && !nd.press)
+            bad.push(k+'.'+nid+' 是死胡同');
+          /* 突现按钮那两个出口也得指得着 */
+          if (nd.press){
+            if (!s.nodes[nd.press.press]) bad.push(k+'.'+nid+' → 按钮按下去的 '+nd.press.press+' 不存在');
+            if (nd.press.miss && !s.nodes[nd.press.miss]) bad.push(k+'.'+nid+' → 按钮超时的 '+nd.press.miss+' 不存在');
+          }
         });
         ['start','again'].forEach(function(key){
           if (s[key] && !s.nodes[s[key]]) bad.push(k+'.'+key+' 指向不存在的节点');
@@ -3275,11 +3330,18 @@ clockEl.style.display = 'none';
         M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
         update(1/60);
         function nx(){ M.talk.typed = 1e9; advanceOrChoose(); }
-        nx(); nx(); nx(); nx();                      // s→t→u→v，在 v 上选「到。」
-        out.push('走到 ' + M.talk.nodeId);
-        nx(); nx(); nx();                            // 到 x 上，选第一个（替答 = 陷阱）
-        out.push('答了那个同音的名字 → 节点=' + M.talk.nodeId + ' killAfter=' + !!M.killAfter);
-        M.talk.open = false; M.killAfter = false;
+        /* 点名那几步现在全靠突现按钮，不能再 nx() 往下推了 */
+        var g8 = 0;
+        while (M.talk.open && !M.press && g8++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('「牢李」的按钮指向 ' + (M.press ? M.press.press : '（没冒）'));
+        hitPress();
+        g8 = 0;
+        while (M.talk.open && !M.press && g8++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('「老李」的按钮指向 ' + (M.press ? M.press.press : '（没冒）'));
+        M.killAfter = false;
+        hitPress();
+        out.push('按下「老李」→ 节点=' + M.talk.nodeId + ' killAfter=' + !!M.killAfter);
+        M.talk.open = false; M.killAfter = false; hidePress();
 
         /* ② 顺序擦墙：跳着踩应该不认，按顺序才走。
            六块苔是水哥那条线的东西，得把它的门槛也打开 */
@@ -3422,6 +3484,96 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'press'){
+        /* 突现按钮：该冒出来、按了走 press、不按（超时）走 miss */
+        FLAGS = {}; setFlag('该查名单了');
+        var PZ2 = null;
+        CUR.triggers.forEach(function(G){ if (G.talk === 'pz_rollcall') PZ2 = G; });
+        M.p.x = PZ2.x*TILE + TILE/2; M.p.y = PZ2.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false; hidePress();
+        update(1/60);
+        function toPress(){
+          var q = 0;
+          while (M.talk.open && !M.press && q++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+          return M.press ? M.press.press : '（没冒出来）';
+        }
+        out.push('念到「牢李」→ 按钮指向 ' + toPress());
+        M.killAfter = false;
+        hitPress();
+        out.push('按了 → 节点 ' + M.talk.nodeId);
+        /* 之后全都不按，让它一遍遍超时 —— 这是正确的走法 */
+        var seq = [], guard2 = 0;
+        while (M.talk.open && guard2++ < 60){
+          if (M.press){
+            var t0 = M.press.t, gd = 0;
+            while (M.press && gd++ < Math.ceil(t0*60) + 20) update(1/60);
+            seq.push('超时');
+          } else { M.talk.typed = 1e9; advanceOrChoose(); }
+        }
+        out.push('按一次、其余全不按：' + seq.join('→') +
+                 ' 走完 答过到=' + flagOn('答过到') +
+                 ' killAfter=' + !!M.killAfter + '（该 true / false）');
+        M.talk.open = false; M.killAfter = false; hidePress();
+        /* 最后停在按钮上，好截图 */
+        FLAGS = {}; setFlag('该查名单了');
+        M.p.x = PZ2.x*TILE + TILE/2; M.p.y = PZ2.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; update(1/60);
+        var g9 = 0;
+        while (M.talk.open && !M.press && g9++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('停在按钮上：' + (M.press ? M.press.press : '（没冒）'));
+      }
+      if (mode === 'audit'){
+        /* 把同类的坑一次查完 —— 点名那个"走不到"就是这一类：
+           1. 触发区/出口落在墙里（踩不到）
+           2. 触发区/出口落在地上，但那张图上根本走不到（洪泛不到）
+           3. 出口的落点（tx,ty）踩不到
+           4. GOALS 指的格子站不住 —— 目标行会把玩家往那儿引 */
+        Object.keys(MAPS).forEach(function(mid){
+          var mp = MAPS[mid], bad = [];
+          var seen = {}, q = [[mp.spawn[0], mp.spawn[1]]];
+          seen[q[0][0] + ',' + q[0][1]] = 1;
+          while (q.length){
+            var c = q.shift();
+            [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){
+              var nx = c[0]+d[0], ny = c[1]+d[1], k = nx+','+ny;
+              if (nx<0 || ny<0 || nx>=mp.w || ny>=mp.h || seen[k]) return;
+              if (TERRAIN[mp.map[ny][nx]].solid) return;
+              seen[k] = 1; q.push([nx,ny]);
+            });
+          }
+          function tileAt2(x, y){ return mp.map[y] && mp.map[y][x]; }
+          (mp.triggers||[]).forEach(function(G, i){
+            var t = tileAt2(G.x, G.y);
+            if (!t){ bad.push('触发'+i+' 越界'); return; }
+            if (TERRAIN[t].solid) bad.push('触发'+i+' 落在' + TERRAIN[t].name + '里（踩不到）');
+            else if (!seen[G.x+','+G.y]) bad.push('触发'+i+' 走不到');
+          });
+          (mp.portals||[]).forEach(function(P, i){
+            var t = tileAt2(P.x, P.y);
+            if (!t) bad.push('出口'+i+' 越界');
+            else if (TERRAIN[t].solid) bad.push('出口'+i+' 落在' + TERRAIN[t].name + '里（踩不到）');
+            else if (!seen[P.x+','+P.y]) bad.push('出口'+i+' 走不到');
+            /* 落点得在目标图上站得住 */
+            var dst = MAPS[P.to];
+            if (dst){
+              var dt = dst.map[P.ty] && dst.map[P.ty][P.tx];
+              if (!dt) bad.push('出口'+i+' 落点越界');
+              else if (TERRAIN[dt].solid) bad.push('出口'+i+' 落点在' + TERRAIN[dt].name + '上');
+            }
+          });
+          out.push(mid + (bad.length ? ' ← ' + bad.join(' / ') : ' 干净'));
+        });
+        var gbad = [];
+        GOALS.forEach(function(G, i){
+          var mp = MAPS[G.map];
+          if (!mp){ gbad.push('目标'+i+' 指向不存在的图'); return; }
+          var t = mp.map[G.y] && mp.map[G.y][G.x];
+          if (!t) gbad.push('目标'+i+' 越界');
+          else if (TERRAIN[t].solid)
+            gbad.push('目标'+i+'「' + G.t + '」指到' + TERRAIN[t].name + '上（人站不过去）');
+        });
+        out.push(gbad.length ? ('目标: ' + gbad.join(' / ')) : '主目标都站得住');
       }
       if (mode === 'snd'){
         /* 声音默认开着没？各条音效会不会抛异常？
