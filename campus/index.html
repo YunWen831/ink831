@@ -611,9 +611,9 @@ makeMap('campus', {
 
     /* 走出教室这一步，三个角色各接到各的。同一格上摞三条，
        每条只认自己那个旗标，所以谁走谁那条，不会串味 */
-    { x:16, y:76, w:2, h:2, once:true, if:'是:laoli', talk:'free_laoli' },
-    { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  talk:'free_shui' },
-    { x:16, y:76, w:2, h:2, once:true, if:'是:logic', talk:'free_logic' },
+    { x:16, y:76, w:2, h:2, once:true, if:'是:laoli', clock:7*60+30, talk:'free_laoli' },
+    { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  clock:7*60+30, talk:'free_shui' },
+    { x:16, y:76, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic' },
     /* logic 那条：天井北头，快到楼梯口之前那一段 */
     { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' },
 
@@ -712,15 +712,37 @@ var NAME_R = 260;                // 近到能看清是谁，就往头顶挂名�
    ============================================ */
 var TALK = {
   lg7: {
-    entry: { laoli:'a_laoli', shui:'a_shui', logic:'a_logic' },
-    again: 'g',
-    nodes: {
-      a_laoli:{ text:'……牢李。\n你今天怎么有空理我。', next:'b' },
-      a_shui: { text:'水哥。\n上课那一声笑，是你吧。', next:'b' },
-      a_logic:{ text:'稀客。\n你居然会从那个位子上站起来。', next:'b' },
+    /* lg7 的开场按时间走，不按你是谁 —— 他是老师，不认人，只认人头 */
+    entryBy: [
+      { if:'领了任务', go:'b' },        // 活派完了，往后走常规那套
+      { if:'上过课',   go:'task' },     // 刚下课，他在走廊拦你
+      { if:'见过lg7',  go:'b' },
+      { go:'first' }                    // 早上在校门口堵你
+    ],
+    nodes:{
+      first:{ text:'（他往前挪了半步，正好挡在你和校门中间。）\n\n……站住。', next:'f2' },
+      f2:{ text:'化学，考多少分。', opts:[
+           { t:'（老实报个数）', go:'f3' },
+           { t:'（不吭声）',     go:'f4' } ]},
+      f3:{ text:'……不高。\n还能救。', next:'f5' },
+      f4:{ text:'不说话。\n不说话的人，心里有数。', next:'f5' },
+      f5:{ text:'（他摸出一张报名表，往你面前递了半寸，又收回去。）\n\n……先去上课。回头找你。',
+           set:'见过lg7', end:true },
+
+      task:{ text:'（他在走廊里把你拦下来了。）\n\n你。过来。', next:'t2' },
+      t2:{ text:'后山那条路，走到头有堵墙。\n有人天天去那儿。我听见的。', next:'t3' },
+      t3:{ text:'替我盯着。看见人了叫我。', opts:[
+           { t:'（答应）',             go:'t4' },
+           { t:'（问他干嘛不自己去）', go:'t5' } ]},
+      t4:{ text:'……好。', next:'t6' },
+      t5:{ text:'（他沉默了一下。）\n\n……我去了。去了三年。', next:'t6' },
+      t6:{ text:'（他把手插回兜里，转身要走。走了两步又回头。）\n\n——还有。\n别答应。\n\n（你愣了一下。他没解释。）',
+           set:['领了任务','lg7提醒过'], end:true },
+
       b:{ text:'……化学，考多少分。', opts:[
            { t:'（问他为什么老蹲在这儿）', go:'why' },
            { t:'（问他二楼的事）',         go:'tw' },
+           { t:'（把那张纸条给他看）',     go:'g4', if:'纸条' },
            { t:'（问他后山那条路）',       go:'hill', if:'该去后山了' },
            { t:'没事，我走了',             go:'bye' } ]},
       /* 水哥那条线：后山那片林子后面是什么 */
@@ -730,21 +752,15 @@ var TALK = {
       hill4:{ text:'（他掏出一张折了很多次的纸，又塞回兜里。）\n\n……听不清。\n怎么都听不清。',
               set:'墙后面的书声', end:true },
       why:  { text:'这儿安静。\n安静的地方，才有人肯站下来听我说话。', next:'why2' },
-      why2: { text:'市里那个化学竞赛，报名表我压了半个月。\n你们 46 班，我一个都还没抓到。', set:'知道lg7在抓人', end:true },
+      why2: { text:'市里那个化学竞赛，报名表在我抽屉里压了半个月。\n你们 46 班，我一个都还没抓到。\n\n想通了自己来拿。', set:'知道lg7在抓人', end:true },
       tw:   { text:'……二楼？', next:'tw2' },
       tw2:  { text:'二楼不归我管。', next:'tw3' },
       tw3:  { text:'（他说这句的时候没看你。\n　像在背一句练过很多遍的话。）', set:'lg7提过二楼', end:true },
       bye:  { text:'嗯。', end:true },
 
-      g:{ text:'又是你。', opts:[
-           { t:'（再问一遍化学竞赛的事）', go:'g1' },
-           { t:'（把那张纸条给他看）',     go:'g4', if:'纸条' },
-           { t:'打扰了',                  go:'g3' } ]},
-      g1: { text:'报名表在我抽屉里。\n想通了自己来拿。', end:'g' },
-      g3: { text:'嗯。', end:'g' },
       g4: { text:'……哪儿来的。', set:'给过纸条', next:'g5' },
       g5: { text:'不是我写的。\n我写不出这种字。', next:'g6' },
-      g6: { text:'（他把纸翻过来看了一眼背面，\n　然后飞快地还给你 —— 快得像烫手。）', end:'g' }
+      g6: { text:'（他把纸翻过来看了一眼背面，\n　然后飞快地还给你 —— 快得像烫手。）', end:'b' }
     }
   },
 
@@ -836,19 +852,19 @@ var TALK = {
     text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
     next:'t' },
     t:{ text:'你摸了摸口袋。\n\n你想起来：大门口那个值周生，本子上什么都有。',
-        set:['可以走动了','该查名单了'], end:true }}},
+        set:['可以走动了','上过课','该查名单了'], end:true }}},
 
   free_shui: { nodes:{ s:{
     text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
     next:'t' },
     t:{ text:'你摸了摸后脖子。\n\n……lg7 这会儿估计又蹲在哪堵人呢。\n昨天他堵的就是你。',
-        set:['可以走动了','该去后山了'], end:true }}},
+        set:['可以走动了','上过课','该去后山了'], end:true }}},
 
   free_logic: { nodes:{ s:{
     text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
     next:'t' },
     t:{ text:'（你站起来得比别人快。）\n\n（你知道该去哪儿。你每天都去。）',
-        set:['可以走动了','该上二楼了'], end:true }}},
+        set:['可以走动了','上过课','该上二楼了'], end:true }}},
 
   /* logic 那条线：别人在查，他在瞒。开头就是独白 */
   logic_route: { nodes:{
@@ -879,15 +895,16 @@ var TALK = {
     ans2: { text:'「到。」\n\n（这回它往下念了。）', next:'w' },
     dead2:{ text:'（它念了第三遍。）\n\n「牢李。」\n「牢李。」\n「牢李。」', kill:true, end:true },
 
-    w:{ text:'（然后它念了一个名字。）\n\n「……████。」\n\n（这个名字，教室里没有人。）', next:'x' },
-    /* 陷阱放第一个：守则说"点名要答"，但那条管的是你自己；
-       这一声是替别人答的。手快就死。 */
-    x:{ text:'（守则第三条：点到的人不在教室里，不要替他答。）', opts:[
-         { t:'「到。」',   go:'dead' },
-         { t:'（不出声）', go:'ok' } ]},
-    ok:{ text:'（走廊里安静了很久。）\n\n（它跳过了这个名字，接着往下念。）\n\n（你听出来了：每次念到这个名字，都要停一下。）',
+    w:{ text:'（它又往下过了几个名字。）\n\n「……老李。」', next:'x' },
+    /* 陷阱不是"替别人答"——没人会那么干。是同音：你听见的是自己的名字，
+       肩膀先动。可那不是你的名字，守则第三条管的就是这个。
+       看清楚要读，手快就死。 */
+    x:{ text:'（你的肩膀动了一下。）', opts:[
+         { t:'「到。」',     go:'dead' },
+         { t:'（压住不动）', go:'ok' } ]},
+    ok:{ text:'（它等了一会儿，跳过去了。）\n\n（你听出来了：念到这个名字的时候，它总会顿一下。\n　像在等有人接。）',
          set:'答过到', end:true },
-    dead:{ text:'「到。」\n\n——答完这一声，走廊里就只剩你一个人了。\n\n（念名字的声音没有了。）\n（它念到了你。）',
+    dead:{ text:'「到。」\n\n——那不是你的名字。\n\n（念名字的声音停了。\n　整条走廊都停住了。）\n\n（它开始往这边走。）',
          kill:true, end:true }
   }},
 
@@ -1657,6 +1674,7 @@ function update(dt){
       }
       FLAGS[gk] = true;
       if (G.set) setFlag(G.set);
+      if (G.clock !== undefined) setClock(G.clock);      // 时间由剧情推
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
       if (G.say) toast(G.say);                          // 或者只飘一行字
       if (G.talk) openScript(G.talk);
@@ -2015,7 +2033,8 @@ clockEl.style.display = 'none';
         M.npcs.forEach(function(n){ if (n.id === 'lg7') n0 = n; });
         M.p.x = n0.x; M.p.y = n0.y + 20;
         M.talk.cool = 0;
-        M.talked['lg7'] = true;                         // 当成"已经聊过"，走 again 那支
+        M.talked['lg7'] = true;
+        setFlag('见过lg7');                             // 让他进到"那套常规对话"里去
         openTalk(n0);                                   // 直接落在选项节点上，不用再推
         function optsNow(){ return (M.talk.shown || []).map(function(k){
           return M.talk.script.nodes[M.talk.nodeId].opts[k].t; }).join(' / '); }
@@ -2053,6 +2072,16 @@ clockEl.style.display = 'none';
         openTalk(tch);
         out.push('老师这句=' + M.talk.script.nodes[M.talk.nodeId].text);
         M.talk.open = false;
+        /* lg7 一天里该在四个地方 —— 位置跟时间绑着 */
+        var l7 = null;
+        M.npcs.forEach(function(n){ if (n.id === 'lg7') l7 = n; });
+        /* sched 只在人"看不见"的时候才挪 —— 无头里镜头停在原点，
+           这儿得先把镜头挪开，不然他会一直算在画面里、永远不动 */
+        camX = camY = 1e6;
+        [[6*60+55,'早上'],[7*60+20,'早读'],[8*60,'白天'],[10*60,'后半场']].forEach(function(w){
+          M.clock = w[0]; applyClock();
+          out.push(w[1] + ' lg7@' + Math.floor(l7.x/TILE) + ',' + Math.floor(l7.y/TILE));
+        });
       }
       if (mode === 'save'){
         M.clock = 7*60+20; setFlag('纸条'); setFlag('见过:lg7'); M.talked['lg7'] = true;
@@ -2103,7 +2132,7 @@ clockEl.style.display = 'none';
         nx(); nx(); nx(); nx();                      // s→t→u→v，在 v 上选「到。」
         out.push('走到 ' + M.talk.nodeId);
         nx(); nx(); nx();                            // 到 x 上，选第一个（替答 = 陷阱）
-        out.push('替别人答 → 节点=' + M.talk.nodeId + ' killAfter=' + !!M.killAfter);
+        out.push('答了那个同音的名字 → 节点=' + M.talk.nodeId + ' killAfter=' + !!M.killAfter);
         M.talk.open = false; M.killAfter = false;
 
         /* ② 顺序擦墙：跳着踩应该不认，按顺序才走。
