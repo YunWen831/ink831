@@ -750,7 +750,8 @@ makeMap('campus', {
     /* logic 那条：快到上楼的楼梯之前那一段 */
     { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' },
     /* 上楼之前，lg7 把他捏了一年的那支笔塞给你 */
-    { x:13, y:74, w:2, h:1, once:true, if:'可以上去了', talk:'lg7_pen' },
+    { x:13, y:74, w:2, h:1, once:true, if:'可以上去了', talk:'lg7_pen',
+      put:['lg7', 14, 74], clock:10*60 },
 
     /* ---- 牢李那条的谜题 ---- */
     { x:16, y:80, w:2, h:2, once:true, if:'该查名单了', talk:'pz_rollcall' },
@@ -2067,7 +2068,11 @@ function urgeTick(dt){
     return;
   }
   M.urgeCool -= dt;
-  if (M.urgeCool <= 0){ M.urge = 28 + Math.random()*22; toast('……不行。得去一趟。', 2.4); }
+  if (M.urgeCool > 0) return;
+  /* 附近没厕所就别来这一出 —— 让人从校园这头憋到那头，那不叫机制，叫整人 */
+  var T = nearestToilet();
+  if (T && Math.hypot(T.x - M.p.x/TILE, T.y - M.p.y/TILE) > 26) return;
+  M.urge = 45 + Math.random()*30; toast('……不行。得去一趟。', 2.4);
 }
 
 /* ==================== 存档点 / 死了重来 ====================
@@ -2791,6 +2796,13 @@ function update(dt){
       }
       if (G.endchase && M.chase) M.endAfter = true;    // 等这段话说完再结束追逐
       if (G.bell) sfxBell(G.bell);                      // 铃
+      if (G.put){                       // 把某个 NPC 直接摆过去（剧情需要他站那儿）
+        M.npcs.forEach(function(n){
+          if (n.id !== G.put[0]) return;
+          n.x = G.put[1]*TILE + TILE/2; n.y = G.put[2]*TILE + TILE/2;
+          n.tx = G.put[1]; n.ty = G.put[2];
+        });
+      }
       if (G.stare) M.stare = G.stare;
       if (G.card){ card(G.card, G.cardSecs); break; }    // 大段旁白走全屏，不走黑框
       if (G.chase) startChase();                        // 踩到这儿，整队开始
@@ -3752,6 +3764,12 @@ clockEl.style.display = 'none';
 
         /* 光看格子站得住不够 —— 每个出口都真站上去走一遍，
            看是不是换到了该去的那张图。这一步才是"进得去吗"的答案 */
+        /* "上没上到厕所"这一条单测：站到厕所图上，inToilet() 必须为真 */
+        loadMap('toilet', 8, 10);
+        out.push('站在厕所图上 inToilet=' + inToilet() + '（该 true）');
+        loadMap('campus', 39, 122);
+        out.push('站在校门口 inToilet=' + inToilet() + '（该 false）');
+
         Object.keys(MAPS).forEach(function(mid){
           var mp = MAPS[mid];
           (mp.portals||[]).forEach(function(P, i){
