@@ -600,7 +600,15 @@ makeMap('campus', {
     { x:6,  y:75,  w:3, h:3, once:true, if:'看过守则', talk:'scare_45' },
     /* 守则第四条：不要在玻璃前面停下来。停够 1.6 秒就死 ——
        这一条不写 once，破了守则死一次，读档回来还能再撞一遍 */
-    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death' }
+    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death' },
+
+    /* 走出教室这一步，三个角色各接到各的。同一格上摞三条，
+       每条只认自己那个旗标，所以谁走谁那条，不会串味 */
+    { x:16, y:76, w:2, h:2, once:true, if:'是:laoli', talk:'free_laoli' },
+    { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  talk:'free_shui' },
+    { x:16, y:76, w:2, h:2, once:true, if:'是:logic', talk:'free_logic' },
+    /* logic 那条：天井北头，快到楼梯口之前那一段 */
+    { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' }
   ]
 }, campusLayout);
 
@@ -690,8 +698,15 @@ var TALK = {
       a_logic:{ text:'稀客。\n你居然会从那个位子上站起来。', next:'b' },
       b:{ text:'……化学，考多少分。', opts:[
            { t:'（问他为什么老蹲在这儿）', go:'why' },
-           { t:'（问他二楼的事）',        go:'tw' },
-           { t:'没事，我走了',            go:'bye' } ]},
+           { t:'（问他二楼的事）',         go:'tw' },
+           { t:'（问他后山那条路）',       go:'hill', if:'该去后山了' },
+           { t:'没事，我走了',             go:'bye' } ]},
+      /* 水哥那条线：后山那片林子后面是什么 */
+      hill: { text:'（他往身后那片树看了一眼。）\n\n……你也要去？', next:'hill2' },
+      hill2:{ text:'路走到头是一堵墙。\n墙后面有人念书。', next:'hill3' },
+      hill3:{ text:'我在这儿蹲了三年，就想听清念的是哪一页。', next:'hill4' },
+      hill4:{ text:'（他掏出一张折了很多次的纸，又塞回兜里。）\n\n……听不清。\n怎么都听不清。',
+              set:'墙后面的书声', end:true },
       why:  { text:'这儿安静。\n安静的地方，才有人肯站下来听我说话。', next:'why2' },
       why2: { text:'市里那个化学竞赛，报名表我压了半个月。\n你们 46 班，我一个都还没抓到。', set:'知道lg7在抓人', end:true },
       tw:   { text:'……二楼？', next:'tw2' },
@@ -737,11 +752,30 @@ var TALK = {
     s:{ text:'校服拉链拉上。', next:'t' },
     t:{ text:'……还有三条，你记着。\n别回头。别答应。别在楼梯上数台阶。', set:'教导主任的三条规矩', end:true }}},
 
-  hint_duty: { start:'s', again:'s', nodes:{
-    s:{ text:'同学，你哪个班的。', next:'t' },
-    t:{ text:'……46 班。', next:'u' },
-    u:{ text:'（他低头翻记名本。翻到某一页，停住了。\n　那一页从头上写到底，全是同一个人的字迹，写着同一天。）',
-        set:'记名本有问题', end:true }}},
+  /* 值周生 —— 牢李那条线的入口。名单那一块拼图在他本子上 */
+  hint_duty: {
+    start:'s', again:'s',
+    entryBy: [
+      { if:'拿过名单',   go:'done' },
+      { if:'该查名单了', go:'roster' },
+      { go:'s' }
+    ],
+    nodes:{
+      s:{ text:'同学，你哪个班的。', next:'t' },
+      t:{ text:'……46 班。', next:'u' },
+      u:{ text:'（他低头翻记名本，手停在半页上。）\n　那一页从头上写到底，全是同一个人的字迹，写着同一天。',
+          set:'记名本有问题', end:true },
+
+      roster:{ text:'……牢李。\n你不在教室里待着，跑大门口来干嘛。', next:'r2' },
+      r2:{ text:'（他把记名本往怀里收了收。）\n\n你要看这个？', next:'r3' },
+      r3:{ text:'行吧。反正也快没人查了。', next:'r4' },
+      r4:{ text:'（他翻到 46 班那一页。）\n\n十九个。\n跟你数的一样。', next:'r5' },
+      r5:{ text:'……但是这一行，你看。', next:'r6' },
+      r6:{ text:'第一个名字被人用红笔反复划过，把纸划穿了。\n划掉的是什么字，已经看不清。\n\n可那一行还在。\n每次点名，他都答"到"。',
+           set:'拿过名单', end:true },
+      done:{ text:'……别问我了。\n我明天就不干了。', end:true }
+    }
+  },
   hint_deskmate: {
     start:'s', again:'s',
     /* 拿到纸条之后，同桌才会说真话 */
@@ -770,6 +804,37 @@ var TALK = {
     u:{ text:'"……不对。"\n"怎么多一个。"', next:'v' },
     v:{ text:'没人接话。前排有人把头低了下去。', next:'w' },
     w:{ text:'你低头，发现自己桌上多了一张对折的纸。\n\n纸上四个字，铅笔写的，笔迹蹭花了：\n\n别去二楼。', set:'纸条', end:true }
+  }},
+
+  /* ==================== 三条线的分岔口 ====================
+     老师被叫走 = 可以走动了。三个角色各接到不同的"该去哪儿"，
+     各自那条线只认自己那个旗标，互不串味。
+     ==================================================== */
+  free_laoli: { nodes:{ s:{
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
+    next:'t' },
+    t:{ text:'你摸了摸口袋。\n\n你想起来：大门口那个值周生，本子上什么都有。',
+        set:['可以走动了','该查名单了'], end:true }}},
+
+  free_shui: { nodes:{ s:{
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
+    next:'t' },
+    t:{ text:'你摸了摸后脖子。\n\n……lg7 这会儿估计又蹲在哪堵人呢。\n昨天他堵的就是你。',
+        set:['可以走动了','该去后山了'], end:true }}},
+
+  free_logic: { nodes:{ s:{
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。',
+    next:'t' },
+    t:{ text:'（你站起来得比别人快。）\n\n（你知道该去哪儿。你每天都去。）',
+        set:['可以走动了','该上二楼了'], end:true }}},
+
+  /* logic 那条线：别人在查，他在瞒。开头就是独白 */
+  logic_route: { nodes:{
+    s:{ text:'（你没往楼下走。）', next:'t' },
+    t:{ text:'（你走到天井北头那个楼梯口。这个点，没人会上去。）', next:'u' },
+    u:{ text:'（你不是今天才知道那间教室的。\n　开学第二个礼拜你就找到了。）', next:'v' },
+    v:{ text:'（里面很静，静得能听见自己的笔尖。\n　黑板上的值日表永远停在同一天。\n　所以你在那儿刷题 —— 没人会来吵你。）', next:'w' },
+    w:{ text:'（这件事你没跟任何人说过。）', set:'logic承认了', end:true }
   }},
 
   /* 老梗：水池/水桶里那支翻译笔 */
@@ -837,6 +902,11 @@ var FLAGS = {};
 function flagOn(k){ return !!FLAGS[k]; }
 function setFlag(k, v){
   if (!k) return;
+  /* 也收数组：一个节点上要同时立两个旗标是常有的事 */
+  if (typeof k === 'object' && k && k.forEach){
+    k.forEach(function(x){ if (x) FLAGS[x] = true; });
+    return;
+  }
   FLAGS[k] = (v === undefined) ? true : v;
 }
 
@@ -851,7 +921,12 @@ var CLUES = {
   'lg7提过二楼':    '问他二楼，他说"二楼不归我管"，说的时候眼睛没看你。',
   '看过守则':       '《46 班自习课守则》六条。头两条正常，从第三条开始就不对了。',
   '数过两遍':       '你数了两遍，都是十九个。守则第六条：数第三遍，多的那个就开始数你。',
-  '45班有人':       '45 班门开着，里头黑着，窗帘拉得严严实实。你走过去的时候，听见里面有人翻了翻书。'
+  '45班有人':       '45 班门开着，里头黑着，窗帘拉得严严实实。你走过去的时候，听见里面有人翻了翻书。',
+
+  /* 三条线各一块拼图：谁 / 哪儿 / 怎么进 */
+  '拿过名单':     '值周生的本子上，46 班一直是十九个。可第一行有个名字被红笔划穿了纸 —— 那一行还在，每次点名他都答"到"。',
+  '墙后面的书声': '后山那条路走到头是一堵墙。lg7 在那儿蹲了三年：墙后面有人念书，怎么都听不清。',
+  'logic承认了':  'logic 开学第二个礼拜就找到了那间教室。里头时间不动，黑板上的值日表永远停在同一天。他一直在那儿刷题，没跟任何人说过。'
 };
 
 /* ==================== 时间 ====================
@@ -1052,6 +1127,8 @@ function startWalk(charId){
   M.talked = {}; M.reentry = {}; M.t = 0;
   M.clock = CLOCK_START;
   FLAGS = {};                    // 新开一局，剧情从头记
+  /* 你选了谁，整条线就走谁那条 —— 对话和触发区都拿这个当条件 */
+  setFlag('是:' + charId);
   loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
   applyClock();                  // 把开局时间段的旗标先刷上（早读之类）
   checkpoint();                  // 开局就有一个存档点，死了不至于从头来
@@ -1915,6 +1992,32 @@ clockEl.style.display = 'none';
           for (var kk=0; kk<n; kk++) update(1/60);
           if (M.talk.open){ M.talk.typed = 6; drawText(); }   // 出几个字够看排版
         }
+      }
+      if (mode === 'route'){
+        /* 出了教室那一格上摞着三条分岔。换个身份再走一遍，
+           看是不是每次都只认自己那条 —— 串味了三条线就废了 */
+        function tryAt(ch){
+          FLAGS = {}; setFlag('是:' + ch);
+          var hit = '（没触发）';
+          for (var t2=8; t2<=10; t2++){
+            M.p.x = CUR.triggers[t2].x*TILE + TILE/2;
+            M.p.y = CUR.triggers[t2].y*TILE + TILE/2;
+            M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+            update(1/60);
+            if (M.talk.open){
+              /* 三条线的开头是共用的，得走完看立了哪个旗标才分得出来 */
+              var g3 = 0;
+              while (M.talk.open && g3++ < 10){ M.talk.typed = 1e9; advanceOrChoose(); }
+              M.talk.open = false;
+              hit = ['该查名单了','该去后山了','该上二楼了'].filter(flagOn).join(' + ') || '（没立旗标）';
+              break;
+            }
+          }
+          return ch + ' → ' + hit;
+        }
+        out.push(tryAt('laoli'));
+        out.push(tryAt('shui'));
+        out.push(tryAt('logic'));
       }
       if (mode === 'rule'){
         /* 守则第四条：在玻璃前面站住不动，应该死 */
