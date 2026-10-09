@@ -701,7 +701,7 @@ makeMap('campus', {
     /* 老师：晚自习在一号教学楼教室，其余时间在行政楼办公室。
        sched 就是"到点换地方"：[起始分钟, 结束分钟, x, y] */
     { id:'teacher',   tx:10, ty:100, face:'down', talk:'hint_teacher',
-      sched:[[6*60+40, 7*60+30, 21, 74]] },   // 早读在 46 班教室
+      sched:[[6*60+40, 7*60+30, 21, 73]] },   // 早读站在 46 班最前排（黑板底下）
     { id:'deskmate',  tx:19, ty:74, face:'left',  talk:'hint_deskmate' },
     { id:'laoli',     tx:11, ty:54, face:'right', talk:'hint_laoli' },
     { id:'logic',     tx:63, ty:60, face:'down',  talk:'hint_logic' },
@@ -1680,7 +1680,10 @@ var GOALS = [
   { if:'上过二楼',   map:'floor2', t:'走廊东头那扇门',          x:38, y:12  },
   { if:'可以上去了', map:'campus', t:'上楼的楼梯口',      x:13, y:73  },
   { if:'该上二楼了', map:'campus', t:'去上楼的那道楼梯',              x:13, y:74  },
-  { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 去后山',  x:39, y:26  },
+  /* 后山那堵墙现在是一张单独的图，箭头要指到那道口子上 ——
+     原来指的是科技楼背后那片空地，走过去是一片草，什么也没有 */
+  { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 后山那条路走到头', x:9, y:6 },
+  { if:'看到六块苔', map:'hill',   t:'按条数擦：上 · 师 · 如 · 玻 · 门 · 数', x:10, y:5 },
   { if:'该查名单了', map:'campus', t:'去大门口，找那个值周生',  x:37, y:119 },
   { if:'答过到',     map:'campus', t:'回教室，数一遍人 —— 只数两遍', x:19, y:78 },
   { if:'看过守则',   map:'campus', t:'走出教室 —— 走廊里有人在念名字', x:16, y:80 },
@@ -3010,9 +3013,9 @@ function render(){
     if (!c.desk) return;                    // 校园里站着的人，前面没有桌子
     var w = 16*2;
     cx.fillStyle = '#7d5530';
-    cx.fillRect(cxp - w/2 - 2, cyp - 15, w + 4, 16);
+    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 14);
     cx.fillStyle = '#a8763f';
-    cx.fillRect(cxp - w/2 - 2, cyp - 15, w + 4, 6);
+    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 5);
   });
 
   /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
@@ -3746,6 +3749,21 @@ clockEl.style.display = 'none';
             gbad.push('目标'+i+'「' + G.t + '」指到' + TERRAIN[t].name + '上（人站不过去）');
         });
         out.push(gbad.length ? ('目标: ' + gbad.join(' / ')) : '主目标都站得住');
+
+        /* 光看格子站得住不够 —— 每个出口都真站上去走一遍，
+           看是不是换到了该去的那张图。这一步才是"进得去吗"的答案 */
+        Object.keys(MAPS).forEach(function(mid){
+          var mp = MAPS[mid];
+          (mp.portals||[]).forEach(function(P, i){
+            FLAGS = {}; M.backTo = null; M.killAfter = false; M.dying = 0;
+            loadMap(mid, P.x, P.y);
+            M.portalCool = 0; M.talk.open = false; hidePress();
+            update(1/60);
+            var ok = P.back ? (M.map !== mid) : (M.map === P.to);
+            out.push('  ' + mid + ' 第' + (i+1) + '个口 → ' + M.map +
+                     (ok ? ' ✓' : ' ✗ 该去 ' + (P.back ? '原路返回' : P.to)));
+          });
+        });
       }
       if (mode === 'snd'){
         /* 声音默认开着没？各条音效会不会抛异常？
