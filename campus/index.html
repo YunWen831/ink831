@@ -474,8 +474,8 @@ function house(x, y, w, h, name, doors, inner){
 }
 
 /* 教学楼/实验楼的一"翼"：9 宽 20 高。
-   靠中庭那侧一条竖走廊；正中间横穿一条过道，把两间教室隔开。
-   side  = 走廊靠哪边（都朝着中间的中庭）
+   靠空地那侧一条竖走廊；正中间横穿一条过道，把两间教室隔开。
+   side  = 走廊靠哪边（都朝着中间的空地）
    front = 这一翼的外墙面是不是"正面"（朝校园中心），是就在过道口开正门 */
 function wing(x, y, side, front){
   var w = 9, h = 20, east = (side === 'east');
@@ -497,19 +497,19 @@ function wing(x, y, side, front){
   if (front) R('door', east ? x : x+8, y+9, 1, 2);
 }
 
-/* 一栋大楼 = 西翼 + 竖中庭 + 东翼，20×20。
+/* 一栋大楼 = 西翼 + 竖空地 + 东翼，20×20。
    facing 是这栋楼"朝校园中心"的那一面：西边那排楼朝东，东边那排朝西。
-   两翼的走廊都朝着中庭；正门开在 facing 那一面的外墙上，进门就是过道，
-   过道一头通竖走廊、一头通中庭 —— 所以门一律冲着中心开。
+   两翼的走廊都朝着空地；正门开在 facing 那一面的外墙上，进门就是过道，
+   过道一头通竖走廊、一头通空地 —— 所以门一律冲着中心开。
    三栋教学楼、实验楼都用它，所以它们一样大、一个朝向。 */
 function bigBuilding(bx, by, name, facing){
   var east = (facing === 'east');
   wing(bx,    by, 'east', !east);        // 西翼：朝西的那排楼，它才是正面
   wing(bx+11, by, 'west', east);         // 东翼：朝东的那排楼，它才是正面
-  R('garden', bx+9, by+1,  2, 18);       // 中间竖着那条中庭
-  R('stairs', bx+9, by+1,  2, 1);        // 中庭两头是楼梯间，先当标记摆着
+  R('garden', bx+9, by+1,  2, 18);       // 中间竖着那条空地
+  R('stairs', bx+9, by+1,  2, 1);        // 空地两头是楼梯间，先当标记摆着
   R('stairs', bx+9, by+18, 2, 1);
-  R('door', bx+8,  by+9, 1, 2);          // 中庭两侧各开一个门，两翼的过道都通
+  R('door', bx+8,  by+9, 1, 2);          // 空地两侧各开一个门，两翼的过道都通
   R('door', bx+11, by+9, 1, 2);
   NAME(bx, by, 20, 20, name);
 }
@@ -567,7 +567,7 @@ bigBuilding(4, 48, '二号教学楼', 'east');
 NAME(5, 60, 4, 7, '厕所');    // 二号教学楼西翼南排。牢李的随机想上厕所，就靠这两间
 
 /* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
-   实验楼跟教学楼一样是"竖中庭"的壳子；艺术楼是"回"字 */
+   实验楼跟教学楼一样是"竖空地"的壳子；艺术楼是"回"字 */
 ringBuilding(56, 95, '艺术楼');                      // 离大门最近，占了原来艺术楼+实验楼两块地
 bigBuilding(56, 72, '实验楼', 'west');               // 顶到三教原来的位置
 bigBuilding(56, 48, '第三教学楼', 'west');           // 三教上移，跟西边二号教学楼并排
@@ -2880,7 +2880,7 @@ function drawTile(t, sx, sy){
     cx.fillStyle = '#6f7d4e';
     cx.beginPath(); cx.arc(sx+TILE/2, sy+TILE/2, TILE*0.34, 0, 7); cx.fill();
   } else if (t === 'garden'){
-    /* 中庭：栽几株矮的，别跟草地一个样 */
+    /* 空地：栽几株矮的，别跟草地一个样 */
     cx.fillStyle = '#4e7439';
     cx.beginPath(); cx.arc(sx+TILE*0.3, sy+TILE*0.55, 5, 0, 7); cx.fill();
     cx.beginPath(); cx.arc(sx+TILE*0.72, sy+TILE*0.4, 4, 0, 7); cx.fill();
@@ -2904,7 +2904,7 @@ function drawLabels(){
     /* ty 是可选的：中心广场要跟"韩愈像"那行字错开，不然两行叠一块 */
     var ty = (L.ty === undefined) ? (L.y + L.h/2) : L.ty;
     var px = (L.x + L.w/2)*TILE, py = ty*TILE;
-    /* 先白描边再填深色 —— 楼名有的落在浅色地板上、有的落在绿色中庭上，
+    /* 先白描边再填深色 —— 楼名有的落在浅色地板上、有的落在绿色空地上，
        一种颜色压不平，加圈白边两边都看得清 */
     cx.strokeText(L.t, px, py);
     cx.fillStyle = 'rgba(24,20,14,.42)';
