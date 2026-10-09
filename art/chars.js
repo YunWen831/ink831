@@ -9,8 +9,9 @@
    朝哪边走"，认脸的事交给对话框那张大的。上上版我把脸画成 16×16 缩在
    地图上，一格只有 1.9 个像素，八个人其实是同一张脸换配色，所以认不出。
 
-   身子只画一套：正面、背面、侧面（左边靠镜像）。每个角色只换配色和发型。
-   要加角色，照抄 CHARS 里一条、给个配色就完了，不用重画 12 张图。
+   身子只画一套：正面、背面、侧面（左边靠镜像）。每个角色只换配色、
+   再挑一个发型预设（spr），不用重画 12 张图。
+   要加角色，照抄 CHARS 里一条、给个配色和 spr 就完了。
    ================================================================== */
 "use strict";
 
@@ -291,11 +292,74 @@ function drawRows(g, x0, y0, rows, pal, c){
     }
 }
 
+/* ==================== 地图上怎么认出人 ====================
+   16×24 的小人上，脸是认不出来的（眼睛就 2 个像素）。能认出来的只有三样：
+   轮廓（发型/帽子）、颜色（衣服）、身上挂的东西（袖章）。
+   所以每个人至少在这三样里占两样不一样的 —— 光靠换衣服颜色，
+   四个人穿同一种浅色的时候就是分不开。
+
+   这些都在"上色之后、描边之前"动，改的是颜色网格，不用重画 12 张图。
+   ==================================================== */
+function hairVariant(g, c, base){
+  var kind = c.spr || 'short';
+  if (kind === 'short') return;
+  var hc = c.pal.hair, sc = c.pal.skin;
+  function hairCols(y){
+    var a = [];
+    for (var x=0; x<SW; x++) if (g[y][x] === hc) a.push(x);
+    return a;
+  }
+  if (kind === 'long'){
+    /* 齐耳往下再拉长：拿第 7 行头发的左右端点，把下面几行的外缘也染上。
+       侧面只有后脑那一撮，往脸那边抹就成了络腮胡 */
+    var hx = hairCols(7);
+    if (!hx.length) return;
+    var cols = (base === 'side') ? [hx[0]] : [hx[0], hx[hx.length-1]];
+    for (var y=8; y<=11; y++)
+      cols.forEach(function(x){
+        if (g[y][x] === sc || g[y][x] === null) g[y][x] = hc;
+      });
+  } else if (kind === 'spiky'){
+    /* 头顶那行隔一格抠掉，剩几个尖 */
+    var t0 = hairCols(0);
+    if (!t0.length) return;
+    var L0 = t0[0];
+    t0.forEach(function(x){ if ((x - L0) % 2) g[0][x] = null; });
+  } else if (kind === 'cap'){
+    /* 帽子：头顶两行换成帽色，帽檐再比头宽出一格 */
+    var cc = c.pal.cap || hc;
+    var brim = hairCols(2);
+    for (var cy=0; cy<=2; cy++)
+      for (var cxx=0; cxx<SW; cxx++) if (g[cy][cxx] === hc) g[cy][cxx] = cc;
+    if (brim.length){
+      var bl = brim[0]-1, br = brim[brim.length-1]+1;
+      if (bl >= 0) g[2][bl] = cc;
+      if (br < SW) g[2][br] = cc;
+    }
+  } else if (kind === 'bald'){
+    /* 秃顶：顶上四行头发全变头皮，只剩两鬓 */
+    for (var by=0; by<=3; by++)
+      for (var bx=0; bx<SW; bx++) if (g[by][bx] === hc) g[by][bx] = sc;
+  }
+}
+function accVariant(g, c, base){
+  if (c.acc === 'armband'){
+    /* 红袖章：胳膊那一列中间两格。正面有两只胳膊，侧面只看得见一只 */
+    var cols = (base === 'side') ? [12] : [3, 12];
+    cols.forEach(function(x){
+      for (var y=12; y<=13; y++) if (g[y][x]) g[y][x] = c.pal.cloth2;
+    });
+  }
+}
+
 function buildSprite(c, base, frame, flip){
   var g = blankGrid(SW, SH);
   drawRows(g, 0, 0, BODY[base], BODY_PAL, c);
   var legTop = BODY[base].length;
   drawRows(g, 0, legTop, LEGS[base][frame], LEG_PAL, c);
+  /* 认人的那点差别，得赶在抬脚（整张上移一行）之前加，不然行号全错位 */
+  hairVariant(g, c, base);
+  accVariant(g, c, base);
 
   /* 走路时整个人抬一格再落下。
      第一版只把上半身抬了、腿留在原地，结果腰上裂开一道横缝，看着像断了。
@@ -317,70 +381,77 @@ function buildSprite(c, base, frame, flip){
   return gridSVG(g, null);
 }
 
-/* ==================== 角色 ==================== */
+/* ==================== 角色 ====================
+   spr 是地图上的发型/头部特征：short 平头、long 长一点的、
+   spiky 毛躁、cap 戴帽子、bald 秃顶；acc 是身上挂的东西。
+   这一列才是"一眼认出谁是谁"的关键，配色是配合它用的 ——
+   之前八个人清一色浅衣服，四个人穿白，难怪认不出来。
+   ============================================ */
 var CHARS = [
   { id:'laoli', name:'牢李', tag:'可靠',
     bg:'#39424b', hairLine:12, sideburn:16, brow:'thick', eyes:'normal',
-    mouth:'grin', glasses:'round', stubble:true,
+    mouth:'grin', glasses:'round', stubble:true, spr:'short',
     collar:['...CC...','..CCCC..','..CCCC..'],
-    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#17130f', cloth:'#b6bbbf',
-          cloth2:'#7fa8cc', pants:'#4a5058', shoe:'#2b2b30', frame:'#14110f', stubble:'#c69c78',
+    /* 石板灰，不用蓝 —— 蓝的已经有 logic（天蓝）和主任（藏青）了，
+       三个人站一块儿本来就分不清，再添一个蓝灰更糊 */
+    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#17130f', cloth:'#8b9198',
+          cloth2:'#767c83', pants:'#3f4650', shoe:'#2b2b30', frame:'#14110f', stubble:'#c69c78',
           W:AV.white, O:'#17130f', M:'#7d3a33' } },
 
   { id:'lg7', name:'lg7', tag:'不好相处',
     bg:'#4a3134', faceRX:9,  faceRY:12, hairLine:13, sideburn:18, brow:'thin', eyes:'normal',
-    mouth:'smile', glasses:'round',
+    mouth:'smile', glasses:'round', spr:'long',
     collar:['...CC...','..CCCC..','..CCCC..'],
-    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#14100e', cloth:'#d9776b',
-          cloth2:'#b85f55', pants:'#3f3a3a', shoe:'#2b2b30', frame:'#14110f',
+    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#14100e', cloth:'#c05a4e',
+          cloth2:'#a84a40', pants:'#3a3535', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#8a5148' } },
 
   { id:'shui', name:'水哥', tag:'憨厚老实',
     bg:'#4a423c', faceRX:11, faceRY:10, hairLine:12, sideburn:15, brow:'thick', eyes:'normal',
-    mouth:'neutral',
+    mouth:'neutral', spr:'short',
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
-    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#17130f', cloth:'#dcd9d4',
-          cloth2:'#c9c6c0', pants:'#4a5058', shoe:'#2b2b30', frame:'#14110f',
+    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#17130f', cloth:'#d98a3d',
+          cloth2:'#c47a30', pants:'#4a4740', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#8c4a3f' } },
 
   { id:'logic', name:'logic', tag:'自认聪明',
     bg:'#33443c', faceRX:9,  faceRY:12, hairLine:14, sideburn:17, brow:'thin', eyes:'normal',
-    mouth:'thick', glasses:'square',
+    mouth:'thick', glasses:'square', spr:'spiky',
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
-    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#161210', cloth:'#f4f4f2',
-          cloth2:'#dcdcda', pants:'#3c3f44', shoe:'#2b2b30', frame:'#14110f',
+    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#161210', cloth:'#7fa8cc',
+          cloth2:'#6b93b8', pants:'#3c3f44', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#a25a4d' } },
 
   { id:'duty', name:'值周生', tag:'记你名字',
     bg:'#2c3a44', hairLine:13, sideburn:16, brow:'thin', eyes:'normal',
-    mouth:'small', armband:true,
+    mouth:'small', armband:true, spr:'cap', acc:'armband',
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
-    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#1b1512', cloth:'#e3e7ea',
-          cloth2:'#c0392b', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
+    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#1b1512', cloth:'#3f7f63',
+          cloth2:'#c0392b', cap:'#2f6b52', pants:'#2f3a38', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#9c6a5c' } },
 
   { id:'dean', name:'教导主任', tag:'在后门看你',
     bg:'#33302c', hairLine:6, sideburn:20, brow:'thick', eyes:'normal',
-    mouth:'smile', glasses:'round',
+    mouth:'smile', glasses:'round', spr:'bald',
     collar:['...CC...','..TTTT..','..TTTT..'],
-    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#4b423a', cloth:'#2f3a4a',
+    pal:{ skin:'#eec29a', skin2:'#d9a87f', hair:'#8a8078', cloth:'#2f3a4a',
           cloth2:'#243044', pants:'#242a34', shoe:'#2b2b30', frame:'#3d3733',
           W:'#e8e4dc', O:'#17130f', M:'#8a5148', T:'#8c4a3f' } },
 
   { id:'teacher', name:'老师', tag:'捏着半截粉笔',
     bg:'#4a3a44', hairLine:13, sideburn:18, brow:'thin', eyes:'normal',
-    mouth:'smile', glasses:'round',
+    mouth:'smile', glasses:'round', spr:'short',
     collar:['..CCCC..','.CWWWWC.','CCCCCCCC'],
-    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#2b1f19', cloth:'#c8a86a',
-          cloth2:'#b0925a', pants:'#4a4038', shoe:'#2b2b30', frame:'#3d3733',
+    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#2b1f19', cloth:'#a8863f',
+          cloth2:'#957635', pants:'#4a4038', shoe:'#2b2b30', frame:'#3d3733',
           W:'#f0ece2', O:'#17130f', M:'#b5544a' } },
 
   { id:'deskmate', name:'同桌', tag:'一脸无辜',
     bg:'#3b3a46', hairLine:14, sideburn:16, brow:'thin', eyes:'wide',
-    mouth:'small',
+    mouth:'small', spr:'short',
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
-    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#241a14', cloth:'#dfe3e6',
-          cloth2:'#c6cacd', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
+    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#241a14', cloth:'#9b8fc7',
+          cloth2:'#8479ad', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#9c6a5c' } }
 ];
 

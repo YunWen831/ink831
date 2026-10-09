@@ -99,6 +99,18 @@
     cursor:pointer; touch-action:none; padding:0; }
   #act.on { display:block; }
   #act:active { transform:scale(.93); }
+  /* 快跑：键盘按 Shift，手机上点这个圆键切换。
+     比"说话"小一圈、位置也挪上去，别跟它抢手指 */
+  #run { position:absolute; z-index:7; display:none;
+    right:calc(18px + env(safe-area-inset-right,0px));
+    bottom:calc(26px + env(safe-area-inset-bottom,0px) + clamp(70px,19vw,92px) + 14px);
+    width:clamp(52px,14vw,66px); height:clamp(52px,14vw,66px); border-radius:50%;
+    border:3px solid #57534e; background:rgba(18,16,14,.75); color:#f5e6c8;
+    font-family:inherit; font-size:clamp(11px,2.9vw,14px); font-weight:600;
+    cursor:pointer; touch-action:none; padding:0; }
+  #run.on { display:block; }
+  #run:active { transform:scale(.93); }
+  #run.fast { border-color:#e8a33d; background:rgba(232,163,61,.3); color:#fff; }
 
   #probe { position:absolute; left:0; top:0; z-index:99; font-size:1px; opacity:.01;
     pointer-events:none; }
@@ -124,12 +136,14 @@
 
 <div id="stick"><div id="knob"></div></div>
 <button id="act" type="button">说话</button>
+<button id="run" type="button">跑</button>
 
 <div class="screen on" id="scTitle">
   <h1>在校园里乱逛<small>CAMPUS</small></h1>
   <div class="tip">
-    <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　手机左下拖动<br>
-    走到人跟前，按 <b>Z</b> / <b>空格</b> / 右边那个圆键跟他说话。<br>
+    <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　按住 <span class="kbd">Shift</span> 快跑<br>
+    走到人跟前，按 <b>Z</b> / <b>空格</b> 跟他说话；手机左下拖动走路，右下两个圆键。<br>
+    教学楼里有楼梯口，踩上去能上楼 —— 现在只做了一号教学楼的二楼。<br>
     没人催你，也没有要躲的东西 —— 就是逛逛。
   </div>
   <button class="btn" id="btnStart">出门</button>
@@ -157,89 +171,327 @@
    （上一版 16×16 的立绘就是数错列才歪的），矩形有宽高，不用数。
    ================================================================== */
 
-var TILE = 32, MAPW = 48, MAPH = 32;
+var TILE = 32;
 
 /* 地形种类。solid 就是走不过去；颜色都是浅色 ——
    小人是深头发深裤子，配深色地板会看不见腿，看着像飘着的半截身子 */
 var TERRAIN = {
   grass:  { c:'#7fa05a', c2:'#759455', solid:false, name:'草地' },
+  garden: { c:'#6f9a52', c2:'#638d47', solid:false, name:'园子' },
   path:   { c:'#cfc0a0', c2:'#c4b596', solid:false, name:'路' },
-  floor:  { c:'#d9d3c6', c2:'#cdc7ba', solid:false, name:'室内' },
   plaza:  { c:'#c8bda9', c2:'#bcb19d', solid:false, name:'广场' },
   track:  { c:'#b9705a', c2:'#ad6952', solid:false, name:'跑道' },
   wall:   { c:'#8c7f6a', c2:'#9d8f78', solid:true,  name:'墙' },
   door:   { c:'#a8763f', c2:'#96682f', solid:false, name:'门' },
+  floor:  { c:'#d9d3c6', c2:'#cdc7ba', solid:false, name:'室内' },
+  corridor:{ c:'#c9c3b5', c2:'#bdb7a9', solid:false, name:'走廊' },
+  classroom:{ c:'#ded7c8', c2:'#d2cbbc', solid:false, name:'教室' },
+  stairs: { c:'#b9ab8e', c2:'#ada083', solid:false, name:'楼梯' },
   tree:   { c:'#5f8a45', c2:'#4e7439', solid:true,  name:'树' },
   bench:  { c:'#a8763f', c2:'#8f6333', solid:true,  name:'长椅' },
-  planter:{ c:'#8f9c6a', c2:'#7c8a58', solid:true,  name:'花坛' }
+  planter:{ c:'#8f9c6a', c2:'#7c8a58', solid:true,  name:'花坛' },
+  statue: { c:'#8d8478', c2:'#7d7568', solid:true,  name:'雕像' },
+  /* 楼里的图，楼板外头是"没有东西" —— 画成深色，读起来就是楼外面 */
+  void:   { c:'#151310', c2:'#181613', solid:true,  name:'楼外' }
 };
 
-/* 校园 = 一堆矩形盖上去，后面的盖前面的。
-   改地图只改这张表，别的地方都不用动 */
-var AREAS = [
-  { t:'grass',  x:0,  y:0,  w:48, h:32 },              // 底：整片草地
+/* ==================================================================
+   校园 —— 宜春中学，中轴对称
 
-  /* 路先铺，房子后盖 —— 顺序反过来的话路会横穿到墙上去。
-     主干道横穿校园，四条支路分别通教学楼、操场、食堂、水房 */
-  { t:'path',   x:0,  y:15, w:48, h:3  },
-  { t:'path',   x:10, y:14, w:2,  h:1  },              // 通教学楼的门
-  { t:'path',   x:36, y:14, w:2,  h:1  },              // 通操场
-  { t:'path',   x:7,  y:18, w:2,  h:2  },              // 通食堂的门
-  { t:'path',   x:18, y:17, w:2,  h:4  },              // 通水房的门
-  { t:'path',   x:22, y:18, w:2,  h:10 },              // 一路向南通广场和校门
+   站在大门口往里看（从南往北）：
 
-  /* 教学楼：外壳 + 内部 + 南边一个门。里面看得见，不是一坨实心方块 */
-  { t:'wall',   x:2,  y:2,  w:19, h:12 },
-  { t:'floor',  x:3,  y:3,  w:17, h:10 },
-  { t:'door',   x:10, y:13, w:2,  h:1  },
+               〔后山：树封住的路〕      ← 科技楼再往上被树挡住
+                    科技楼              ← 中轴最北，比二教三教都远
+    二号教学楼                第三教学楼
+    一号教学楼      〔中轴〕      实验楼
+    行政楼                    〔艺术楼〕
+    校史馆     〔中心广场·田〕   艺术楼
+                ▲大门▲
 
-  /* 操场：外圈跑道、里圈草地 */
-  { t:'track',  x:27, y:2,  w:19, h:12 },
-  { t:'grass',  x:29, y:4,  w:15, h:8  },
+   · 正中一条轴：大门 → 中心广场 → 中轴大道 → 科技楼（压在最里头）
+   · 左手边（西）从大门往里依次：校史馆、行政楼、一号教学楼、二号教学楼
+   · 右手边（东）从大门往里依次：艺术楼、实验楼、第三教学楼
+   · 校史馆和艺术楼夹着大门，是离门最近的两栋
+   · 实验楼、艺术楼跟三教一样是 20×20 的大楼；三教上移，跟二号教学楼并排
+   · 中心广场整块是草坪，路自己组成一个"田"字，正中间立着韩愈像
+   · 科技楼背后原本那几栋（食堂、开水房、球馆、田径场…）全删了，
+     改成一条往左上角拐的小路，再往上被树封住
 
-  /* 食堂 */
-  { t:'wall',   x:2,  y:20, w:13, h:8  },
-  { t:'floor',  x:3,  y:21, w:11, h:6  },
-  { t:'door',   x:7,  y:20, w:2,  h:1  },
+   出生点就在大门口。
 
-  /* 水房：lg7 蹲门口。门开在北边，正对着那条支路 */
-  { t:'wall',   x:15, y:21, w:7,  h:5  },
-  { t:'floor',  x:16, y:22, w:5,  h:3  },
-  { t:'door',   x:18, y:21, w:2,  h:1  },
+   地图照旧是"一堆矩形盖上去，后面的盖前面的"。手写字符网格这事
+   上回已经栽过一次（数错列），这里全用矩形，有宽高，不用数。
 
-  /* 广场 */
-  { t:'plaza',  x:27, y:19, w:18, h:10 },
+   改地图只改下面这几段，别的都不用动。
 
-  /* 校门口 */
-  { t:'plaza',  x:20, y:28, w:10, h:4  }
-];
+   现在不止一张图了 —— 见下面"地图不是一张，是一个表"那一段。
+   一号图 campus = 校园；二号图 floor2 = 一号教学楼二楼
+   （从楼里天井北头那个楼梯间踩上去，踩二楼的楼梯口再下来）。
+   ================================================================== */
 
-/* 树和长椅单独列 —— 它们是散着摆的，用矩形铺反而绕 */
-var PROPS = [
-  { t:'tree',  x:6,  y:16 }, { t:'tree',  x:16, y:16 }, { t:'tree',  x:30, y:16 },
-  { t:'tree',  x:44, y:16 }, { t:'tree',  x:1,  y:6  }, { t:'tree',  x:1,  y:11 },
-  { t:'tree',  x:46, y:6  }, { t:'tree',  x:46, y:11 }, { t:'tree',  x:25, y:21 },
-  { t:'tree',  x:25, y:26 }, { t:'planter', x:30, y:21 }, { t:'planter', x:41, y:21 },
-  { t:'planter', x:30, y:27 }, { t:'planter', x:41, y:27 },
-  { t:'bench', x:33, y:24 }, { t:'bench', x:38, y:24 },
-  { t:'bench', x:29, y:6  }, { t:'bench', x:43, y:6  }
-];
+/* ==================================================================
+   地图不是一张，是一个表
 
-var MAP = [];
-function buildMap(){
-  MAP = [];
-  for (var y=0; y<MAPH; y++){
+   每张图自己带着尺寸、地形、楼名、NPC、出口。CUR 指向当前这张，
+   MAP / LABELS / MAPW / MAPH 说的都是"当前这张"。换图走 loadMap()；
+   出口（踩上去就换图的格子）写在各图的 portals 里。
+
+   加新图：写个 xxxLayout()，再 makeMap('xxx', {...}, xxxLayout)，完事。
+   ================================================================== */
+var MAPS = {}, CUR = null;               // 所有地图 / 当前这张
+var MAP = [], LABELS = [];               // 当前这张的格子和楼名
+var MAPW = 0, MAPH = 0;                  // 当前这张的尺寸，loadMap 时改
+
+/* 正在盖的那张。R / NAME 都往它里头塞 */
+var B = null;
+function R(t, x, y, w, h){ B.areas.push({ t:t, x:x, y:y, w:w, h:h }); }
+function NAME(x, y, w, h, t, ty){
+  var L = { x:x, y:y, w:w, h:h, t:t };
+  if (ty !== undefined) L.ty = ty;
+  B.labels.push(L);
+}
+
+/* 把一堆矩形压成二维格子表。后盖的盖前头的 */
+function grid(areas, w, h){
+  var m = [];
+  for (var y=0; y<h; y++){
     var row = [];
-    for (var x=0; x<MAPW; x++) row.push('grass');
-    MAP.push(row);
+    for (var x=0; x<w; x++) row.push('grass');
+    m.push(row);
   }
-  AREAS.forEach(function(a){
+  areas.forEach(function(a){
     for (var y=a.y; y<a.y+a.h; y++)
       for (var x=a.x; x<a.x+a.w; x++)
-        if (MAP[y] && MAP[y][x] !== undefined) MAP[y][x] = a.t;
+        if (m[y] && m[y][x] !== undefined) m[y][x] = a.t;
   });
-  PROPS.forEach(function(p){ if (MAP[p.y]) MAP[p.y][p.x] = p.t; });
+  return m;
 }
+
+/* 登记一张图。def 里带 w/h/spawn/npcs/portals/base，build 里照旧摆矩形 */
+function makeMap(id, def, build){
+  B = { areas:[], labels:[] };
+  MAPW = def.w; MAPH = def.h;
+  R(def.base || 'grass', 0, 0, def.w, def.h);
+  build();
+  def.id      = id;
+  def.labels  = B.labels;
+  def.map     = grid(B.areas, def.w, def.h);
+  def.npcs    = def.npcs || [];
+  def.portals = def.portals || [];
+  MAPS[id] = def;
+  B = null;
+}
+
+/* 盖一栋楼：外壳 + 内部地板 + 门。门是 [x,y,w,h]，不写就是没门 */
+function house(x, y, w, h, name, doors, inner){
+  R('wall', x, y, w, h);
+  R(inner || 'floor', x+1, y+1, w-2, h-2);
+  (doors || []).forEach(function(d){ R('door', d[0], d[1], d[2]||1, d[3]||1); });
+  if (name) NAME(x, y, w, h, name);
+}
+
+/* 教学楼/实验楼的一"翼"：9 宽 20 高。
+   靠天井那侧一条竖走廊；正中间横穿一条过道，把两间教室隔开。
+   side  = 走廊靠哪边（都朝着中间的天井）
+   front = 这一翼的外墙面是不是"正面"（朝校园中心），是就在过道口开正门 */
+function wing(x, y, side, front){
+  var w = 9, h = 20, east = (side === 'east');
+  R('wall', x, y, w, h);
+  R('classroom', x+1, y+1, w-2, h-2);
+  var corrX = east ? x+6 : x+1;          // 竖走廊占两列
+  var wallX = east ? x+5 : x+3;          // 走廊和教室之间那一列
+  var roomX = east ? x+1 : x+4;          // 教室占四列
+  var faceX = Math.min(roomX, wallX);    // 教室那侧"门脸"从哪一列起
+  R('corridor', corrX, y+1, 2, h-2);
+  R('corridor', x+1, y+9, w-2, 2);       // 横过道：从外墙面一路通到竖走廊
+  R('wall', wallX, y+1,  1, 8);          // 竖隔墙断成两截，中间让给过道
+  R('wall', wallX, y+11, 1, 8);
+  R('wall', faceX, y+8,  5, 1);          // 两间教室各自的门脸墙
+  R('wall', faceX, y+11, 5, 1);
+  R('door', faceX+1, y+8,  2, 1);
+  R('door', faceX+1, y+11, 2, 1);
+  /* 正门开在背对走廊那一面 —— 也就是朝校园中心那一面 */
+  if (front) R('door', east ? x : x+8, y+9, 1, 2);
+}
+
+/* 一栋大楼 = 西翼 + 竖天井 + 东翼，20×20。
+   facing 是这栋楼"朝校园中心"的那一面：西边那排楼朝东，东边那排朝西。
+   两翼的走廊都朝着天井；正门开在 facing 那一面的外墙上，进门就是过道，
+   过道一头通竖走廊、一头通天井 —— 所以门一律冲着中心开。
+   三栋教学楼、实验楼都用它，所以它们一样大、一个朝向。 */
+function bigBuilding(bx, by, name, facing){
+  var east = (facing === 'east');
+  wing(bx,    by, 'east', !east);        // 西翼：朝西的那排楼，它才是正面
+  wing(bx+11, by, 'west', east);         // 东翼：朝东的那排楼，它才是正面
+  R('garden', bx+9, by+1,  2, 18);       // 中间竖着那条天井
+  R('stairs', bx+9, by+1,  2, 1);        // 天井两头是楼梯间，先当标记摆着
+  R('stairs', bx+9, by+18, 2, 1);
+  R('door', bx+8,  by+9, 1, 2);          // 天井两侧各开一个门，两翼的过道都通
+  R('door', bx+11, by+9, 1, 2);
+  NAME(bx, by, 20, 20, name);
+}
+
+/* 艺术楼是"回"字：外圈一圈房间，中间一个方院子 */
+function ringBuilding(bx, by, name){
+  R('wall', bx, by, 20, 20);
+  R('floor', bx+1, by+1, 18, 18);
+  R('wall', bx+5, by+5, 10, 10);         // 内圈
+  R('garden', bx+6, by+6, 8, 8);         // 中间的院子
+  R('door', bx+9,  by+5,  2, 1);         // 院子四边各开一个口
+  R('door', bx+9,  by+14, 2, 1);
+  R('door', bx+5,  by+9,  1, 2);
+  R('door', bx+14, by+9,  1, 2);
+  R('door', bx, by+9, 1, 2);             // 正门朝西，冲着校园中心
+  NAME(bx, by, 20, 20, name);
+}
+
+/* 韩愈像的位置。得放在外面 —— drawStatue() 是另一个函数，放进去就够不着了 */
+var STATUE = { x:39, y:104, w:2, h:2 };
+
+/* ================== 一号图：校园 ================== */
+function campusLayout(){
+/* ---------- 路。先铺，房子后盖（后盖的会把路盖掉）----------
+   草地本来就能走，这些路主要是给人看方向的 */
+R('path', 1,  27, MAPW-2, 2);        // 林子下沿，横穿校园
+R('path', 1,  45, MAPW-2, 2);        // 科技楼和二号教学楼之间
+R('path', 1,  69, MAPW-2, 2);        // 二号楼和一号楼之间
+R('path', 1,  93, MAPW-2, 2);        // 教学楼和行政楼之间（正好当"田"字的上横）
+R('path', 25, 27, 4, 89);            // 西侧竖路
+R('path', 51, 27, 4, 89);            // 东侧竖路
+R('path', 39, 44, 2, 72);            // 中轴：从科技楼门口一路通到校门广场
+
+/* ---------- 科技楼背后：后山 ----------
+   原来那几栋（食堂、开水房、球馆、两个田径场）全删了。
+   换成一片林子，只留一条小路从科技楼后头往北、再拐向左上角。
+   路走到头树就封死了 —— 以后要写"林子后面还有什么"就从这儿接 */
+R('tree', 1, 1, MAPW-2, 25);         // 整片林子
+R('path', 39, 22, 2, 9);             // 科技楼后头，往北
+R('path', 8,  22, 33, 2);            // 拐向西
+R('path', 8,  6,  2, 18);            // 再往北，奔左上角。到这儿就到头了
+
+/* ---------- 中轴最北：科技楼。压在最里头，比二教三教都远 ---------- */
+house(32, 31, 16, 13, '科技楼', [[39, 43, 2, 1]]);
+
+/* ---------- 西侧：从大门往里，依次。门一律朝东（冲着校园中心）---------- */
+house(4, 108, 12, 6, '校史馆', [[15, 110, 1, 2]]);    // 离大门最近，也没那么大
+house(4, 96, 20, 10, '行政楼', [[23, 100, 1, 2]]);
+bigBuilding(4, 72, '一号教学楼', 'east');
+bigBuilding(4, 48, '二号教学楼', 'east');
+
+/* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
+   实验楼跟教学楼一样是"竖天井"的壳子；艺术楼是"回"字 */
+ringBuilding(56, 95, '艺术楼');                      // 离大门最近，占了原来艺术楼+实验楼两块地
+bigBuilding(56, 72, '实验楼', 'west');               // 顶到三教原来的位置
+bigBuilding(56, 48, '第三教学楼', 'west');           // 三教上移，跟西边二号教学楼并排
+
+/* ---------- 中心广场：一整块草坪，路自己组成一个"田"字 ----------
+   外圈一口 + 中间十字就是"田"，四块格子里全是草。
+   外圈直接顶到路上，中间不夹草带 ——
+   上横就是校园那条东西横路（y=93），左右两竖就是东西两条竖路（x=25 / x=51），
+   中间那竖就是中轴本身。所以这儿只要补下横和中间那一横。 */
+R('path', 25, 114, 30, 2);           // 田：下横，从西竖路一直接到东竖路
+R('path', 25, 104, 30, 2);           // 田：中间那一横
+/* 韩愈像，正落在"田"的十字口上。solid，上不去，得绕开 */
+R('statue', STATUE.x, STATUE.y, STATUE.w, STATUE.h);
+NAME(25, 93, 30, 23, '中心广场', 99);
+/* 名字压到像脚底下那行草上 —— 直接盖在像上，字全糊在黑影里看不清 */
+NAME(STATUE.x, STATUE.y, STATUE.w, STATUE.h, '韩愈像', 107);
+
+/* ---------- 校门：最南边 ---------- */
+R('plaza', 32, 116, 16, 8);
+NAME(32, 116, 16, 8, '校门广场');
+R('wall', 0, MAPH-1, MAPW, 1);                       // 南墙
+R('door', 38, MAPH-1, 4, 1);                         // 校门
+R('wall', 0, 0, MAPW, 1);
+R('wall', 0, 0, 1, MAPH);
+R('wall', MAPW-1, 0, 1, MAPH);
+
+/* 树和长椅单独列 —— 它们是散着摆的，用矩形铺反而绕。
+   摆的时候躲开几条路和楼 */
+var PROPS = [
+  { t:'tree', x:2,  y:6  }, { t:'tree', x:2,  y:11 },
+  { t:'tree', x:35, y:5  }, { t:'tree', x:35, y:11 },
+  { t:'tree', x:64, y:5  }, { t:'tree', x:64, y:11 },
+  { t:'tree', x:2,  y:22 }, { t:'tree', x:19, y:22 },
+  { t:'tree', x:37, y:22 }, { t:'tree', x:48, y:22 }, { t:'tree', x:68, y:22 },
+  /* 科技楼两侧 */
+  { t:'tree', x:2,  y:34 }, { t:'tree', x:2,  y:40 },
+  { t:'tree', x:78, y:34 }, { t:'tree', x:78, y:40 },
+  /* 中轴两侧一路排到科技楼，别让中间那条大道空着 */
+  { t:'tree', x:32, y:50 }, { t:'tree', x:47, y:50 },
+  { t:'tree', x:32, y:58 }, { t:'tree', x:47, y:58 },
+  { t:'tree', x:32, y:66 }, { t:'tree', x:47, y:66 },
+  { t:'tree', x:32, y:74 }, { t:'tree', x:47, y:74 },
+  { t:'tree', x:32, y:82 }, { t:'tree', x:47, y:82 },
+  { t:'tree', x:32, y:90 }, { t:'tree', x:47, y:90 },
+  /* 大门正对那片草地 */
+  { t:'tree', x:32, y:96 }, { t:'tree', x:47, y:96 },
+  { t:'tree', x:32, y:110 }, { t:'tree', x:47, y:110 },
+  { t:'bench', x:34, y:104 }, { t:'bench', x:36, y:104 },
+  { t:'bench', x:43, y:104 }, { t:'bench', x:45, y:104 },
+  { t:'tree', x:2,  y:110 }, { t:'tree', x:78, y:110 },
+  /* 校门广场 */
+  { t:'planter', x:34, y:118 }, { t:'planter', x:45, y:118 },
+  { t:'planter', x:34, y:122 }, { t:'planter', x:45, y:122 }
+];
+PROPS.forEach(function(p){ R(p.t, p.x, p.y, 1, 1); });
+}
+
+/* ================== 二号图：一号教学楼二楼 ==================
+   从一号教学楼天井北头的楼梯间上来。现在只是个雏形 ——
+   一条横走廊、南北各几间教室、东头是楼梯口（踩上去回一楼）。
+   以后要在这儿加剧情，就往这个函数里加。 */
+function floor2Layout(){
+  var W = 40, H = 26;
+  R('floor', 1, 1, W-2, H-2);           // 整块楼板
+  R('wall', 1, 1, W-2, 1);              // 四面外墙
+  R('wall', 1, H-2, W-2, 1);
+  R('wall', 1, 1, 1, H-2);
+  R('wall', W-2, 1, 1, H-2);
+  R('corridor', 2, 12, W-4, 3);         // 中间一条横走廊
+  R('wall', 2, 11, W-4, 1);             // 教室和走廊之间那两道墙
+  R('wall', 2, 15, W-4, 1);
+  [11, 21, 31].forEach(function(sx){    // 教室之间的隔墙
+    R('wall', sx, 2,  1, 10);
+    R('wall', sx, 15, 1, 9);
+  });
+  [6, 16, 26, 34].forEach(function(dx){ // 每间教室朝走廊开个门
+    R('door', dx, 11, 2, 1);
+    R('door', dx, 15, 2, 1);
+  });
+  R('stairs', 35, 12, 3, 3);            // 东头楼梯口
+  NAME(1, 1, W-2, H-2, '一号教学楼 · 二楼');
+}
+
+/* ================== 登记两张图 ================== */
+makeMap('campus', {
+  w: 80, h: 125,
+  spawn: [39, 122],                     // 大门口
+  statue: STATUE,                       // 只有校园有像，别的图没有就不画
+  npcs: [
+    { id:'teacher',   tx:7,  ty:74, face:'down',  talk:'hint_teacher' },
+    { id:'deskmate',  tx:19, ty:74, face:'left',  talk:'hint_deskmate' },
+    { id:'laoli',     tx:11, ty:54, face:'right', talk:'hint_laoli' },
+    { id:'logic',     tx:63, ty:60, face:'down',  talk:'hint_logic' },
+    { id:'duty',      tx:37, ty:119, face:'down', talk:'hint_duty' },
+    { id:'shui',      tx:45, ty:100, face:'right', talk:'hint_shui' },
+    { id:'dean',      tx:33, ty:100, face:'up',   talk:'hint_dean' },
+    { id:'lg7',       tx:9,  ty:6,  face:'down',  talk:'lg7' }
+  ],
+  /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
+  portals: [
+    { x:13, y:73, w:2, h:1, to:'floor2', tx:20, ty:13 }
+  ]
+}, campusLayout);
+
+makeMap('floor2', {
+  w: 40, h: 26,
+  base: 'void',                         // 楼板外头是空的，不是草地
+  spawn: [20, 13],
+  portals: [
+    { x:35, y:12, w:3, h:3, to:'campus', tx:13, ty:75 }
+  ]
+}, floor2Layout);
 function tileAt(tx, ty){
   if (ty<0 || ty>=MAPH || tx<0 || tx>=MAPW) return 'wall';   // 地图外当墙
   return MAP[ty][tx];
@@ -250,19 +502,11 @@ function solidAt(tx, ty){ return !!TERRAIN[tileAt(tx,ty)].solid; }
    站桩，不巡逻。玩家走近了就转过来看你 —— 几行代码，
    但"被注意到"的感觉全靠它。
    ============================================ */
-/* 站位都是挑过的：lg7 在水房门口那条支路上，正好是"蹲门口"那个意思；
-   其余人散在教学楼、操场、广场、校门，走一圈能碰全 */
-var NPCS = [
-  { id:'lg7',       tx:18, ty:20, face:'down',  talk:'lg7' },
-  { id:'shui',      tx:31, ty:16, face:'right', talk:'hint_shui' },
-  { id:'logic',     tx:36, ty:8,  face:'down',  talk:'hint_logic' },
-  { id:'laoli',     tx:11, ty:10, face:'down',  talk:'hint_laoli' },
-  { id:'teacher',   tx:6,  ty:6,  face:'down',  talk:'hint_teacher' },
-  { id:'dean',      tx:36, ty:26, face:'left',  talk:'hint_dean' },
-  { id:'duty',      tx:22, ty:29, face:'up',    talk:'hint_duty' },
-  { id:'deskmate',  tx:14, ty:8,  face:'left',  talk:'hint_deskmate' }
-];
+/* 各图自己的站位，写在那张图的 npcs 里（见下面 makeMap）。
+   挑站位的思路：lg7 在后山小路走到头的死角；老师、同桌在一号教学楼教室里；
+   牢李在二号教学楼走廊；logic 在第三教学楼；其余人散在主干道、广场、路上 */
 var TALK_R = 60;                 // 中心距小于这个数才算够得着
+var NAME_R = 260;                // 近到能看清是谁，就往头顶挂名字
 
 /* ==================== 对话 ====================
    一张节点表，节点之间靠 id 引用。
@@ -276,22 +520,22 @@ var TALK = {
     again: 'g',
     nodes: {
       a_laoli:{ text:'……牢李。你今天怎么有空理我。', next:'b' },
-      a_shui: { text:'水哥啊。你那瓶水，又是从水房接的？', next:'b' },
+      a_shui: { text:'水哥啊。你那瓶水，又灌满了？', next:'b' },
       a_logic:{ text:'稀客。你居然会离开座位。', next:'b' },
       b: { text:'行吧，有事说事。', opts:[
             { t:'打听一下最近的消息', go:'ask' },
             { t:'就想认识认识你',     go:'know' },
             { t:'没事，我走了',       go:'bye' } ]},
       ask:  { text:'消息？这周检查卫生，走廊里别摆东西。', next:'ask2' },
-      ask2: { text:'……还有，水房的热水器坏了，别去接。', end:true },
+      ask2: { text:'……还有，后山那条路走到头就断了，别往里钻。', end:true },
       know: { text:'认识我干嘛，我不好相处。', next:'know2' },
       know2:{ text:'……不过你要真想聊，就站远点聊。', end:true },
       bye:  { text:'嗯。', end:true },
       g: { text:'又是你。', opts:[
-            { t:'（再问一遍热水器的事）', go:'g1' },
-            { t:'你真一直蹲在水房门口？', go:'g2' },
-            { t:'打扰了',               go:'g3' } ]},
-      g1: { text:'热水器坏了，别去接。你记性真差。', end:'g' },
+            { t:'（再问一遍后山的事）', go:'g1' },
+            { t:'你真一直蹲在这儿？',   go:'g2' },
+            { t:'打扰了',              go:'g3' } ]},
+      g1: { text:'后山走到头就没路了。你记性真差。', end:'g' },
       g2: { text:'这儿凉快。你有意见？',            end:'g' },
       g3: { text:'嗯。',                            end:'g' }
     }
@@ -299,9 +543,9 @@ var TALK = {
 
   /* 路标：就一句话，指个方向。again 和 start 同一句 —— 重复问就重复答，
      不写两套文案，省得改一处忘一处 */
-  hint_shui:     { start:'s', again:'s', nodes:{ s:{ text:'你找 lg7 啊？往南边那条路走，水房门口。', end:true }}},
-  hint_logic:    { start:'s', again:'s', nodes:{ s:{ text:'lg7？刚看见他往水房那边去了。', end:true }}},
-  hint_laoli:    { start:'s', again:'s', nodes:{ s:{ text:'找 lg7？他这会儿估计又在水房门口蹲着了。', end:true }}},
+  hint_shui:     { start:'s', again:'s', nodes:{ s:{ text:'你找 lg7 啊？往北一直走，穿过教学楼和科技楼，后山那条路的尽头。', end:true }}},
+  hint_logic:    { start:'s', again:'s', nodes:{ s:{ text:'lg7？刚看见他往后山那边去了。', end:true }}},
+  hint_laoli:    { start:'s', again:'s', nodes:{ s:{ text:'找 lg7？他这会儿估计又蹲后山去了。', end:true }}},
   hint_teacher:  { start:'s', again:'s', nodes:{ s:{ text:'上课铃还没响，别在楼里跑。', end:true }}},
   hint_dean:     { start:'s', again:'s', nodes:{ s:{ text:'校服拉链拉上。……还有，别在广场上追跑打闹。', end:true }}},
   hint_duty:     { start:'s', again:'s', nodes:{ s:{ text:'同学，你哪个班的？……算了，走吧走吧。', end:true }}},
@@ -335,30 +579,54 @@ var M = {
   npcs:[],
   talk:{ open:false, npc:null, nodeId:null, sel:0, script:null, typed:0, cool:0 },
   talked:{}, reentry:{},
+  run:false,                 // 手机那个「跑」开关。键盘走 Shift，不占这个
+  map:'',                    // 现在在哪张图
+  fade:0,                    // 换图时黑一下，0 就是没有
+  portalCool:0,              // 刚落地别马上又被传回去
   t:0
 };
 function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
 
-/* ==================== 开局 ==================== */
-function startWalk(charId){
-  buildMap();
-  var me = null;
-  CHARS.forEach(function(c){ if (c.id===charId) me = c; });
-  M.me = me;
+/* ==================== 换图 ====================
+   同一个 CUR 表驱动：格子、楼名、尺寸、NPC 全换成新那张的。
+   聊过谁是全局的（M.talked），换图不丢 —— 在楼上聊过的人，下楼还认得。
+   ============================================ */
+function loadMap(id, tx, ty){
+  CUR = MAPS[id];
+  MAP = CUR.map; LABELS = CUR.labels;
+  MAPW = CUR.w; MAPH = CUR.h;
+  M.map = id;
   /* 玩家选谁，谁就不作为 NPC 出现 —— 不然会撞见自己 */
-  M.npcs = NPCS.filter(function(n){ return n.id !== charId; }).map(function(n){
+  var meId = M.me && M.me.id;
+  M.npcs = CUR.npcs.filter(function(n){ return n.id !== meId; }).map(function(n){
     return { id:n.id, face:n.face, talk:n.talk, tx:n.tx, ty:n.ty,
              x:n.tx*TILE+TILE/2, y:n.ty*TILE+TILE/2, dir:n.face, anim:0 };
   });
-  M.p.x = 25*TILE + TILE/2;  M.p.y = 30*TILE + TILE/2;
+  M.p.x = tx*TILE + TILE/2; M.p.y = ty*TILE + TILE/2;
   M.p.dir = 'up'; M.p.anim = 0;
+  M.near = null;
+  M.fade = 0.5;
+  M.portalCool = 0.7;
   M.talk = { open:false, npc:null, nodeId:null, sel:0, script:null, typed:0, cool:0 };
+  /* 换图时把对话框收掉，别把上一张图的对话带过来 */
+  if (typeof dlgEl !== 'undefined') dlgEl.classList.remove('on');
+}
+
+/* ==================== 开局 ==================== */
+function startWalk(charId){
+  var me = null;
+  CHARS.forEach(function(c){ if (c.id===charId) me = c; });
+  M.me = me;
   M.talked = {}; M.reentry = {}; M.t = 0;
+  loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
+  M.run = false;
   M.screen = 'play';
   show(null);
   document.getElementById('where').style.display = '';
   hintEl.classList.remove('on');
   actEl.classList.add('on');
+  runEl.classList.remove('fast');
+  runEl.classList.add('on');
   if (hasTouch) stickEl.classList.add('on');
   resize();
 }
@@ -431,6 +699,15 @@ cv.addEventListener('touchcancel', touchDone);
 var actEl = document.getElementById('act'), hintEl = document.getElementById('hint');
 actEl.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); pressAct(); }, {passive:false});
 actEl.addEventListener('mousedown', function(e){ e.preventDefault(); pressAct(); });
+
+/* 手机上的「跑」是切换式的，不是按住 —— 一只手要推摇杆，腾不出第二根指头 */
+var runEl = document.getElementById('run');
+function toggleRun(){
+  M.run = !M.run;
+  runEl.classList.toggle('fast', M.run);
+}
+runEl.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); toggleRun(); }, {passive:false});
+runEl.addEventListener('mousedown', function(e){ e.preventDefault(); toggleRun(); });
 
 /* ==================== 交互 ==================== */
 function nearNpc(){
@@ -572,16 +849,22 @@ function canWalk(x, y){
   }
   return true;
 }
-var SPD = 108;
+var SPD = 108, RUN_MULT = 2.4;
 function update(dt){
   M.t += dt;
   if (M.talk.cool > 0) M.talk.cool = Math.max(0, M.talk.cool - dt);
+  if (M.fade > 0) M.fade = Math.max(0, M.fade - dt*1.6);
+  if (M.portalCool > 0) M.portalCool = Math.max(0, M.portalCool - dt);
 
   /* 打字机：按字走，不是按帧 */
   if (M.talk.open && !nodeDone()){
     M.talk.typed = Math.min(full.length, M.talk.typed + dt*40);
     drawText();
   }
+
+  /* 快跑：键盘按住 Shift，手机靠右下那个「跑」圆键切换 */
+  var running = !!(keys['shift'] || M.run);
+  var spd = SPD * (running ? RUN_MULT : 1);
 
   var mvx = 0, mvy = 0;
   if (M.screen === 'play' && !M.talk.open){
@@ -595,14 +878,27 @@ function update(dt){
   M.p.moving = mag > 0.15;
   if (M.p.moving){
     mvx /= mag; mvy /= mag;
-    var nx = M.p.x + mvx*SPD*dt, ny = M.p.y + mvy*SPD*dt;
+    var nx = M.p.x + mvx*spd*dt, ny = M.p.y + mvy*spd*dt;
     /* 分轴判定：贴着墙走的时候能顺墙滑，不会整个人卡住 */
     if (canWalk(nx, M.p.y)) M.p.x = nx;
     if (canWalk(M.p.x, ny)) M.p.y = ny;
     M.p.dir = (Math.abs(mvx) > Math.abs(mvy)) ? (mvx>0?'right':'left') : (mvy>0?'down':'up');
-    M.p.anim += dt;
+    /* 步子也得跟着快，光提速不换步频，看着像在冰上滑 */
+    M.p.anim += dt * (running ? 1.9 : 1);
   } else {
     M.p.anim = 0;
+  }
+
+  /* 踩到出口就换图。刚落地那 0.7 秒不判，免得在门口来回弹 */
+  if (M.screen === 'play' && !M.talk.open && M.portalCool <= 0 && CUR){
+    var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
+    for (var pi=0; pi<CUR.portals.length; pi++){
+      var P = CUR.portals[pi];
+      if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
+        loadMap(P.to, P.tx, P.ty);
+        break;
+      }
+    }
   }
 
   /* 走近了就转过来看你 */
@@ -616,10 +912,24 @@ function update(dt){
   if (near && !M.talk.open)
     hintEl.textContent = (hasTouch ? '按右下角圆键' : '按 Z 或空格') + ' 跟 ' + speaker(near.id).name + ' 说话';
 
-  var t = tileAt(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE));
-  whereEl.textContent = TERRAIN[t].name;
+  whereEl.textContent = whereText(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE));
 }
 var whereEl = document.getElementById('where');
+
+/* 左上角那行字：站在哪栋楼里，就报楼名；楼里再报一下是走廊还是教室。
+   没进楼就只报地形（草地、路、广场…） */
+function whereText(tx, ty){
+  var t = tileAt(tx, ty), name = TERRAIN[t].name;
+  for (var i=0;i<LABELS.length;i++){
+    var L = LABELS[i];
+    if (tx >= L.x && tx < L.x+L.w && ty >= L.y && ty < L.y+L.h){
+      if (t === 'corridor' || t === 'classroom' || t === 'floor' || t === 'stairs')
+        return L.t + ' · ' + name;
+      return L.t;
+    }
+  }
+  return name;
+}
 
 /* ==================== 画 ==================== */
 /* 走路的帧序列：站-左-站-右 循环。三张图做出四拍，比纯 A/B 顺 */
@@ -654,7 +964,56 @@ function drawTile(t, sx, sy){
   } else if (t === 'planter'){
     cx.fillStyle = '#6f7d4e';
     cx.beginPath(); cx.arc(sx+TILE/2, sy+TILE/2, TILE*0.34, 0, 7); cx.fill();
+  } else if (t === 'garden'){
+    /* 天井：栽几株矮的，别跟草地一个样 */
+    cx.fillStyle = '#4e7439';
+    cx.beginPath(); cx.arc(sx+TILE*0.3, sy+TILE*0.55, 5, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(sx+TILE*0.72, sy+TILE*0.4, 4, 0, 7); cx.fill();
+    cx.fillStyle = '#e8d26a';
+    cx.fillRect(sx+TILE*0.5, sy+TILE*0.25, 3, 3);
+  } else if (t === 'stairs'){
+    /* 楼梯：几道横杠。现在只是个标记，以后要做楼上楼下就接这儿 */
+    cx.fillStyle = '#9d9179';
+    for (var si=0; si<4; si++) cx.fillRect(sx+4, sy+3+si*7, TILE-8, 3);
   }
+}
+/* 楼名直接画在地上，淡淡的 —— 这么大的地图没字就是一片草地加方块，
+   走进去才知道自己进了哪栋楼太费劲 */
+function drawLabels(){
+  cx.textAlign = 'center';
+  cx.textBaseline = 'middle';
+  cx.font = '700 26px system-ui,"Microsoft YaHei",sans-serif';
+  cx.lineWidth = 5;
+  cx.strokeStyle = 'rgba(255,255,255,.5)';
+  LABELS.forEach(function(L){
+    /* ty 是可选的：中心广场要跟"韩愈像"那行字错开，不然两行叠一块 */
+    var ty = (L.ty === undefined) ? (L.y + L.h/2) : L.ty;
+    var px = (L.x + L.w/2)*TILE, py = ty*TILE;
+    /* 先白描边再填深色 —— 楼名有的落在浅色地板上、有的落在绿色天井上，
+       一种颜色压不平，加圈白边两边都看得清 */
+    cx.strokeText(L.t, px, py);
+    cx.fillStyle = 'rgba(24,20,14,.42)';
+    cx.fillText(L.t, px, py);
+  });
+  cx.textBaseline = 'alphabetic';
+}
+
+/* 韩愈像：基座 + 一个人，立在"田"字正中间。
+   地图上的东西都是方块，突然冒出来一个不方的人，反而显眼 */
+function drawStatue(){
+  var S = CUR && CUR.statue;
+  if (!S) return;                       // 这张图没立像
+  var x = S.x*TILE, y = S.y*TILE;
+  var w = S.w*TILE, h = S.h*TILE, mx = x + w/2;
+  cx.fillStyle = '#6d6558';                        // 基座
+  cx.fillRect(x+2, y+h*0.52, w-4, h*0.44);
+  cx.fillStyle = '#a69d8e';                        // 台面
+  cx.fillRect(x+2, y+h*0.52, w-4, 5);
+  cx.fillStyle = '#33302a';                        // 人
+  cx.beginPath(); cx.arc(mx, y+h*0.3, 8, 0, 7); cx.fill();
+  cx.fillRect(mx-12, y+h*0.4, 24, h*0.34);
+  cx.fillStyle = '#4a453d';                        // 袍脚
+  cx.fillRect(mx-16, y+h*0.74, 32, 6);
 }
 function render(){
   cx.setTransform(DPR,0,0,DPR,0,0);
@@ -672,6 +1031,8 @@ function render(){
   var y0 = Math.floor(camY/TILE), y1 = Math.min(MAPH-1, Math.ceil((camY+H)/TILE));
   for (var y=y0; y<=y1; y++)
     for (var x=x0; x<=x1; x++) drawTile(MAP[y][x], x*TILE, y*TILE);
+  drawLabels();
+  drawStatue();
 
   /* 小人按 y 排序再画，下面的挡住上面的 —— 就这一点就分出前后了 */
   var order = M.npcs.slice();
@@ -683,11 +1044,22 @@ function render(){
     } else {
       /* NPC 站着不动。给过它一个周期性小动作，结果看着像抽搐，就去掉了 */
       drawSprite(o.id, o.x, o.y, o.dir, 0, false, 2);
+      /* 名字挂在头顶。小人在图上才 32×48，发型配色认人还是慢，
+         挂个名字一下就清楚了；离远了不画，免得满屏都是字 */
+      if (Math.hypot(o.x - M.p.x, o.y - M.p.y) < NAME_R){
+        var nm = speaker(o.id).name;
+        cx.font = '600 13px system-ui,"Microsoft YaHei",sans-serif';
+        cx.textAlign = 'center';
+        cx.fillStyle = 'rgba(0,0,0,.6)';
+        cx.fillText(nm, o.x+1, o.y-50);
+        cx.fillStyle = '#fff';
+        cx.fillText(nm, o.x, o.y-51);
+      }
       if (M.near === o && !M.talk.open){
         cx.fillStyle = '#e8a33d';
         cx.font = '700 20px system-ui,sans-serif';
         cx.textAlign = 'center';
-        cx.fillText('!', o.x, o.y - 52 + Math.sin(M.t*4)*3);
+        cx.fillText('!', o.x, o.y - 70 + Math.sin(M.t*4)*3);
         cx.strokeStyle = 'rgba(232,163,61,.85)'; cx.lineWidth = 2; cx.setLineDash([4,4]);
         cx.beginPath(); cx.ellipse(o.x, o.y+4, 18, 7, 0, 0, 7); cx.stroke();
         cx.setLineDash([]);
@@ -695,6 +1067,12 @@ function render(){
     }
   });
   cx.restore();
+
+  /* 换图那一下黑场。不加这个，人是从一个地方"啪"一下跳到另一个地方 */
+  if (M.fade > 0){
+    cx.fillStyle = 'rgba(18,16,14,' + Math.min(1, M.fade/0.5) + ')';
+    cx.fillRect(0, 0, W, H);
+  }
 }
 
 /* ==================== 主循环 ==================== */
@@ -759,6 +1137,10 @@ whereEl.style.display = 'none';
        所以给它一个直接跳过去的开关 */
     if (mode === 'pick'){ buildPick(); return; }
     startWalk('laoli');
+    /* ?map=floor2 直接去哪张图 —— 截图用，省得一步步走过去 */
+    var mm = /[?&]map=(\w+)/.exec(q);
+    if (mm && MAPS[mm[1]]) loadMap(mm[1], MAPS[mm[1]].spawn[0], MAPS[mm[1]].spawn[1]);
+    M.fade = 0;                          // 无头里 rAF 不跑，黑场淡不掉，截图会全黑
     /* ?x=&y= 把出生点挪到指定格 —— 截图要看某个地方时省得手动走过去 */
     var mx = /[?&]x=(\d+)/.exec(q), my = /[?&]y=(\d+)/.exec(q);
     if (mx) M.p.x = (+mx[1])*TILE + TILE/2;
@@ -825,7 +1207,61 @@ whereEl.style.display = 'none';
       out.push('NPC=' + M.npcs.map(function(n){ return n.id; }).join(','));
       var self = M.npcs.filter(function(n){ return n.id === M.me.id; }).length;
       out.push('自己当NPC次数=' + self + (self ? ' ← 不对！' : ''));
-      out.push('可走图例=' + whereEl.textContent);
+      /* 别读 whereEl —— 那是每帧刷的，无头里 rAF 不跑，读到的还是上一帧 */
+      out.push('站在=' + whereText(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE)));
+      if (mode === 'maps'){
+        /* 每张图：出口指到的图在不在、落点站不站得住；NPC 有没有站在墙里 */
+        Object.keys(MAPS).forEach(function(mid){
+          var mp = MAPS[mid], bad = [];
+          mp.portals.forEach(function(P){
+            if (!MAPS[P.to]){ bad.push('出口指向不存在的图 ' + P.to); return; }
+            var tt = MAPS[P.to].map[P.ty] && MAPS[P.to].map[P.ty][P.tx];
+            if (!tt) bad.push('落点越界 → ' + P.to + ' ' + P.tx + ',' + P.ty);
+            else if (TERRAIN[tt].solid) bad.push('落点踩在' + TERRAIN[tt].name + '上 → ' + P.to);
+          });
+          mp.npcs.forEach(function(n){
+            var tt = mp.map[n.ty] && mp.map[n.ty][n.tx];
+            if (!tt) bad.push('NPC 越界 ' + n.id);
+            else if (TERRAIN[tt].solid) bad.push('NPC 站在' + TERRAIN[tt].name + '上 ' + n.id);
+          });
+          out.push(mid + ' ' + mp.w + '×' + mp.h + ' 出口' + mp.portals.length +
+                   ' NPC' + mp.npcs.length + (bad.length ? ' ← ' + bad.join(' / ') : ' 没问题'));
+        });
+      }
+      if (mode === 'warp'){
+        /* 站到出口上，看是不是真换了图、落点对不对，再踩回来 */
+        function step(){
+          var P = CUR.portals[0];
+          M.p.x = P.x*TILE + TILE/2; M.p.y = P.y*TILE + TILE/2;
+          M.portalCool = 0; M.fade = 0;
+          update(1/60);
+          return M.map + '(' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) + ')';
+        }
+        out.push('站上去 → ' + step() + ' → 再踩回来 ' + step());
+      }
+      if (mode === 'px'){
+        /* 手动画一帧再取个像素 —— 无头里 rAF 不一定跑，得自己调 */
+        try {
+          render();
+          var dd = cx.getImageData(Math.floor(W/2), Math.floor(H/2), 1, 1).data;
+          out.push('画布=' + W + '×' + H + ' 中心像素=' + dd[0] + ',' + dd[1] + ',' + dd[2] + ',' + dd[3]);
+        } catch (e){ out.push('!!render ' + e.message); }
+      }
+      if (mode === 'run'){
+        /* 同样跑 60 帧，量一量走路和快跑各走多远 —— 倍数对不上就是没生效 */
+        /* 起点别放在韩愈像正下方 —— 雕像挡路，量出来会偏小 */
+        var sx = 39*TILE + TILE/2, sy = 120*TILE + TILE/2;
+        function distOver(fast){
+          M.p.x = sx; M.p.y = sy;
+          keys['w'] = true; keys['shift'] = fast;
+          for (var fi=0; fi<60; fi++) update(1/60);
+          keys['w'] = false; keys['shift'] = false;
+          return Math.round(sy - M.p.y);
+        }
+        var w0 = distOver(false), r0 = distOver(true);
+        out.push('60帧 走路=' + w0 + 'px 快跑=' + r0 + 'px 倍数=' + (r0/w0).toFixed(2) +
+                 ' (想要 ' + RUN_MULT + ')');
+      }
       if (mode === 'walk'){
         var seen = [], guard = 0;
         M.p.x = M.npcs[0].x; M.p.y = M.npcs[0].y + 20;      // 站到第一个 NPC 跟前
@@ -849,9 +1285,9 @@ whereEl.style.display = 'none';
 })();
 
 /* ==================== 起飞 ====================
-   地图必须在起飞前就建好。它是空的时侯 tileAt 会读到 undefined，
+   地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
    而 tileAt 每帧都调 —— 上一版就是在主循环第一帧崩掉，整个画面全黑。 */
-buildMap();
+loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
 resize();
 requestAnimationFrame(loop);
 </script>
