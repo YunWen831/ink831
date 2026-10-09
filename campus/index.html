@@ -595,9 +595,12 @@ makeMap('campus', {
     { x:19, y:75,  w:4, h:3, once:true, talk:'open_class' },    // 46 班坐下，早读点名
     { x:10, y:76,  w:2, h:2, once:true, talk:'clue_pen' },      // 楼梯拐角，水桶里那支笔
     /* 拿到纸条之后才开始吓人 —— 按顺序读就是"越走越不对" */
-    { x:19, y:78,  w:4, h:2, once:true, if:'纸条', talk:'scare_count' },   // 数人，多一个
-    { x:16, y:84,  w:2, h:4, once:true, if:'纸条', talk:'scare_glass' },   // 走廊玻璃，身后有人
-    { x:6,  y:75,  w:3, h:3, once:true, if:'纸条', talk:'scare_45' }       // 45 班坐满了人
+    { x:19, y:73,  w:4, h:2, once:true, talk:'rule_sheet' },        // 后墙那张塑封纸
+    { x:19, y:78,  w:4, h:2, once:true, if:'看过守则', talk:'scare_count' },
+    { x:6,  y:75,  w:3, h:3, once:true, if:'看过守则', talk:'scare_45' },
+    /* 守则第四条：不要在玻璃前面停下来。停够 1.6 秒就死 ——
+       这一条不写 once，破了守则死一次，读档回来还能再撞一遍 */
+    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death' }
   ]
 }, campusLayout);
 
@@ -630,9 +633,12 @@ var NAME_R = 260;                // 近到能看清是谁，就往头顶挂名�
 
    ── 四个人，都是 46 班的 ──
 
-   牢李   好的，但什么都不知道。老实人，一紧张就往厕所跑。
-          他在 45 班有故事，所以老想往 45 班那边绕。
-          → 选他：你在完全不知情的前提下往下查。
+   牢李   好的，但什么都不知道。老实人。
+          他不是"紧张才想上" —— 是**随机时刻就来**，毫无规律，
+          说走就得走。所以他老是半路离队、老是撞见不该看见的。
+          他在 45 班有故事，所以下意识老想往那边绕。
+          → 选他：你在完全不知情的前提下往下查，
+            而且你比别人更容易掉队。
    水哥   中立的。玩 Limbus Company，上课憋不住笑了一声，
           被 lg7 逮着骂了半节课。
           → 选他：两边都能帮，最后站哪边由你定。
@@ -653,9 +659,19 @@ var NAME_R = 260;                // 近到能看清是谁，就往头顶挂名�
    · 45 班：牢李的。
    · zzx：logic 的。
 
-   ── 中式恐怖靠规矩和数数，不靠血浆 ──
-   点名永远多一个 / 玻璃里多一个人 / 别回头、别答应、别在楼梯上数台阶 /
-   值周生的记名本有一页全是同一个人的字迹。血只用在收口那一处。
+   ── 恐怖怎么做的 ──
+   参考的是规则怪谈那一挂和几款小体量恐怖游戏，不是"突然蹦出来吓你"。
+
+   · 一张《46 班自习课守则》就是全篇引子。头两条很正常，
+     从第三条开始不对劲 —— 而它每一条后面都会应验。
+     规则怪谈最狠的地方在于：它先告诉你规矩，再让你自己撞上去。
+   · 套路是 Hook(哪里不对) → Build(走过去、犹豫) → Diversion(注意力引开)
+     → Execution(收) → 缓一口气。全都堆成一次性拍脸上，那叫廉价。
+   · 中式恐怖是"无鬼的恐怖"：吓人的是熟日常里的那道缝，
+     不是血。血只留在收口那一处。
+   · 翻译笔是全篇引擎：它翻译过不该翻译的东西，
+     所以 lg7 当着全班把它扔进了水桶 —— 这既是他扔笔的原因，
+     也是"二楼不归我管"那句话的来由。
    ================================================================== */
 
 /* ==================== 对话 ====================
@@ -763,26 +779,42 @@ var TALK = {
     u:{ text:'——就是那支。\n去年有人上课拿它翻译，被 lg7 一把夺下来，当着全班扔进桶里。\n没人敢捞。到毕业也没人捞。', set:'翻译笔', end:true }
   }},
 
-  /* ---------- 吓人三连：数数、玻璃、空教室 ----------
-     全都是"多一个"这个母题 —— 中式恐怖最狠的不是血，是数不对 */
+  /* ---------- 守则 ----------
+     规则怪谈的起手：先给你规矩，再让你自己撞上去。
+     这张纸进本子，后面每一条都会应验 */
+  rule_sheet: { nodes:{
+    s:{ text:'教室后墙贴着一张塑封纸，边角翘起来了。\n上头印着 ——', next:'t' },
+    t:{ text:'《46 班 自习课守则》\n\n　一、上课一律不许使用翻译笔。\n　二、老师点名，点到你必须答"到"。',
+        next:'u' },
+    u:{ text:'　三、如果点到的人不在教室里，不要替他答。\n　四、课间不要在走廊尽头的玻璃前面停下来。',
+        next:'v' },
+    v:{ text:'　五、45 班的门开着的时候，不要往里看。\n　六、数人的时候数两遍就够了。',
+        next:'w' },
+    w:{ text:'　六（接上）数第三遍，多的那个就开始数你。\n\n底下没有落款。\n塑封纸上有一道很深的折痕，像是被人对折过很多次。',
+        set:'看过守则', end:true }
+  }},
+
+  /* 第一条应验：不要数第三遍。所以这儿只让你数两遍 */
   scare_count: { nodes:{
     s:{ text:'你回头，数了一遍教室里的人。', next:'t' },
     t:{ text:'十九个。\n跟点名册上一样。', next:'u' },
-    u:{ text:'你不放心，又数了一遍。\n\n……二十个。', set:'数出来多一个', end:true }
+    u:{ text:'……你不放心。\n但是守则第六条是怎么写的？', next:'v' },
+    v:{ text:'（你把手放下了。）', set:'数过两遍', end:true }
   }},
 
-  scare_glass: { nodes:{
-    s:{ text:'走廊尽头是一整扇玻璃。天还没亮透，玻璃上全是外头的黑。', next:'t' },
-    t:{ text:'你在玻璃里看见自己。\n你身后还站着一个人。', next:'u' },
-    u:{ text:'你猛地回头。\n\n走廊是空的。\n再看玻璃，玻璃也空了。', set:'玻璃里的多一个', end:true }
-  }},
-
+  /* 第五条应验：门开着的时候不要往里看。禁得起看的是"什么都没发生" */
   scare_45: { nodes:{
     s:{ text:'45 班的门开着。', next:'t' },
-    t:{ text:'里面坐满了人，一个说话的都没有。\n他们都低着头。', next:'u' },
-    u:{ text:'你一个都不认识。', next:'v' },
-    v:{ text:'……可 45 班上周就搬走了。\n这间教室空了七天。', set:'45班有人', end:true }
+    t:{ text:'里头黑着。窗帘拉得很严，缝里也没有光。\n像是里面根本没装灯。', next:'u' },
+    u:{ text:'守则第五条：门开着的时候，不要往里看。\n\n你从门口走过去。\n走的时候听见里面有人翻了翻书。',
+        set:'45班有人', end:true }
   }},
+
+  /* 第四条如果破了 —— 站在玻璃前面不动，就是死。
+     这是"告诉你规矩、再让你自己撞上去"的那一下 */
+  glass_death: { nodes:{ s:{
+    text:'你站住了。\n\n玻璃里头，你身后那个人也站住了。',
+    end:true }}},
 
   /* ---------- 剧情片段 ----------
      旁白：没有脸、没有名字，就是一段字。触发区和"捡到东西"都走这条 */
@@ -817,9 +849,9 @@ var CLUES = {
   '翻译笔':         '楼梯拐角的水桶里躺着一支翻译笔 —— 去年被 lg7 当众扔进去的，没人捞。',
   '知道lg7在抓人':  'lg7 蹲在后山不是守什么，是在堵人：他想抓学生去搞化学竞赛。',
   'lg7提过二楼':    '问他二楼，他说"二楼不归我管"，说的时候眼睛没看你。',
-  '数出来多一个':   '46 班点名册上十九个人。你在教室里数，怎么数都是二十个。',
-  '玻璃里的多一个': '走廊尽头的玻璃里，你身后站着一个人。回头，走廊是空的。',
-  '45班有人':       '45 班门开着，里面坐满了人，你一个都不认识。可他们班上周就搬走了。'
+  '看过守则':       '《46 班自习课守则》六条。头两条正常，从第三条开始就不对了。',
+  '数过两遍':       '你数了两遍，都是十九个。守则第六条：数第三遍，多的那个就开始数你。',
+  '45班有人':       '45 班门开着，里头黑着，窗帘拉得严严实实。你走过去的时候，听见里面有人翻了翻书。'
 };
 
 /* ==================== 时间 ====================
@@ -1260,6 +1292,8 @@ function closeTalk(){
   dlgEl.classList.remove('on');
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
+  /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
+  if (M.killAfter){ M.killAfter = false; die('你破了那条守则。'); }
 }
 function gotoNode(id){
   var node = M.talk.script.nodes[id];
@@ -1437,12 +1471,21 @@ function update(dt){
       var G = CUR.triggers[gi], gk = '@' + M.map + ':' + gi;
       if (G.once && FLAGS[gk]) continue;
       if (G.if && !flagOn(G.if)) continue;
-      if (gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h){
-        FLAGS[gk] = true;
-        if (G.set) setFlag(G.set);
-        if (G.talk) openScript(G.talk);
-        break;
+      var inG = gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h;
+      if (!inG){ if (M.stillKey === gk){ M.stillKey = null; M.stillT = 0; } continue; }
+      /* 有的是"踩到就触发"，有的是"停在这儿不动才触发" —— 守则里那些
+         "不要停下来"的条款，就是靠这个当真的 */
+      if (G.still){
+        if (M.stillKey !== gk){ M.stillKey = gk; M.stillT = 0; }
+        if (M.p.moving){ M.stillT = 0; continue; }      // 一动就重新计时
+        M.stillT = (M.stillT || 0) + dt;
+        if (M.stillT < G.still) continue;
       }
+      FLAGS[gk] = true;
+      if (G.set) setFlag(G.set);
+      if (G.kill) M.killAfter = true;                   // 这段话读完就死
+      if (G.talk) openScript(G.talk);
+      break;
     }
   }
 
@@ -1867,8 +1910,29 @@ clockEl.style.display = 'none';
           delete FLAGS['@' + M.map + ':' + si];          // 允许重放
           M.p.x = SG.x*TILE + TILE/2; M.p.y = SG.y*TILE + TILE/2;
           M.portalCool = 0; M.talk.cool = 0;
-          update(1/60);
+          /* still 那种要"站够几秒"，那就原地空跑几帧替它站着 */
+          var n = SG.still ? Math.ceil(SG.still*60) + 6 : 1;
+          for (var kk=0; kk<n; kk++) update(1/60);
           if (M.talk.open){ M.talk.typed = 6; drawText(); }   // 出几个字够看排版
+        }
+      }
+      if (mode === 'rule'){
+        /* 守则第四条：在玻璃前面站住不动，应该死 */
+        setFlag('看过守则');
+        var RG = null;
+        CUR.triggers.forEach(function(G){ if (G.kill) RG = G; });
+        if (!RG) out.push('找不到"会死"的触发区');
+        else {
+          M.p.x = RG.x*TILE + TILE/2; M.p.y = RG.y*TILE + TILE/2;
+          M.portalCool = 0; M.talk.cool = 0;
+          var rk; for (rk=0; rk<220 && !M.talk.open; rk++) update(1/60);
+          out.push('站住 ' + (rk/60).toFixed(1) + ' 秒后 对话=' + M.talk.open +
+                   ' 说话人=' + (M.talk.who || '旁白'));
+          var rj = 0; while (M.talk.open && rj++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+          out.push('读完 killAfter=' + !!M.killAfter + ' dying=' + (M.dying||0).toFixed(2));
+          for (rk=0; rk<160; rk++) update(1/60);
+          out.push('复活 在哪=' + M.map + ' 站位=' +
+                   Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE));
         }
       }
       if (mode === 'opening'){
