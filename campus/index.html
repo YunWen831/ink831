@@ -182,7 +182,7 @@
      点它就是"答应了"；不点就是"没答应"。中间没有别的路 ——
      比塞进对话框选项里狠得多，因为你手会先动 */
   #press { position:absolute; z-index:9; left:50%; transform:translateX(-50%);
-    bottom:24%; display:none; }
+    bottom:42%; display:none; }
   #press.on { display:block; }
   #press button { font-family:inherit; font-size:clamp(17px,4.6vw,23px); font-weight:700;
     padding:15px 36px; border-radius:13px; border:3px solid #e8a33d;
@@ -1641,6 +1641,7 @@ function showPress(node){
   pressEl.classList.add('on');
   M.press = { t: P.secs || 2.6, press: P.press, miss: P.miss || P.press };
   sfxDoor();
+  toast('—— 它在等你应一声。', 1.6);
 }
 function hidePress(){
   pressEl.classList.remove('on');
@@ -1659,8 +1660,12 @@ function card(text, secs){
   cardTxt.textContent = text;
   cardEl.classList.add('on');
   M.cardT = (secs || 2.8);
-  M.talk.open = false;                    // 场景卡期间不走对话框
   dlgEl.classList.remove('on');
+  hidePress();
+  /* 场景卡等于把这段对话收了尾 —— 必须走 closeTalk 而不是自己设个
+     M.talk.open=false 就算完。少了它，那张卡之后的按钮全都不回来
+     （这就是"刚进去按键会消失"） */
+  closeTalk();
   sfxPick();
 }
 function flashRed(){ redEl.classList.add('on'); setTimeout(function(){ redEl.classList.remove('on'); }, 130); }
@@ -3635,6 +3640,12 @@ clockEl.style.display = 'none';
         out.push('① ' + hit(0));
         out.push('② ' + hit(1));
         out.push('③ ' + hit(2) + ' → 纸条=' + flagOn('纸条'));
+        /* 开场那张场景卡走完之后，右下角的键该还在 ——
+           这一条是"刚进去按键会消失"的回归测试 */
+        out.push('场景卡之后按钮还在=' + actEl.classList.contains('on') +
+                 '/' + runEl.classList.contains('on') +
+                 '/' + bookBtn.classList.contains('on') +
+                 '/' + fastBtn.classList.contains('on') + '（都该 true）');
       }
       if (mode === 'death'){
         checkpoint('测试点');
