@@ -1040,12 +1040,25 @@ var TALK = {
     v:{ text:'（守则第二条：点到你必须答"到"。）', opts:[
          { t:'「到。」',                go:'ans' },
          { t:'（不出声，等它念下一个）', go:'quiet' } ]},
-    ans:  { text:'「到。」\n\n（声音接着往下念了。）', next:'w' },
+    ans:  { text:'「到。」\n\n（它往下念了。）', next:'w' },
     quiet:{ text:'（你没出声。）\n\n（它等了一会儿，又念了一遍。）\n\n「牢李。」', opts:[
          { t:'「到。」',     go:'ans2' },
          { t:'（还是不出声）', go:'dead2' } ]},
     ans2: { text:'「到。」\n\n（这回它往下念了。）', next:'w' },
     dead2:{ text:'（它念了第三遍。）\n\n「牢李。」\n「牢李。」\n「牢李。」', kill:true, end:true },
+
+    /* 守则第六条：数第三遍，多的那个就开始数你。
+       所以它会把同一个名字念第三遍 —— 这一次答了，就是把自己数进去 */
+    z:{ text:'（往下又过了几个名字。）', next:'z2' },
+    z2:{ text:'（然后它绕回来了。）\n\n「牢李。」', next:'z3' },
+    z3:{ text:'（这是第三遍了。\n　守则第六条：数第三遍，多的那个就开始数你。）', opts:[
+         { t:'「到。」',     go:'dead3' },
+         { t:'（不出声）',   go:'zok' },
+         { t:'（小声说"我不是"）', go:'dead3' } ]},
+    dead3:{ text:'「到。」\n\n（它停了。）\n\n（名单上多出来的那一个 —— ）\n\n（现在是你。）',
+            kill:true, end:true },
+    zok:{ text:'（你没出声。）\n\n（它念了第四遍。）\n\n（你还是没出声。）\n\n（它跳过去了。）',
+          set:'答过到', end:true },
 
     w:{ text:'（它又往下过了几个名字。）\n\n「……老李。」', next:'x' },
     /* 陷阱不是"替别人答"——没人会那么干。是同音：你听见的是自己的名字，
@@ -1055,7 +1068,7 @@ var TALK = {
          { t:'「到。」',     go:'dead' },
          { t:'（压住不动）', go:'ok' } ]},
     ok:{ text:'（它等了一会儿，跳过去了。）\n\n（你听出来了：念到这个名字的时候，它总会顿一下。\n　像在等有人接。）',
-         set:'答过到', end:true },
+         next:'z' },
     dead:{ text:'「到。」\n\n——那不是你的名字。\n\n（念名字的声音停了。\n　整条走廊都停住了。）\n\n（它开始往这边走。）',
          kill:true, end:true }
   }},
@@ -1530,8 +1543,9 @@ var GOALS = [
   { if:'该上二楼了', map:'campus', t:'去天井北头',              x:13, y:74  },
   { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 去后山',  x:39, y:26  },
   { if:'该查名单了', map:'campus', t:'去大门口，找那个值周生',  x:37, y:119 },
-  { if:'看过守则',   map:'campus', t:'数一遍人 —— 只数两遍',    x:19, y:78  },
-  { if:'纸条',       map:'campus', t:'教室后墙贴着一张纸',      x:19, y:73  },
+  { if:'答过到',     map:'campus', t:'回教室，数一遍人 —— 只数两遍', x:19, y:78 },
+  { if:'看过守则',   map:'campus', t:'走出教室 —— 走廊里有人在念名字', x:16, y:80 },
+  { if:'纸条',       map:'campus', t:'教室后墙贴着一张纸',        x:19, y:73  },
   {                  map:'campus', t:'先去教室 —— 一号教学楼',  x:23, y:82  }
 ];
 function goalNow(){
@@ -1839,6 +1853,22 @@ var GHOSTS = [
   { x:36, y:12, map:'floor2', if:'上过二楼',  id:'deskmate' },
   { x:13, y:84, map:'campus', if:'看过守则',  id:'logic' }
 ];
+
+/* 教室里得坐满人。原来只有两三个 NPC，"全教室的人都转过来看着你"
+   那句完全落空 —— 屏幕上就两个人，转不转给谁看。
+   这些是布景：不能对话，但 stare 的时候会一起转头。
+   45 班一个人都没有，那是故意的 */
+var CROWD = [];
+(function(){
+  var ids = ['deskmate', 'logic', 'shui', 'deskmate', 'laoli', 'logic', 'shui'];
+  var k = 0;
+  for (var r=0; r<5; r++) for (var c=0; c<4; c++){
+    var gx = 19 + c, gy = 74 + r;                 // 46 班：cols 19..22, rows 74..78
+    if (gx === 19 && gy === 74) continue;         // 同桌那个位子留出来
+    if (gx === 21 && gy === 74) continue;         // 老师站着的地方
+    CROWD.push({ map:'campus', x:gx, y:gy, id:ids[k++ % ids.length] });
+  }
+})();
 
 var TOILETS = [
   { x:5, y:84, w:4, h:7 },      // 一号教学楼西翼南排
@@ -2762,6 +2792,15 @@ function render(){
     cx.fillRect(0, -gh, 14, gh * 3);
     cx.restore();
     cx.restore();
+  });
+
+  /* ---- 坐满的那一屋子人：stare 的时候会一起转过头 ---- */
+  CROWD.forEach(function(c){
+    if (c.map !== M.map) return;
+    var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
+    var cdir = 'down';
+    if (M.stare > 0) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
+    drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
   });
 
   /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
