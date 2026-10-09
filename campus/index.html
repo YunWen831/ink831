@@ -158,6 +158,48 @@
     letter-spacing:.06em; }
   #chase .sm { font-size:clamp(10px,2.8vw,13px); opacity:.75; letter-spacing:.1em; }
 
+  /* ---------- 画面层 ----------
+     以前所有东西都塞进底下那个黑框里，那是最偷懒的做法。
+     大段的东西该走全屏，地图本身也该有气氛 */
+
+  /* 暗角：一直挂着，一点点就够 */
+  #vig { position:absolute; inset:0; z-index:4; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 50%,
+      rgba(0,0,0,0) 42%, rgba(0,0,0,.28) 78%, rgba(0,0,0,.6) 100%); }
+  /* 楼里、夜里更暗一档 */
+  #vig.dark { background:radial-gradient(ellipse at 50% 50%,
+    rgba(0,0,0,.35) 12%, rgba(0,0,0,.72) 70%, rgba(0,0,0,.94) 100%); }
+  /* 被追的时候收得更紧 */
+  #vig.chase { background:radial-gradient(ellipse at 50% 50%,
+    rgba(0,0,0,.15) 8%, rgba(0,0,0,.66) 58%, rgba(0,0,0,.96) 100%); }
+
+  /* 死那一下红闪 */
+  #red { position:absolute; inset:0; z-index:9; pointer-events:none;
+    background:#6d0f0f; opacity:0; }
+  #red.on { opacity:.5; transition:opacity .06s; }
+
+  /* 场景卡：大段旁白走这里，不走聊天框 */
+  #card { position:absolute; inset:0; z-index:10; pointer-events:none;
+    display:flex; align-items:center; justify-content:center;
+    background:#0b0a09; opacity:0; transition:opacity .5s; }
+  #card.on { opacity:1; }
+  #card span { max-width:min(80vw,620px); text-align:center;
+    font-size:clamp(15px,4vw,22px); line-height:2.1; letter-spacing:.06em;
+    color:#e8e4dc; white-space:pre-wrap; }
+
+  /* 目标那一行。挂在左上角时间和地点的下面 */
+  #goal { position:absolute; z-index:5; pointer-events:none;
+    left:calc(14px + env(safe-area-inset-left,0px));
+    top:calc(56px + env(safe-area-inset-top,0px));
+    font-size:clamp(11px,3vw,14px); letter-spacing:.06em; color:#e8d4a8;
+    text-shadow:0 2px 6px rgba(0,0,0,.8); opacity:.92; max-width:60vw; }
+  #goal b { color:#e8a33d; }
+  /* 屏幕边缘那个指方向的箭头 */
+  #arrow { position:absolute; z-index:5; pointer-events:none; display:none;
+    color:#e8a33d; font-size:22px; line-height:1;
+    text-shadow:0 0 8px rgba(0,0,0,.9); opacity:.85; }
+  #arrow.on { display:block; }
+
   /* 结算屏 */
   #scOver { background:rgba(8,7,6,.97); }
   #overTxt { width:min(92vw,600px); text-align:left; }
@@ -182,8 +224,13 @@
 <body>
 
 <canvas id="cv"></canvas>
+<div id="vig"></div>
 <div id="where"></div>
 <div id="clock"></div>
+<div id="goal"></div>
+<div id="arrow"></div>
+<div id="red"></div>
+<div id="card"><span></span></div>
 <div id="hint"></div>
 
 <div id="dlg">
@@ -929,7 +976,7 @@ var TALK = {
   open_arrive: { nodes:{
     s:{ text:'六点五十。\n\n校门口一个人都没有。', next:'t' },
     t:{ text:'保安室的灯亮着，窗帘拉了一半。\n玻璃后面那把椅子是空的 ——\n书包搭在椅背上，保温杯还冒着气。', next:'u' },
-    u:{ text:'（你站着看了一会儿。）\n\n（杯子上那点气，一直没散。）', set:'到校', end:true }
+    u:{ text:'（你站着看了一会儿。）\n\n（杯子上那点气，一直没散。）', set:'到校', card:true, end:true }
   }},
 
   open_bell: { nodes:{
@@ -1264,7 +1311,7 @@ var TALK = {
     u:{ text:'操场上、广场上、主干道上 —— 全是人。\n\n全都穿着校服。全都背对着你。', next:'v' },
     v:{ text:'（他们排成一排，面朝校门。）\n\n（一个一个地，开始点数。）', next:'w' },
     w:{ text:'（一、二、三……）\n\n（数得比上课那次慢。慢得多。）', next:'x' },
-    x:{ text:'（守则里没写这一条。）\n\n（你只剩六分钟。）', set:'被追了', end:true }
+    x:{ text:'（守则里没写这一条。）\n\n（你只剩六分钟。）', set:'被追了', card:true, end:true }
   }},
 
   /* ==================== 二楼 ====================
@@ -1298,7 +1345,7 @@ var TALK = {
   f2_enter: { nodes:{
     s:{ text:'二楼。\n\n走廊、教室、窗户 —— 都对。', next:'t' },
     t:{ text:'你数了一遍教室的门。\n南北各三道。', next:'u' },
-    u:{ text:'……走廊东头，还有一道。', set:'上过二楼', end:true }
+    u:{ text:'……走廊东头，还有一道。', set:'上过二楼', card:true, end:true }
   }},
 
   f2_rollcall: { nodes:{
@@ -1433,6 +1480,69 @@ function setFlag(k, v){
   }
   FLAGS[k] = (v === undefined) ? true : v;
 }
+/* ==================== 画面表现 ====================
+   这一块全是"别老靠聊天框"长出来的。
+   大段的旁白走全屏场景卡；地图本身有暗角；被追的时候收得更紧；
+   死一下红闪；开追那一下抖屏。
+   ============================================ */
+var cardEl = document.getElementById('card'), cardTxt = cardEl.firstChild;
+var vigEl  = document.getElementById('vig');
+var redEl  = document.getElementById('red');
+var goalEl = document.getElementById('goal');
+var arrowEl= document.getElementById('arrow');
+
+function card(text, secs){
+  cardTxt.textContent = text;
+  cardEl.classList.add('on');
+  M.cardT = (secs || 2.8);
+  M.talk.open = false;                    // 场景卡期间不走对话框
+  dlgEl.classList.remove('on');
+  sfxPick();
+}
+function flashRed(){ redEl.classList.add('on'); setTimeout(function(){ redEl.classList.remove('on'); }, 130); }
+function shake(secs){ M.shakeT = secs || 0.5; }
+
+/* 目标：从上往下第一个成立的。
+   玩家永远该知道下一步去哪儿 —— 这是原来的大毛病 */
+var GOALS = [
+  { if:'被追了',     map:'campus', t:'冲出去 —— 别停',        x:38, y:124 },
+  { if:'拉过铃',     map:'campus', t:'下楼，往校门走',          x:38, y:124 },
+  { if:'该跑了',     map:'floor2', t:'下楼',                    x:4,  y:12  },
+  { if:'上过二楼',   map:'floor2', t:'走廊东头那扇门',          x:38, y:12  },
+  { if:'可以上去了', map:'campus', t:'天井北头那个楼梯口',      x:13, y:73  },
+  { if:'该上二楼了', map:'campus', t:'去天井北头',              x:13, y:74  },
+  { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 去后山',  x:39, y:26  },
+  { if:'该查名单了', map:'campus', t:'去大门口，找那个值周生',  x:37, y:119 },
+  { if:'看过守则',   map:'campus', t:'数一遍人 —— 只数两遍',    x:19, y:78  },
+  { if:'纸条',       map:'campus', t:'教室后墙贴着一张纸',      x:19, y:73  },
+  {                  map:'campus', t:'先去教室 —— 一号教学楼',  x:23, y:82  }
+];
+function goalNow(){
+  for (var i=0;i<GOALS.length;i++){
+    var G = GOALS[i];
+    if (G.if && !flagOn(G.if)) continue;
+    if (G.map && M.map !== G.map) continue;
+    return G;
+  }
+  return null;
+}
+/* 每帧：目标那一行，加上屏幕边缘那个指方向的箭头 */
+function goalTick(){
+  if (M.screen !== 'play'){ goalEl.textContent = ''; arrowEl.classList.remove('on'); return; }
+  var G = goalNow();
+  if (!G){ goalEl.textContent = ''; arrowEl.classList.remove('on'); return; }
+  goalEl.innerHTML = '<b>→</b> ' + escapeHTML(G.t);
+  var sx = G.x*TILE + TILE/2 - camX, sy = G.y*TILE + TILE/2 - camY;
+  /* 目标在画面里就不指了 —— 一直挂着个箭头反而碍事 */
+  if (sx > 30 && sx < W-30 && sy > 30 && sy < H-30){ arrowEl.classList.remove('on'); return; }
+  var ang = Math.atan2(sy - H/2, sx - W/2);
+  arrowEl.textContent = '➤';
+  arrowEl.style.left = (W/2 + Math.cos(ang) * (W/2 - 44)) + 'px';
+  arrowEl.style.top  = (H/2 + Math.sin(ang) * (H/2 - 44)) + 'px';
+  arrowEl.style.transform = 'translate(-50%,-50%) rotate(' + ang + 'rad)';
+  arrowEl.classList.add('on');
+}
+
 function clearFlag(k){
   if (!k) return;
   if (typeof k === 'object' && k && k.forEach){ k.forEach(function(x){ delete FLAGS[x]; }); return; }
@@ -1762,7 +1872,7 @@ function respawn(){
 /* 死。默认一秒多之后自动回存档点 */
 function die(why, delay){
   if (M.dying > 0) return;
-  sfxDie(); droneOff();
+  sfxDie(); droneOff(); flashRed();
   M.dying = delay || 1.1;
   if (why) toast(why, 2.6);
 }
@@ -1794,7 +1904,7 @@ function startChase(){
     });
   });
   checkpoint();                        // 死在半路就从这儿重来
-  droneOn();                           // 低频底噪，一开就让人心慌
+  droneOn(); shake(0.9);               // 低频底噪，一开就让人心慌
   sfxBell(2);
   toast('整队了。', 2.4);
   if (chaseEl) chaseEl.classList.add('on');
@@ -2155,6 +2265,9 @@ function gotoNode(id){
 }
 function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
+  /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
+  if (node.card){ card(full2(node), 3.4); return; }
+  dlgEl.classList.add('on');
   var who = M.talk.who;                   // 旁白是 null
   var sp = who ? speaker(who) : null;
   dlgWho.textContent = sp ? sp.name : '';
@@ -2186,6 +2299,7 @@ var dlgEl = document.getElementById('dlg'), dlgBox = document.getElementById('dl
 function escapeHTML(s){
   return String(s).replace(/[&<>]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; });
 }
+function full2(node){ return node.text; }
 function nodeDone(){ return M.talk.typed >= full.length; }
 function advanceOrChoose(){
   var node = M.talk.script.nodes[M.talk.nodeId];
@@ -2251,6 +2365,9 @@ function update(dt){
   M.t += dt;
   applyClock();                          // 时间由剧情推，这儿只管把时间段旗标刷一遍
   if (M.screen === 'play' && !M.talk.open && !M.book && !M.chase) urgeTick(dt);
+  /* 场景卡：自己淡出 */
+  if (M.cardT > 0){ M.cardT -= dt; if (M.cardT <= 0 && cardEl) cardEl.classList.remove('on'); }
+  if (M.shakeT > 0) M.shakeT = Math.max(0, M.shakeT - dt);
   if (M.toastT > 0){
     M.toastT -= dt;
     if (M.toastT <= 0 && toastEl) toastEl.classList.remove('on');
@@ -2370,6 +2487,7 @@ function update(dt){
       }
       if (G.endchase && M.chase) M.endAfter = true;    // 等这段话说完再结束追逐
       if (G.bell) sfxBell(G.bell);                      // 铃
+      if (G.card){ card(G.card, G.cardSecs); break; }    // 大段旁白走全屏，不走黑框
       if (G.chase) startChase();                        // 踩到这儿，整队开始
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
       if (G.say) toast(G.say);                          // 或者只飘一行字
@@ -2390,6 +2508,8 @@ function update(dt){
     hintEl.textContent = (hasTouch ? '按右下角圆键' : '按 Z 或空格') + ' 跟 ' + speaker(near.id).name + ' 说话';
 
   whereEl.textContent = whereText(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE));
+  if (vigEl) vigEl.className = M.chase ? 'chase' : (M.map === 'floor2' ? 'dark' : '');
+  goalTick();
 }
 var whereEl = document.getElementById('where'), clockEl = document.getElementById('clock');
 
@@ -2502,7 +2622,9 @@ function render(){
   camX = clamp(M.p.x - W/2, 0, Math.max(0, MAPW*TILE - W));
   camY = clamp(M.p.y - H/2, 0, Math.max(0, MAPH*TILE - H));
   cx.save();
-  cx.translate(-Math.round(camX), -Math.round(camY));
+  var sk = M.shakeT > 0 ? M.shakeT * 9 : 0;
+  cx.translate(-Math.round(camX) + (sk ? (Math.random()*2-1)*sk : 0),
+               -Math.round(camY) + (sk ? (Math.random()*2-1)*sk : 0));
 
   var x0 = Math.floor(camX/TILE), x1 = Math.min(MAPW-1, Math.ceil((camX+W)/TILE));
   var y0 = Math.floor(camY/TILE), y1 = Math.min(MAPH-1, Math.ceil((camY+H)/TILE));
