@@ -630,7 +630,16 @@ makeMap('campus', {
     { x:8,  y:22, w:2, h:2, if:'该去后山了', seq:3, talk:'wipe_3' },   // 如
     { x:24, y:22, w:2, h:2, if:'该去后山了', seq:4, talk:'wipe_4' },   // 玻
     { x:34, y:22, w:2, h:2, if:'该去后山了', seq:5, talk:'wipe_5' },   // 门
-    { x:16, y:22, w:2, h:2, if:'该去后山了', seq:6, talk:'wipe_6' }    // 数
+    { x:16, y:22, w:2, h:2, if:'该去后山了', seq:6, talk:'wipe_6' },   // 数
+
+    /* ---- 水哥② 抽屉密码：三条线索散在三个地方，得跑一趟 ---- */
+    { x:5,  y:73,  w:4, h:1, once:true, if:'擦完墙', talk:'pw_board' },   // 45 班空教室的黑板
+    { x:57, y:75,  w:4, h:3, once:true, if:'擦完墙', talk:'pw_table' },   // 实验楼墙上的周期表
+    { x:8,  y:102, w:6, h:2, once:true, if:'擦完墙', talk:'pw_drawer' },  // 行政楼他抽屉
+
+    /* ---- 水哥③ 树阵：走错不是死，是"又回到墙根" ---- */
+    { x:8,  y:22, w:2, h:1, once:true, if:'擦完墙', talk:'pz_trees' },
+    { x:8,  y:12, w:2, h:2, once:true, if:'擦完墙', talk:'loop_back', warp:[9,7] }
   ]
 }, campusLayout);
 
@@ -936,6 +945,43 @@ var TALK = {
     t:{ text:'六个字连起来，正好是守则六条的头一个字。\n\n上。师。如。玻。门。数。', next:'u' },
     u:{ text:'（墙后面，念书的声音停了一下 —— ）\n\n（然后，从第一页重新念起。）', set:'擦完墙', end:true }}},
 
+  /* ===== 水哥② 抽屉密码 =====
+     三道线索散在三个地方：45 班空教室的黑板、实验楼的周期表、行政楼的抽屉。
+     他一个化学老师，拿元素序号当密码，还挺得意。 */
+  pw_board: { nodes:{ s:{
+    text:'45 班的门开着。\n\n黑板上还留着半行没擦的字 —— 是 lg7 的字。\n\n　　H · B · N',
+    set:'看过黑板式子', end:true }}},
+
+  pw_table: { nodes:{ s:{
+    text:'实验楼墙上挂着一张元素周期表，边角卷了。\n\n　　H …… 1\n　　B …… 5\n　　N …… 7',
+    set:'查过周期表', end:true }}},
+
+  pw_drawer: { nodes:{
+    s:{ text:'lg7 的办公桌。抽屉锁着。\n\n（你的手机在里面 —— 上周上课那一声笑，他当场就没收了。）', next:'t' },
+    t:{ text:'三位数的密码锁。锁边上贴着一张纸，他的字：\n\n「密码是我上课写的那条式子。」', next:'u' },
+    u:{ text:'（黑板上的：H · B · N）\n（周期表上的：1、5、7）', opts:[
+         { t:'1 · 5 · 7', go:'ok' },
+         { t:'5 · 1 · 7', go:'no' },
+         { t:'1 · 7 · 5', go:'no' },
+         { t:'7 · 5 · 1', go:'no' } ]},
+    ok:{ text:'咔。\n\n抽屉开了。', next:'ok2' },
+    no:{ text:'咔、咔、咔。\n\n（不对。）', end:true },
+    ok2:{ text:'里面躺着你的手机，早没电了。\n\n底下压着一张报名表 —— 化学竞赛的。', next:'ok3' },
+    ok3:{ text:'整张表只有一行填了名字。\n墨水被水泡过，洇成一片，看不清了。', next:'ok4' },
+    ok4:{ text:'表背面是他写的：\n\n「三年前填的。\n　填完就没敢再往下填。」', set:'拿回手机', end:true }
+  }},
+
+  /* ===== 水哥③ 树阵 =====
+     从后山回来，树全换了朝向。走错不是死，是"又回到墙根" —— 那更难受 */
+  pz_trees: { nodes:{
+    s:{ text:'回来的路上，树跟来的时候不一样了。', next:'t' },
+    t:{ text:'（它们全都侧着身子。）\n\n（像是背对着同一个方向。）', next:'u' },
+    u:{ text:'（背对的那边，是出去的路。）', set:'看懂树阵', end:true }
+  }},
+  loop_back: { nodes:{ s:{
+    text:'你走了很久。\n\n……墙根。\n\n（六块苔，你已经擦干净了。）',
+    end:true }}},
+
   /* 老梗：水池/水桶里那支翻译笔 */
   clue_pen: { nodes:{
     s:{ text:'楼梯拐角放着一个水桶。桶早干了，桶壁上留着一圈黄印子。', next:'t' },
@@ -1030,7 +1076,10 @@ var CLUES = {
   /* 两条线的谜题 */
   '答过到':       '走廊里的念名声，每次念到那个名字都会停一下。那个名字，教室里没有人。',
   '镜子上三个字': '厕所雾玻璃上有手指写的三个字：别答应。',
-  '擦完墙':       '后山墙根六块苔底下刻着六个字：上、师、如、玻、门、数 —— 正好是守则六条的头一个字。'
+  '擦完墙':       '后山墙根六块苔底下刻着六个字：上、师、如、玻、门、数 —— 正好是守则六条的头一个字。',
+
+  '拿回手机':     'lg7 抽屉里压着一张化学竞赛报名表，整张只填了一个名字，被水泡花了。背面他写着：三年前填的，填完就没敢再往下填。',
+  '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。'
 };
 
 /* ==================== 时间 ====================
@@ -1675,6 +1724,12 @@ function update(dt){
       FLAGS[gk] = true;
       if (G.set) setFlag(G.set);
       if (G.clock !== undefined) setClock(G.clock);      // 时间由剧情推
+      /* 走错路就绕回原地 —— 中式恐怖里最好使的不是怪物，是"又回到这儿" */
+      if (G.warp){
+        M.p.x = G.warp[0]*TILE + TILE/2;
+        M.p.y = G.warp[1]*TILE + TILE/2;
+        M.portalCool = 0.4;
+      }
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
       if (G.say) toast(G.say);                          // 或者只飘一行字
       if (G.talk) openScript(G.talk);
@@ -2152,6 +2207,40 @@ clockEl.style.display = 'none';
         out.push('再踩第1块 → seq=' + touch(1));
         out.push('接着第2块 → seq=' + touch(2));
         out.push('跳过第3踩第4 → seq=' + touch(4));
+
+        /* ③ 抽屉：三道线索都在的话，输对密码就该开 */
+        FLAGS = {}; setFlag('擦完墙');
+        function hitT(name){
+          var T = null;
+          CUR.triggers.forEach(function(G){ if (G.talk === name) T = G; });
+          M.p.x = T.x*TILE + TILE/2; M.p.y = T.y*TILE + TILE/2;
+          M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+          update(1/60);
+          var seen = M.talk.open ? (M.talk.script.nodes[M.talk.nodeId].text||'').replace(/\s+/g,'').slice(0,8) : '（没触发）';
+          var q = 0; while (M.talk.open && q++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+          return seen;
+        }
+        out.push('黑板 ' + hitT('pw_board') + flagOn('看过黑板式子'));
+        out.push('周期表 ' + hitT('pw_table') + flagOn('查过周期表'));
+        /* 抽屉先输错一次，再输对 */
+        var D = null;
+        CUR.triggers.forEach(function(G){ if (G.talk === 'pw_drawer') D = G; });
+        M.p.x = D.x*TILE + TILE/2; M.p.y = D.y*TILE + TILE/2;
+        M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+        update(1/60);
+        M.talk.typed = 1e9; advanceOrChoose();      // → 密码那一步
+        M.talk.typed = 1e9; advanceOrChoose();      // → t
+        out.push('密码节点=' + M.talk.nodeId);
+        M.talk.sel = 1; M.talk.typed = 1e9; advanceOrChoose();   // 选错那个
+        out.push('输错 → ' + M.talk.nodeId + ' 开了没=' + flagOn('拿回手机'));
+        M.talk.open = false;
+        M.p.x = D.x*TILE + TILE/2; M.p.y = D.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; delete FLAGS['@' + M.map + ':23'];
+        update(1/60);
+        M.talk.typed = 1e9; advanceOrChoose(); advanceOrChoose();
+        M.talk.sel = 0; M.talk.typed = 1e9; advanceOrChoose();   // 选对那个
+        var w2 = 0; while (M.talk.open && w2++ < 10){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('输对 → 开了没=' + flagOn('拿回手机'));
       }
       if (mode === 'route'){
         /* 出了教室那一格上摞着三条分岔。换个身份再走一遍，
