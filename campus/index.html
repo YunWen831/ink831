@@ -1139,7 +1139,7 @@ var TALK = {
     u:{ text:'"……第四名，46 班。"', next:'v' },
     v:{ text:'（然后是一个空拍。）\n\n（很长的空拍。）', next:'w' },
     w:{ text:'"……第五名，46 班。"', next:'x' },
-    x:{ text:'（你站在原地，把整条广播听完了。）\n\n（46 班念了两遍。）', set:'广播念了两遍', end:true }
+    x:{ text:'（你站在原地，把整条广播听完了。）\n\n（46 班念了两遍。）', set:'广播念了两遍', stare:4, end:true }
   }},
 
   /* 牢李 · 45 班的门：那个人他小学就认识 */
@@ -1305,6 +1305,23 @@ var TALK = {
     u:{ text:'（你把它扳下去 —— ）', set:'拉过铃', end:true }
   }},
 
+  /* 出门前那一下：墙根那个人还在门口。
+     这是全程最后一个选择，也是唯一一个跟"逃不逃得掉"无关的选择 */
+  final_gate: { nodes:{
+    s:{ text:'（校门口。）', next:'t' },
+    t:{ text:'（墙根底下站着个人。）', next:'u' },
+    u:{ text:'（是 lg7。他手里还拎着那个没开封的饭盒。）', next:'v' },
+    v:{ text:'（他看见你了。）\n\n（他没动。）', opts:[
+         { t:'（走过去，把那页笔记念给他听）', go:'tell', if:'译出化学笔记' },
+         { t:'（走过去，说那个人不会再来了）',   go:'tell2' },
+         { t:'（跑出去。别理他。）',             go:'go' } ]},
+    tell: { text:'（你把那页笔记念了一遍。一笔一划，念到"我明天再来"停下。）', next:'t2' },
+    tell2:{ text:'"……那个人，不会再来了。"', next:'t2' },
+    t2:{ text:'（他听完，蹲下去，把饭盒放在墙根上。）\n\n（放得很正。）', next:'t3' },
+    t3:{ text:'（然后他站直了，拍了拍手上的土。）\n\n（"……行了。回去吧。"）', set:'告诉lg7', end:true },
+    go:{ text:'（你没停。）\n\n（跑到路口的时候，你回头看了一眼。）\n\n（他还蹲在那儿。）', end:true }
+  }},
+
   chase_go: { nodes:{
     s:{ text:'（整队的声音从楼下上来了。）', next:'t' },
     t:{ text:'你跑出教学楼。', next:'u' },
@@ -1435,7 +1452,7 @@ var TALK = {
     s:{ text:'你回头，数了一遍教室里的人。', next:'t' },
     t:{ text:'十九个。\n跟点名册上一样。', next:'u' },
     u:{ text:'……你不放心。\n但是守则第六条是怎么写的？', next:'v' },
-    v:{ text:'（你把手放下了。）', set:'数过两遍', end:true }
+    v:{ text:'（你把手放下了。）\n\n（你抬起头 —— ）\n\n（全教室的人都转过来看着你。）', set:'数过两遍', stare:5, end:true }
   }},
 
   /* 第五条应验：门开着的时候不要往里看。禁得起看的是"什么都没发生" */
@@ -1817,6 +1834,12 @@ window.addEventListener('beforeunload', saveGame);
 /* 走廊尽头那扇玻璃的位置。守则第四条说的就是它 */
 var GLASS = [ { x:16, y:86, w:2, h:4 } ];
 
+/* 有些地方会多站一个人。走近了就没有 —— 这条比任何文字都管用 */
+var GHOSTS = [
+  { x:36, y:12, map:'floor2', if:'上过二楼',  id:'deskmate' },
+  { x:13, y:84, map:'campus', if:'看过守则',  id:'logic' }
+];
+
 var TOILETS = [
   { x:5, y:84, w:4, h:7 },      // 一号教学楼西翼南排
   { x:5, y:60, w:4, h:7 }       // 二号教学楼西翼南排
@@ -1942,29 +1965,56 @@ function endChase(){
   droneOff();
   sfxBell(4);                          // 下课铃
   if (chaseEl) chaseEl.classList.remove('on');
-  showOver(endingFor());
+  /* 出门前那一场：墙根那个人。这是他最后一面 */
+  M.showOverAfter = true;
+  openScript('final_gate');
 }
-/* 三个角色三个结局；水哥那个看你前面选帮谁 */
+/* ==================== 结局 ====================
+   不再只看角色 —— 看你这一趟都干了什么：
+   认出那个名字没有、译出笔记没有、最后有没有告诉他。
+   三条线 × 两三个条件，能出七八种。
+   ============================================ */
 function endingFor(){
-  var me = M.me ? M.me.id : 'laoli';
-  var told = flagOn('译出化学笔记');
-  var tail = told
-    ? ['（你把那页笔记念给他听了。）', '（他蹲在墙根听完，没说话。）', '（第二天他又在墙根。）']
-    : ['（墙根那个人，你没告诉他。）'];
-  if (me === 'logic') return { title:'留在二楼', lines:[
-    '……你停下了。', '整队的声音从楼下过去，一间一间地数。', '数到二楼的时候，跳过去了。',
-    '你没在名单上。', '你回到那间教室，坐回最后一排靠窗的位置。',
-    '屏幕还亮着。那一局还没打完。', '——永远打不完。' ] };
-  if (me === 'shui' && flagOn('帮logic')) return { title:'换了个班号', lines:[
-    '你什么都没说。', '那一层楼还在。', '新学期开学，二楼走廊尽头那间挂上了新的班号。',
-    '点名的时候，还是多一个。' ].concat(tail) };
-  if (me === 'shui') return { title:'封了那扇门', lines:[
-    '你把值周生叫来了。', '当天下午，二楼那间教室被砌死，连窗户一起。',
-    '名单上那个名字，第一次没答"到"。' ].concat(tail) };
-  return { title:'名字被划掉了', lines:[
-    '你把名单交了出去。', '当天下午，二楼那间教室被砌死了。',
-    '下一周的点名册上，46 班十九个人。', '——本来就是十九个。',
-    '（只有你还记得，有一个名字被红笔划穿过纸。）' ].concat(tail) };
+  var me    = M.me ? M.me.id : 'laoli';
+  var notes = flagOn('译出化学笔记');
+  var named = flagOn('认出名字') || flagOn('拿过名单');
+  var told  = flagOn('告诉lg7');
+
+  /* 墙根那个人：每一种结局都用得上的最后一段 */
+  var wall = told
+    ? ['（你把饭盒扶正了。）', '（那天他没再蹲回墙根。）', '（第二天也没有。）']
+    : ['（墙根那个饭盒，还有人在那儿留。）'];
+
+  if (me === 'logic'){
+    var l = ['……你停下了。', '整队的声音从楼下过去，一间一间地数。',
+             '数到二楼的时候，跳过去了。', '你不在名单上。',
+             '你回到那间教室，坐回最后一排靠窗的位置。'];
+    if (named) l.push('（值日表最后一格那个名字，你早就看见了。）');
+    l.push('屏幕还亮着。那一局还没打完。', '——永远打不完。');
+    return { title: told ? '留在二楼 · 门没关' : '留在二楼', lines: l };
+  }
+
+  var head;
+  if (me === 'shui' && flagOn('帮logic')){
+    head = ['你什么都没说。', '那一层楼还在。',
+            '新学期开学，二楼走廊尽头那间挂上了新的班号。', '点名的时候，还是多一个。'];
+  } else if (me === 'shui'){
+    head = ['你把值周生叫来了。', '当天下午，二楼那间教室被砌死，连窗户一起。',
+            '名单上那个名字，第一次没答"到"。'];
+  } else {
+    head = ['你把名单交了出去。', '当天下午，二楼那间教室被砌死了。',
+            '下一周的点名册上，46 班十九个人。', '——本来就是十九个。'];
+    if (named) head.push('（那个名字你认得。它是你在值周生本子上对出来的。）');
+    else       head.push('（名字你还是没看清。就这样吧。）');
+  }
+  if (notes && !told) head.push('（那页化学笔记，你谁也没说。）');
+  if (!notes) head.push('（那间教室的黑板，你没敢再动。）');
+
+  var title = me === 'shui'
+    ? (flagOn('帮logic') ? '换了个班号' : '封了那扇门')
+    : (named ? '名字被划掉了' : '名单上没那个名字');
+
+  return { title: title, lines: head.concat(wall) };
 }
 function showOver(e){
   M.screen = 'over';
@@ -2248,6 +2298,7 @@ function closeTalk(){
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
+  if (M.showOverAfter){ M.showOverAfter = false; showOver(endingFor()); return; }
   if (M.endAfter){ M.endAfter = false; endChase(); return; }
   if (M.killAfter){ M.killAfter = false; die('你破了那条守则。'); }
 }
@@ -2273,6 +2324,7 @@ function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
   if (node.sh) shake(node.sh);            // 这一句该让画面抖一下
+  if (node.stare) M.stare = node.stare;   // 这几秒里，所有人都会看着你
   if (node.card){ card(full2(node), 3.4); return; }
   dlgEl.classList.add('on');
   var who = M.talk.who;                   // 旁白是 null
@@ -2378,6 +2430,14 @@ function update(dt){
   /* 二楼的灯：念名字一起来，就从西头一间一间地灭，往你这边推 */
   if (M.map === 'floor2' && flagOn('走廊在念名字')) M.lightT = (M.lightT || 0) + dt;
   else if (M.lightT) M.lightT = 0;
+  /* 二楼：灯一直在闪 */
+  if (M.map === 'floor2') M.flick = (M.flick || 0) + dt * (2 + Math.random()*5);
+  else M.flick = 0;
+  /* 某些时刻，全校的人会一起转过头看着你 —— 只给一次 */
+  if (M.stare > 0) M.stare -= dt;
+  if (M.stare > 0 && M.npcs.length){
+    M.npcs.forEach(function(n){ n.dir = faceTowards(n.x, n.y, M.p.x, M.p.y); });
+  }
   if (M.toastT > 0){
     M.toastT -= dt;
     if (M.toastT <= 0 && toastEl) toastEl.classList.remove('on');
@@ -2497,6 +2557,7 @@ function update(dt){
       }
       if (G.endchase && M.chase) M.endAfter = true;    // 等这段话说完再结束追逐
       if (G.bell) sfxBell(G.bell);                      // 铃
+      if (G.stare) M.stare = G.stare;
       if (G.card){ card(G.card, G.cardSecs); break; }    // 大段旁白走全屏，不走黑框
       if (G.chase) startChase();                        // 踩到这儿，整队开始
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
@@ -2703,15 +2764,35 @@ function render(){
     cx.restore();
   });
 
+  /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
+  GHOSTS.forEach(function(g){
+    if (g.map !== M.map) return;
+    if (g.if && !flagOn(g.if)) return;
+    var gx = g.x*TILE + TILE/2, gy = g.y*TILE + TILE/2;
+    var d = Math.hypot(gx - M.p.x, gy - M.p.y);
+    if (d < TILE*2.2) return;               // 走近了，没了
+    cx.globalAlpha = Math.min(1, (d - TILE*2.2) / (TILE*1.5)) * 0.85;
+    drawSprite(g.id, gx, gy, 'down', 0, false, 2);
+    cx.globalAlpha = 1;
+  });
+
   /* ---- 二楼：灯从西头一间一间地灭，往你这边推 ---- */
   if (M.map === 'floor2' && M.lightT > 0){
-    var lw = Math.min(40, M.lightT * 6.5) * TILE;
+    /* 追到你身后五格就收住 —— 不然它会把整层楼盖黑，连人影都埋进去。
+       它是在追你，不是要把你眼睛蒙上 */
+    var edge = Math.max(0, Math.min(38, Math.min(M.p.x/TILE - 4, M.lightT * 6.5)));
+    var lw = edge * TILE;
     var lg = cx.createLinearGradient(0, 0, lw, 0);
     lg.addColorStop(0, 'rgba(4,4,6,.95)');
     lg.addColorStop(0.82, 'rgba(4,4,6,.95)');
     lg.addColorStop(1, 'rgba(4,4,6,0)');
     cx.fillStyle = lg;
     cx.fillRect(0, 0, lw, MAPH*TILE);
+  }
+  /* ---- 二楼的灯还在闪 ---- */
+  if (M.map === 'floor2' && Math.sin(M.flick || 0) > 0.80){
+    cx.fillStyle = 'rgba(0,0,0,.45)';
+    cx.fillRect(0, 0, MAPW*TILE, MAPH*TILE);
   }
 
   cx.restore();
@@ -3051,13 +3132,24 @@ clockEl.style.display = 'none';
         if (M.chase) M.chase.hounds.forEach(function(h){
           nearD = Math.min(nearD, Math.hypot(M.p.x-h.x, M.p.y-h.y)/TILE);
         });
-        out.push('绕西边跑 → 屏幕=' + M.screen + ' dying=' + (M.dying||0).toFixed(2) +
+        /* 出了校门现在不直接结算了 —— 先在门口演那一场（最后一个选择）。
+           所以这儿看的是"门口那场戏有没有开"，不是屏幕状态 */
+        out.push('绕西边跑 → 出了校门=' + M.talk.open +
                  ' 走到=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  '(' + tileAt(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE)) + ')' +
-                 ' 还能往南=' + canWalk(M.p.x, M.p.y + TILE) +
                  ' 最近的人=' + nearD.toFixed(1) + '格');
-        /* ③ 过了下课铃还没出去，该死。时钟每帧只走 0.067 秒，得多跑一会儿 */
-        M.dying = 0; M.screen = 'play';
+        /* 把门口那场戏走完，看结算 */
+        var q9 = 0, picked = '';
+        while (M.talk.open && q9++ < 20){
+          var nd9 = M.talk.script.nodes[M.talk.nodeId];
+          if (nd9 && nd9.opts && (M.talk.shown||[]).length) picked = nd9.opts[M.talk.shown[0]].t;
+          M.talk.typed = 1e9; advanceOrChoose();
+        }
+        out.push('门口选了「' + picked + '」→ 屏幕=' + M.screen + ' 标题=' +
+                 (document.getElementById('overTxt').querySelector('h1') || {}).textContent);
+        /* ③ 过了下课铃还没出去，该死。时钟每帧只走 0.067 秒，得多跑一会儿。
+           注意先把上一步那场戏关掉，不然追逐根本不会走 */
+        M.dying = 0; M.screen = 'play'; M.talk.open = false; M.showOverAfter = false;
         startChase();
         M.chase.hounds.length = 0;                 // 把人清开，单看时限
         M.p.x = 39*TILE + TILE/2; M.p.y = 60*TILE + TILE/2;
@@ -3065,13 +3157,13 @@ clockEl.style.display = 'none';
         var g4 = 0; while (g4++ < 600 && M.dying <= 0) update(1/60);
         out.push('拖到下课铃 → dying=' + (M.dying||0).toFixed(2));
         M.dying = 0;
-        /* ④ 跑到校门该结算 */
+        /* ④ 出门那一下：该开门口那场戏 */
+        M.dying = 0; M.talk.open = false; M.showOverAfter = false;
         M.chase = M.chase || { hounds: [] };
         M.chase.hounds.length = 0;
         M.p.y = 123*TILE + TILE/2; M.clock = 10*60+34;
         update(1/60);
-        out.push('出校门 → 屏幕=' + M.screen + ' 标题=' +
-                 (document.getElementById('overTxt').querySelector('h1') || {}).textContent);
+        out.push('踏出校门 → 门口那场戏=' + M.talk.open);
 
         /* ⑥ 分叉得真改人数，不能只换结局文本 */
         M.screen = 'play'; respawn(); M.dying = 0;
@@ -3093,7 +3185,7 @@ clockEl.style.display = 'none';
       }
       if (mode === 'floor2'){
         /* 上楼 → 念名字起 → 这声没过去就推门该当死 → 退回楼梯口等 → 再推门 */
-        setFlag(['可以上去了','有翻译笔']);
+        setFlag(['可以上去了','有翻译笔','上过二楼']);   // 不然走廊尽头那个人影不画
         loadMap('floor2', 5, 12);
         M.fade = 0;
         /* pick：选项走第几个。正确的那一项不一定排第一（那是故意的），
