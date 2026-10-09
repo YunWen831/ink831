@@ -478,6 +478,7 @@ bigBuilding(4, 72, '一号教学楼', 'east');
 /* 一号教学楼里那两间：46 班是"我们班"，45 班是牢李老想绕过去的那间 */
 NAME(19, 73, 4, 7, '46班');
 NAME(5,  73, 4, 7, '45班');
+NAME(5,  84, 4, 7, '厕所');   // 西翼南排 —— 牢李"随机想上"的那个地方
 bigBuilding(4, 48, '二号教学楼', 'east');
 
 /* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
@@ -581,7 +582,13 @@ makeMap('campus', {
     { id:'duty',      tx:37, ty:119, face:'down', talk:'hint_duty' },
     { id:'shui',      tx:45, ty:100, face:'right', talk:'hint_shui' },
     { id:'dean',      tx:33, ty:100, face:'up',   talk:'hint_dean' },
-    { id:'lg7',       tx:9,  ty:6,  face:'down',  talk:'lg7' }
+    /* lg7 是全场跑得最勤的那个：早上堵校门、早读盯走廊、白天蹲后山、
+       后半场守楼梯口。位置跟着剧情时间换 —— 这就是 sched 的用处 */
+    { id:'lg7',       tx:9,  ty:6,  face:'down',  talk:'lg7',
+      sched:[[0,        7*60+10, 39, 117],
+             [7*60+10,  7*60+40, 16, 74],
+             [7*60+40,  9*60+30, 9,  6],
+             [9*60+30, 99*60,    13, 78]] }
   ],
   /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
   portals: [
@@ -608,7 +615,22 @@ makeMap('campus', {
     { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  talk:'free_shui' },
     { x:16, y:76, w:2, h:2, once:true, if:'是:logic', talk:'free_logic' },
     /* logic 那条：天井北头，快到楼梯口之前那一段 */
-    { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' }
+    { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' },
+
+    /* ---- 牢李那条的谜题 ---- */
+    { x:16, y:80, w:2, h:2, once:true, if:'该查名单了', talk:'pz_rollcall' },
+    /* 镜子要"站着不动"才显字 —— 可守则第四条就写着不要在玻璃前面停。
+       管不管厕所的镜子，得玩家自己判断 */
+    { x:5,  y:85, w:2, h:2, once:true, if:'该查名单了', still:2.0, talk:'pz_mirror' },
+
+    /* ---- 水哥那条的谜题：后山墙上六块苔，按守则的条数擦 ---- */
+    { x:8,  y:20, w:2, h:2, once:true, if:'该去后山了', talk:'wipe_intro' },
+    { x:10, y:22, w:2, h:2, if:'该去后山了', seq:1, talk:'wipe_1' },   // 上
+    { x:38, y:22, w:2, h:2, if:'该去后山了', seq:2, talk:'wipe_2' },   // 师
+    { x:8,  y:22, w:2, h:2, if:'该去后山了', seq:3, talk:'wipe_3' },   // 如
+    { x:24, y:22, w:2, h:2, if:'该去后山了', seq:4, talk:'wipe_4' },   // 玻
+    { x:34, y:22, w:2, h:2, if:'该去后山了', seq:5, talk:'wipe_5' },   // 门
+    { x:16, y:22, w:2, h:2, if:'该去后山了', seq:6, talk:'wipe_6' }    // 数
   ]
 }, campusLayout);
 
@@ -837,6 +859,66 @@ var TALK = {
     w:{ text:'（这件事你没跟任何人说过。）', set:'logic承认了', end:true }
   }},
 
+  /* ==================== 谜题 ====================
+     全都有"答错就死"或者"顺序错了就重来"的分支 ——
+     规则怪谈的关键是：规矩先告诉你了，撞上去是你自己的事。
+     ============================================ */
+
+  /* 牢李① 点名：两个名字，一个该答，一个不该答 */
+  pz_rollcall: { nodes:{
+    s:{ text:'走廊里有人在念名字。声音很平，一遍一遍地过。', next:'t' },
+    t:{ text:'"……周…、……黄…、……陈…"', next:'u' },
+    u:{ text:'（念到一半，它停了一下。）\n\n「牢李。」', next:'v' },
+    v:{ text:'（守则第二条：点到你必须答"到"。）', opts:[
+         { t:'「到。」',                go:'ans' },
+         { t:'（不出声，等它念下一个）', go:'quiet' } ]},
+    ans:  { text:'「到。」\n\n（声音接着往下念了。）', next:'w' },
+    quiet:{ text:'（你没出声。）\n\n（它等了一会儿，又念了一遍。）\n\n「牢李。」', opts:[
+         { t:'「到。」',     go:'ans2' },
+         { t:'（还是不出声）', go:'dead2' } ]},
+    ans2: { text:'「到。」\n\n（这回它往下念了。）', next:'w' },
+    dead2:{ text:'（它念了第三遍。）\n\n「牢李。」\n「牢李。」\n「牢李。」', kill:true, end:true },
+
+    w:{ text:'（然后它念了一个名字。）\n\n「……████。」\n\n（这个名字，教室里没有人。）', next:'x' },
+    /* 陷阱放第一个：守则说"点名要答"，但那条管的是你自己；
+       这一声是替别人答的。手快就死。 */
+    x:{ text:'（守则第三条：点到的人不在教室里，不要替他答。）', opts:[
+         { t:'「到。」',   go:'dead' },
+         { t:'（不出声）', go:'ok' } ]},
+    ok:{ text:'（走廊里安静了很久。）\n\n（它跳过了这个名字，接着往下念。）\n\n（你听出来了：每次念到这个名字，都要停一下。）',
+         set:'答过到', end:true },
+    dead:{ text:'「到。」\n\n——答完这一声，走廊里就只剩你一个人了。\n\n（念名字的声音没有了。）\n（它念到了你。）',
+         kill:true, end:true }
+  }},
+
+  /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
+     可守则第四条写着"不要在走廊尽头的玻璃前面停下来"。
+     题眼是：第四条管不管厕所的镜子。 */
+  pz_mirror: { nodes:{
+    s:{ text:'厕所的镜子上全是雾。\n（你呼出来的气又糊上去一层。）', next:'t' },
+    t:{ text:'（站着不动，等雾散一点 —— ）', next:'u' },
+    u:{ text:'雾底下有字。\n是手指写的，写的时候镜子还是热的。现在干了，看不出来。', next:'v' },
+    v:{ text:'字是反的。\n是从镜子后面那个位置写的。', next:'w' },
+    w:{ text:'对着拼了半天，拼出来三个字：\n\n　　「别答应」', set:'镜子上三个字', end:true }
+  }},
+
+  /* 水哥① 擦墙：六块苔，各刻着一个字，对应守则六条的头一个字。
+     得按条数擦 —— 擦错顺序，墙后面的声音就停。 */
+  wipe_intro: { nodes:{
+    s:{ text:'林子尽头那堵墙上，长了六块苔。', next:'t' },
+    t:{ text:'每块苔底下都压着一个字 —— 你拿手指蹭了一下，蹭掉一小片。', next:'u' },
+    u:{ text:'（擦的顺序不对，墙后面的声音会停。）', set:'看到六块苔', end:true }
+  }},
+
+  wipe_1: { nodes:{ s:{ text:'你擦开第一块苔。\n石头上刻着一个字：「上」。', set:'擦墙1', end:true }}},
+  wipe_2: { nodes:{ s:{ text:'第二块。「师」。', set:'擦墙2', end:true }}},
+  wipe_3: { nodes:{ s:{ text:'第三块。「如」。', set:'擦墙3', end:true }}},
+  wipe_4: { nodes:{ s:{ text:'第四块。「玻」。\n\n（你手底下的石头，比别处凉。）', set:'擦墙4', end:true }}},
+  wipe_5: { nodes:{ s:{ text:'第五块。「门」。', set:'擦墙5', end:true }}},
+  wipe_6: { nodes:{ s:{ text:'第六块。「数」。', next:'t' },
+    t:{ text:'六个字连起来，正好是守则六条的头一个字。\n\n上。师。如。玻。门。数。', next:'u' },
+    u:{ text:'（墙后面，念书的声音停了一下 —— ）\n\n（然后，从第一页重新念起。）', set:'擦完墙', end:true }}},
+
   /* 老梗：水池/水桶里那支翻译笔 */
   clue_pen: { nodes:{
     s:{ text:'楼梯拐角放着一个水桶。桶早干了，桶壁上留着一圈黄印子。', next:'t' },
@@ -926,7 +1008,12 @@ var CLUES = {
   /* 三条线各一块拼图：谁 / 哪儿 / 怎么进 */
   '拿过名单':     '值周生的本子上，46 班一直是十九个。可第一行有个名字被红笔划穿了纸 —— 那一行还在，每次点名他都答"到"。',
   '墙后面的书声': '后山那条路走到头是一堵墙。lg7 在那儿蹲了三年：墙后面有人念书，怎么都听不清。',
-  'logic承认了':  'logic 开学第二个礼拜就找到了那间教室。里头时间不动，黑板上的值日表永远停在同一天。他一直在那儿刷题，没跟任何人说过。'
+  'logic承认了':  'logic 开学第二个礼拜就找到了那间教室。里头时间不动，黑板上的值日表永远停在同一天。他一直在那儿刷题，没跟任何人说过。',
+
+  /* 两条线的谜题 */
+  '答过到':       '走廊里的念名声，每次念到那个名字都会停一下。那个名字，教室里没有人。',
+  '镜子上三个字': '厕所雾玻璃上有手指写的三个字：别答应。',
+  '擦完墙':       '后山墙根六块苔底下刻着六个字：上、师、如、玻、门、数 —— 正好是守则六条的头一个字。'
 };
 
 /* ==================== 时间 ====================
@@ -1377,6 +1464,8 @@ function gotoNode(id){
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
   if (node.set) setFlag(node.set);        // 剧情就是在这儿记下来的
+  /* 答错就死的那种节点：话读完就没了 */
+  if (node.kill) M.killAfter = true;
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.sel = 0;
   renderNode();
@@ -1558,9 +1647,18 @@ function update(dt){
         M.stillT = (M.stillT || 0) + dt;
         if (M.stillT < G.still) continue;
       }
+      /* 顺序谜题：seq 是第几步。得从 1 挨着来，跳着踩就回到第一步 */
+      if (G.seq !== undefined){
+        if (M.seq === G.seq - 1) M.seq = G.seq;         // 接上了
+        else if (G.seq > M.seq + 1){                    // 跳着来了 → 回到第一步
+          if (M.seq > 0){ M.seq = 0; toast('……那边停了。从头再来。'); }
+          continue;
+        } else continue;                                // 擦过的、或者还没轮到，都当没踩
+      }
       FLAGS[gk] = true;
       if (G.set) setFlag(G.set);
       if (G.kill) M.killAfter = true;                   // 这段话读完就死
+      if (G.say) toast(G.say);                          // 或者只飘一行字
       if (G.talk) openScript(G.talk);
       break;
     }
@@ -1992,6 +2090,39 @@ clockEl.style.display = 'none';
           for (var kk=0; kk<n; kk++) update(1/60);
           if (M.talk.open){ M.talk.typed = 6; drawText(); }   // 出几个字够看排版
         }
+      }
+      if (mode === 'puzzle'){
+        /* ① 点名：一路往下推，看"替别人答"是不是真会死 */
+        FLAGS = {}; setFlag('是:laoli'); setFlag('该查名单了');
+        var PZ = null;
+        CUR.triggers.forEach(function(G){ if (G.talk === 'pz_rollcall') PZ = G; });
+        M.p.x = PZ.x*TILE + TILE/2; M.p.y = PZ.y*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+        update(1/60);
+        function nx(){ M.talk.typed = 1e9; advanceOrChoose(); }
+        nx(); nx(); nx(); nx();                      // s→t→u→v，在 v 上选「到。」
+        out.push('走到 ' + M.talk.nodeId);
+        nx(); nx(); nx();                            // 到 x 上，选第一个（替答 = 陷阱）
+        out.push('替别人答 → 节点=' + M.talk.nodeId + ' killAfter=' + !!M.killAfter);
+        M.talk.open = false; M.killAfter = false;
+
+        /* ② 顺序擦墙：跳着踩应该不认，按顺序才走。
+           六块苔是水哥那条线的东西，得把它的门槛也打开 */
+        setFlag('该去后山了');
+        M.seq = 0;
+        function touch(seq){
+          var T = null;
+          CUR.triggers.forEach(function(G){ if (G.seq === seq) T = G; });
+          M.p.x = T.x*TILE + TILE/2; M.p.y = T.y*TILE + TILE/2;
+          M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+          update(1/60);
+          if (M.talk.open){ M.talk.typed = 1e9; while (M.talk.open) advanceOrChoose(); }
+          return M.seq;
+        }
+        out.push('先踩第3块 → seq=' + touch(3));
+        out.push('再踩第1块 → seq=' + touch(1));
+        out.push('接着第2块 → seq=' + touch(2));
+        out.push('跳过第3踩第4 → seq=' + touch(4));
       }
       if (mode === 'route'){
         /* 出了教室那一格上摞着三条分岔。换个身份再走一遍，
