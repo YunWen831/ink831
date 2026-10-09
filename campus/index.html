@@ -1335,15 +1335,38 @@ var TALK = {
     s:{ text:'（校门口。）', next:'t' },
     t:{ text:'（墙根底下站着个人。）', next:'u' },
     u:{ text:'（是 lg7。他手里还拎着那个没开封的饭盒。）', next:'v' },
-    v:{ text:'（他看见你了。）\n\n（他没动。）', opts:[
-         { t:'（走过去，把那页笔记念给他听）', go:'tell', if:'译出化学笔记' },
-         { t:'（走过去，说那个人不会再来了）',   go:'tell2' },
+    v:{ text:'（他看见你了。）\n\n（他没动。)', opts:[
+         { t:'（走过去，把那页笔记念给他听）', go:'n1', if:'译出化学笔记' },
+         { t:'（走过去，跟他说那个人不会再来了）', go:'s1' },
          { t:'（跑出去。别理他。）',             go:'go' } ]},
-    tell: { text:'（你把那页笔记念了一遍。一笔一划，念到"我明天再来"停下。）', next:'t2' },
-    tell2:{ text:'"……那个人，不会再来了。"', next:'t2' },
-    t2:{ text:'（他听完，蹲下去，把饭盒放在墙根上。）\n\n（放得很正。）', next:'t3' },
-    t3:{ text:'（然后他站直了，拍了拍手上的土。）\n\n（"……行了。回去吧。"）', set:'告诉lg7', end:true },
-    go:{ text:'（你没停。）\n\n（跑到路口的时候，你回头看了一眼。）\n\n（他还蹲在那儿。）', end:true }
+
+    /* ① 你把笔记念给他 —— 这是最完整的一条 */
+    n1:{ text:'（你把那页笔记摊开。）\n\n（蓝墨水，横格纸。）', next:'n2' },
+    n2:{ text:'（你念了一遍。）', next:'n3' },
+    n3:{ text:'（他一开始只是听着。）', next:'n4' },
+    n4:{ text:'（念到"老师"两个字的时候，他手里的饭盒抖了一下。）', next:'n5' },
+    n5:{ text:'（你念完最后一行，停下。）', next:'n6' },
+    n6:{ text:'（他没说话。）\n\n（很久。）', next:'n7' },
+    n7:{ text:'"……他字还是这么难看。"', next:'n8' },
+    n8:{ text:'（他蹲下去，把饭盒放在墙根上。）\n\n（放得很正。）', next:'n9' },
+    n9:{ text:'"三年了。"', next:'n10' },
+    n10:{ text:'"我每天早上六点二十到这儿。"\n\n"他要是来，得从那个路口拐进来。"', next:'n11' },
+    n11:{ text:'"我没等到过。"\n\n"一次都没有。"', next:'n12' },
+    n12:{ text:'（他站直了，拍了拍手上的土。）', next:'n13' },
+    n13:{ text:'"……行了。"\n\n"回去吧。今天别迟到。"', set:'告诉lg7', end:true },
+
+    /* ② 没带笔记，只说一句 */
+    s1:{ text:'"……那个人，不会再来了。"', next:'s2' },
+    s2:{ text:'（他"嗯"了一声。）', next:'s3' },
+    s3:{ text:'"我知道。"\n\n"我早就知道了。"', next:'s4' },
+    s4:{ text:'（他把饭盒放下。）\n\n（放得很正。）', next:'s5' },
+    s5:{ text:'"……可我还是每天来。"', next:'s6' },
+    s6:{ text:'（他蹲下去了。）', set:'告诉lg7', end:true },
+
+    /* ③ 不理他 */
+    go:{ text:'（你没停。）', next:'go2' },
+    go2:{ text:'（跑到路口的时候，你回头看了一眼。）', next:'go3' },
+    go3:{ text:'（他还蹲在那儿。）\n\n（把饭盒往墙根推了推。）', end:true }
   }},
 
   chase_go: { nodes:{
@@ -2033,7 +2056,14 @@ function endChase(){
   droneOff();
   sfxBell(4);                          // 下课铃
   if (chaseEl) chaseEl.classList.remove('on');
-  /* 出门前那一场：墙根那个人。这是他最后一面 */
+  /* 出门前那一场：墙根那个人。这是他最后一面 ——
+     把他挪到门口来，别让这场戏在屏幕外演 */
+  M.npcs.forEach(function(n){
+    if (n.id !== 'lg7') return;
+    n.x = 33*TILE + TILE/2; n.y = 120*TILE + TILE/2;
+    n.tx = 33; n.ty = 120; n.dir = 'right';
+  });
+  M.p.dir = 'left';
   M.showOverAfter = true;
   openScript('final_gate');
 }
