@@ -729,7 +729,7 @@ makeMap('campus', {
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
   triggers: [
-    { x:38, y:120, w:4, h:3, once:true, talk:'open_arrive' },   // 六点五十，校门口
+    { x:32, y:116, w:16, h:8, once:true, talk:'open_arrive' },   // 六点五十，校门口
     { x:23, y:81,  w:1, h:2, once:true, bell:3, talk:'open_bell' },     // 推开教学楼正门
     { x:19, y:75,  w:4, h:3, once:true, talk:'open_class' },    // 46 班坐下，早读点名
     { x:10, y:76,  w:2, h:2, once:true, talk:'clue_pen' },      // 楼梯拐角，水桶里那支笔
@@ -974,7 +974,7 @@ var TALK = {
       hill2:{ text:'路走到头是一堵墙。\n墙后面有人念书。', next:'hill3' },
       hill3:{ text:'我在这儿蹲了三年，就想听清念的是哪一页。', next:'hill4' },
       hill4:{ text:'（他掏出一张折了很多次的纸，又塞回兜里。）\n\n……听不清。\n怎么都听不清。',
-              set:'墙后面的书声', end:true },
+              clock:9*60, set:'墙后面的书声', end:true },
       why:  { text:'这儿安静。\n安静的地方，才有人肯站下来听我说话。', next:'why2' },
       why2: { text:'市里那个化学竞赛，报名表在我抽屉里压了半个月。\n你们 46 班，我一个都还没抓到。\n\n想通了自己来拿。', set:'知道lg7在抓人', end:true },
       tw:   { text:'……二楼？', next:'tw2' },
@@ -1034,8 +1034,8 @@ var TALK = {
       r3:{ text:'行吧。反正也快没人查了。', next:'r4' },
       r4:{ text:'（他翻到 46 班那一页。）\n\n十九个。\n跟你数的一样。', next:'r5' },
       r5:{ text:'……但是这一行，你看。', next:'r6' },
-      r6:{ text:'第一个名字被人用红笔反复划过，把纸划穿了。\n划掉的是什么字，已经看不清。\n\n可那一行还在。\n每次点名，他都答"到"。',
-           set:'拿过名单', end:true },
+      r6:{ clock:9*60, text:'第一个名字被人用红笔反复划过，把纸划穿了。\n划掉的是什么字，已经看不清。\n\n可那一行还在。\n每次点名，他都答"到"。',
+           set:['拿过名单','可以上去了'], end:true },
       done:{ text:'……别问我了。\n我明天就不干了。', end:true },
 
       /* 水哥把 logic 的事告诉了他 —— 他真的上去了，什么也没找到 */
@@ -1043,7 +1043,7 @@ var TALK = {
       p2:{ text:'……空的。就是一间杂物间。\n我站了半个钟头，什么都没发生。', next:'p3' },
       p3:{ text:'（他把本子翻开，把第一页撕了下来。）', next:'p4' },
       p4:{ text:'拿着。我明天不来了。', next:'p5' },
-      p5:{ text:'（那一页上，第一行被红笔划穿了纸。）', set:'拿过名单', end:true }
+      p5:{ text:'（那一页上，第一行被红笔划穿了纸。）', set:['拿过名单','可以上去了'], end:true }
     }
   },
   hint_deskmate: {
@@ -1110,7 +1110,7 @@ var TALK = {
     t:{ text:'（你走到上楼的楼梯口。这个点，没人会上去。）', next:'u' },
     u:{ text:'（你不是今天才知道那间教室的。\n　开学第二个礼拜你就找到了。）', next:'v' },
     v:{ text:'（里面很静，静得能听见自己的笔尖。\n　黑板上的值日表永远停在同一天。\n　所以你在那儿刷题 —— 没人会来吵你。）', next:'w' },
-    w:{ text:'（这件事你没跟任何人说过。）', set:'logic承认了', end:true }
+    w:{ text:'（这件事你没跟任何人说过。）', clock:9*60, set:['logic承认了','可以上去了'], end:true }
   }},
 
   /* ==================== 谜题 ====================
@@ -1209,7 +1209,7 @@ var TALK = {
     no:{ text:'咔、咔、咔。\n\n（不对。）', end:true },
     ok2:{ text:'里面躺着你的手机，早没电了。\n\n底下压着一张报名表 —— 化学竞赛的。', next:'ok3' },
     ok3:{ text:'整张表只有一行填了名字。\n墨水被水泡过，洇成一片，看不清了。', next:'ok4' },
-    ok4:{ text:'表背面是他写的：\n\n「三年前填的。\n　填完就没敢再往下填。」', set:'拿回手机', end:true }
+    ok4:{ text:'表背面是他写的：\n\n「三年前填的。\n　填完就没敢再往下填。」', set:['拿回手机','可以上去了'], end:true }
   }},
 
   /* ===== 水哥③ 树阵 =====
@@ -1675,28 +1675,76 @@ function shake(secs){ M.shakeT = secs || 0.5; }
 /* 目标：从上往下第一个成立的。
    玩家永远该知道下一步去哪儿 —— 这是原来的大毛病 */
 var GOALS = [
-  { if:'被追了',     map:'campus', t:'冲出去 —— 别停',        x:38, y:124 },
-  { if:'拉过铃',     map:'campus', t:'下楼，往校门走',          x:38, y:124 },
-  { if:'该跑了',     map:'floor2', t:'下楼',                    x:4,  y:12  },
-  { if:'上过二楼',   map:'floor2', t:'走廊东头那扇门',          x:38, y:12  },
-  { if:'可以上去了', map:'campus', t:'上楼的楼梯口',      x:13, y:73  },
-  { if:'该上二楼了', map:'campus', t:'去上楼的那道楼梯',              x:13, y:74  },
-  /* 后山那堵墙现在是一张单独的图，箭头要指到那道口子上 ——
-     原来指的是科技楼背后那片空地，走过去是一片草，什么也没有 */
-  { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 后山那条路走到头', x:9, y:6 },
-  { if:'看到六块苔', map:'hill',   t:'按条数擦：上 · 师 · 如 · 玻 · 门 · 数', x:10, y:5 },
-  { if:'该查名单了', map:'campus', t:'去大门口，找那个值周生',  x:37, y:119 },
-  { if:'答过到',     map:'campus', t:'回教室，数一遍人 —— 只数两遍', x:19, y:78 },
-  { if:'看过守则',   map:'campus', t:'走出教室 —— 走廊里有人在念名字', x:16, y:80 },
-  { if:'纸条',       map:'campus', t:'教室后墙贴着一张纸',        x:19, y:73  },
-  {                  map:'campus', t:'先去教室 —— 一号教学楼',  x:23, y:82  }
+  /* 数组顺序 = 优先级：越靠上越是"后面的阶段"。goalNow 取第一个匹配的，
+     所以再往下的老旗标不会把新阶段顶掉。map 对不上的直接跳过。 */
+
+  /* 厕所/后山是单独的图 —— 得先指回那道口子，不然站在图里没目标 */
+  {                  map:'toilet', t:'出去 —— 原路回去',              x:9,  y:11  },
+
+  /* ——— 结局 ——— */
+  { if:'拉过铃',     map:'campus', t:'下楼，往校门走',                 x:38, y:124 },
+  { if:'被追了',     map:'campus', t:'冲出去 —— 别停',                 x:38, y:124 },
+
+  /* ——— 追逐：从二楼下来，跑出教学楼 ——— */
+  { if:'该跑了',     map:'campus', t:'跑出教学楼 —— 到主干道上去',     x:13, y:78  },
+  { if:'该跑了',     map:'floor2', t:'下楼',                           x:2,  y:12  },
+
+  /* ——— 二楼：念名字的时候别推东头那扇门，得先退回来等它过去 ——— */
+  { if:'译出化学笔记', map:'floor2', t:'出来 —— 楼下已经在整队了',      x:42, y:12  },
+  { if:'念名声过去了', map:'floor2', t:'再往东 —— 那间教室，黑板正中间', x:41, y:9  },
+  { if:'走廊在念名字', map:'floor2', t:'退回楼梯口 —— 那扇门现在不能推', x:5,  y:12  },
+  { if:'上过二楼',     map:'floor2', t:'往东走',                       x:30, y:12  },
+
+  /* ——— 上楼 ——— */
+  { if:'有翻译笔',   map:'campus', t:'上楼的楼梯口',                   x:13, y:73  },
+  { if:'可以上去了', map:'campus', t:'楼梯口有人等着你',               x:13, y:74  },
+  { if:'该上二楼了', map:'campus', t:'走廊西头那道楼梯 —— 上去看看',   x:13, y:75  },
+
+  /* ——— 牢李那条：名单 → 回教室数人 ——— */
+  { if:'拿过名单',   map:'campus', t:'回教室，数一遍人 —— 只数两遍',   x:19, y:78  },
+  { if:'答过到',     map:'campus', t:'去大门口，找那个值周生',         x:37, y:119 },
+  { if:'该查名单了', map:'campus', t:'走廊里有人在念名字',             x:16, y:80  },
+
+  /* ——— 水哥那条：抽屉密码三处线索 ——— */
+  { if:'查过周期表',   map:'campus', t:'行政楼 —— 他办公桌那个抽屉',   x:10, y:102 },
+  { if:'看过黑板式子', map:'campus', t:'实验楼墙上那张周期表',         x:58, y:76  },
+  { if:'擦完墙',       map:'campus', t:'45 班空教室 —— 黑板上那半行字', x:6,  y:73  },
+
+  /* ——— 数苔藓：一块一块来，箭头直接指下一块 ——— */
+  { if:'擦完墙',     map:'hill',   t:'原路出去 —— 回校园',              x:10, y:9  },
+  { if:'擦墙5',      map:'hill',   t:'第六块 —— 数',                   x:9,  y:4  },
+  { if:'擦墙4',      map:'hill',   t:'第五块 —— 门',                   x:15, y:4  },
+  { if:'擦墙3',      map:'hill',   t:'第四块 —— 玻',                   x:12, y:4  },
+  { if:'擦墙2',      map:'hill',   t:'第三块 —— 如',                   x:3,  y:4  },
+  { if:'擦墙1',      map:'hill',   t:'第二块 —— 师',                   x:18, y:4  },
+  { if:'看到六块苔', map:'hill',   t:'第一块 —— 上',                   x:6,  y:4  },
+  {                  map:'hill',   t:'走到墙根 —— 那六块苔',            x:10, y:6  },
+  { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 后山那条路走到头', x:9,  y:6  },
+
+  /* ——— 共同的开场 ——— */
+  { if:'看过守则',   map:'campus', t:'走出教室 —— 走廊里有人叫你',     x:16, y:76  },
+  { if:'纸条',       map:'campus', t:'教室后墙贴着一张纸',             x:19, y:73  },
+  { if:'进了教学楼', map:'campus', t:'进去 —— 46 班在走廊那头',        x:20, y:76  },
+  {                  map:'campus', t:'先去教室 —— 一号教学楼',        x:23, y:82  }
 ];
+
 function goalNow(){
   /* 憋着的时候别管什么剧情了 —— 目标直接换成最近的厕所，
      箭头也会跟着指过去。不然玩家根本不知道该往哪儿跑 */
-  if (M.urge > 0 || flagOn('憋着')){
-    var T = nearestToilet();
-    if (T) return { t:'厕所 —— 憋着走不快', x:T.x, y:T.y };
+  if (!M.chase && (M.urge > 0 || flagOn('憋着'))){
+    /* 厕所是单独一张图：指那间屋子没用（那是换图的门口），
+       要指"通到厕所去的那个口子"。人一踩上去就换图，憋着就解了 */
+    if (M.map !== 'toilet'){
+      var bp = null, bd2 = 1e9, px2 = M.p.x/TILE, py2 = M.p.y/TILE;
+      (CUR.portals||[]).forEach(function(P){
+        if (P.to !== 'toilet' || (P.if && !flagOn(P.if))) return;
+        var cx = P.x + P.w/2 - 0.5, cy = P.y + P.h/2 - 0.5;
+        var d = Math.hypot(cx - px2, cy - py2);
+        if (d < bd2){ bd2 = d; bp = { t:'厕所 —— 憋着走不快', x: P.x + Math.floor(P.w/2),
+                                      y: P.y + Math.floor(P.h/2), map: M.map }; }
+      });
+      if (bp) return bp;
+    }
   }
   for (var i=0;i<GOALS.length;i++){
     var G = GOALS[i];
@@ -1924,6 +1972,7 @@ var M = {
   map:'',                    // 现在在哪张图
   fade:0,                    // 换图时黑一下，0 就是没有
   portalCool:0,              // 刚落地别马上又被传回去
+  seq:0,                     // 顺序谜题（数苔藓）擦到第几块了
   t:0
 };
 function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
@@ -1944,6 +1993,7 @@ function loadMap(id, tx, ty){
              x:n.tx*TILE+TILE/2, y:n.ty*TILE+TILE/2, dir:n.face, anim:0 };
   });
   M.p.x = tx*TILE + TILE/2; M.p.y = ty*TILE + TILE/2;
+  M.safeX = tx; M.safeY = ty;        // 落点先当安全格，别一回来就被传走
   M.p.dir = 'up'; M.p.anim = 0;
   M.near = null;
   M.fade = 0.5;
@@ -2100,6 +2150,9 @@ function respawn(){
   M.clock = CP.clock;
   M.fade = 0.9; M.portalCool = 1.0;
   M.chase = null;                        // 追逐战的东西全清掉
+  /* 可是"被追着"这件事还在旗标里 —— 死在追逐里读档回来，
+     队得重新整起来，不然走到校门也不会结算，人就卡死在那儿了 */
+  if (flagOn('被追了')) startChase(true);
   applyClock();
   if (clockEl) clockEl.textContent = clockText(M.clock);
 }
@@ -2123,8 +2176,9 @@ var CHASE_RATE  = 6 / 90;              // 六分钟游戏时间，压进大约 9
 var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic'];
 var chaseEl = document.getElementById('chase');
 
-function startChase(){
+function startChase(fromRespawn){
   if (M.chase) return;
+  if (!fromRespawn) setFlag('被追了');   // 先立旗标再存档：读档回来还得知道自己在被追
   setClock(10*60 + 30);
   M.chase = { hounds: [] };
   /* 他们不追你 —— 他们整队。队形横在回校门那条路上，你得从缝里钻过去。
@@ -2139,7 +2193,7 @@ function startChase(){
       dir:'up', anim: 0, id: CHASE_FACES[i % CHASE_FACES.length]
     });
   });
-  checkpoint();                        // 死在半路就从这儿重来
+  if (!fromRespawn) checkpoint();      // 死在半路就从这儿重来（读档重开时别再覆盖）
   droneOn(); shake(0.9);               // 低频底噪，一开就让人心慌
   sfxBell(2);
   toast('整队了。', 2.4);
@@ -2262,7 +2316,7 @@ function startWalk(charId){
   M.talked = {}; M.reentry = {}; M.t = 0;
   M.clock = CLOCK_START;
   M.urge = 0; M.urgeCool = 22; M.lightT = 0;
-  FLAGS = {};                    // 新开一局，剧情从头记
+  FLAGS = {}; M.seq = 0;          // 新开一局，剧情从头记（顺序谜题也归零）
   /* 你选了谁，整条线就走谁那条 —— 对话和触发区都拿这个当条件 */
   setFlag('是:' + charId);
   loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
@@ -2536,6 +2590,7 @@ function gotoNode(id){
     cs.forEach(function(k){ delete FLAGS[k]; });
   }
   /* 答错就死的那种节点：话读完就没了 */
+  if (node.clock !== undefined) setClock(node.clock);   // 对话也能推时间
   if (node.kill) M.killAfter = true;
   if (node.killMsg) M.deathMsg = node.killMsg;
   M.talk.typed = 0;                       // 打字机从头开始
@@ -2734,13 +2789,29 @@ function update(dt){
     if (M.dying > 0 || M.screen !== 'play') return;
   }
 
+  /* 记着"上一个不在门口站的格子" —— 从别的图回来要落在那儿 */
+  if (M.screen === 'play' && CUR){
+    var stx = Math.floor(M.p.x/TILE), sty = Math.floor(M.p.y/TILE);
+    var onPor = false;
+    (CUR.portals||[]).forEach(function(P2){
+      if (stx >= P2.x && stx < P2.x+P2.w && sty >= P2.y && sty < P2.y+P2.h) onPor = true;
+    });
+    if (!onPor){ M.safeX = stx; M.safeY = sty; }
+  }
+
   /* 踩到出口就换图。刚落地那 0.7 秒不判，免得在门口来回弹 */
   if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
       if (P.if && !flagOn(P.if)) continue;
-      if (P.to !== 'campus') M.backTo = { map: M.map, tx: ptx, ty: pty + 1 };          // 条件没到，这扇"门"还没开
+      /* 回来的时候要落回"进门前站的那一格"，不是门口往下一格 ——
+         厕所那间屋是封死的：落在屋里就只能再踩一次门，来回传 */
+      if (P.to !== 'campus'){
+        var bx = (M.safeX === undefined) ? ptx : M.safeX;
+        var by = (M.safeY === undefined) ? pty + 1 : M.safeY;
+        M.backTo = { map: M.map, tx: bx, ty: by };
+      }
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
         if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty);
         else loadMap(P.to, P.tx, P.ty);
@@ -3672,6 +3743,199 @@ clockEl.style.display = 'none';
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
       }
+      if (mode === 'play'){
+        /* 按引导自己走一遍：每一步读目标 → BFS 找路 → 沿途一格一格挪
+           （每格跑几帧，让触发区有机会响）→ 对话一律推完。
+           走不动、目标指到墙里、要换图却没有出口、时间不动 —— 全在这儿露出来。
+           ?probe=play&as=laoli / shui / logic */
+        var as = (/([?&]as=(\w+))/.exec(q) || [,'','laoli'])[2];
+        startWalk(as);
+        M.fade = 0;
+        var seenGoals = [], log = [], steps = 0;
+        var walkDiag = null;
+        function walkPath(G){
+          var sx = Math.floor(M.p.x/TILE), sy = Math.floor(M.p.y/TILE);
+          var q2 = [[sx,sy]], prev = {}, seen2 = {};
+          seen2[sx+','+sy] = 1;
+          var found = false, gd = 0;
+          while (q2.length && gd++ < 40000){
+            var c = q2.shift();
+            if (c[0] === G.x && c[1] === G.y){ found = true; break; }
+            for (var d4=0; d4<4; d4++){
+              var nx = c[0] + [1,-1,0,0][d4], ny = c[1] + [0,0,1,-1][d4], kk = nx+','+ny;
+              if (nx<0||ny<0||nx>=MAPW||ny>=MAPH||seen2[kk]) continue;
+              if (TERRAIN[tileAt(nx,ny)].solid) continue;
+              /* 会换图的格子当墙 —— 不然半路踩上厕所口就被传走，永远到不了 */
+              {
+                /* 会换图的格子、和顺序谜题那几块，都不能当路走 ——
+                   半路踩上去，要么被传走，要么把擦的顺序打回去。
+                   例外：目标自己那个口子 —— 出口常常是 2×2 的，不进它边上
+                   那几格就到不了，整条路会判成"走不到" */
+                var bad = false;
+                (CUR.portals||[]).forEach(function(P){
+                  if (nx >= P.x && nx < P.x+P.w && ny >= P.y && ny < P.y+P.h &&
+                      !(G.x >= P.x && G.x < P.x+P.w && G.y >= P.y && G.y < P.y+P.h)) bad = true;
+                });
+                (CUR.triggers||[]).forEach(function(G2){
+                  if (G2 && G2.seq !== undefined &&
+                      nx >= G2.x && nx < G2.x+G2.w && ny >= G2.y && ny < G2.y+G2.h &&
+                      !(G.x >= G2.x && G.x < G2.x+G2.w && G.y >= G2.y && G.y < G2.y+G2.h)) bad = true;
+                });
+                if (bad) continue;
+              }
+              seen2[kk] = 1; prev[kk] = c; q2.push([nx,ny]);
+            }
+          }
+          walkDiag = { found: found, seen: Object.keys(seen2).length, w: MAPW, h: MAPH,
+                       goal: G.x+','+G.y, hasPrev: !!prev[G.x+','+G.y] };
+          if (!found) return null;
+          var path = [], k2 = G.x+','+G.y;
+          while (k2 !== sx+','+sy){
+            var p2 = prev[k2];
+            if (!p2) return null;
+            path.unshift(p2); k2 = p2[0]+','+p2[1];
+          }
+          /* 回溯出来的是「每一格的上一格」，最后一格（目标本身）没进数组 ——
+             少了它，全程都差一格踩不上触发区，看着就像剧情根本没启动 */
+          path.push([G.x, G.y]);
+          return path;
+        }
+        function tickTalk(){
+          var gd2 = 0;
+          while (M.talk.open && gd2++ < 60){
+            if (M.press){
+              var tgt = M.talk.script.nodes[M.press.press];
+              if (tgt && tgt.kill){                 // 会死的不按，等它超时
+                var t0 = M.press.t, g5 = 0;
+                while (M.press && g5++ < Math.ceil(t0*60) + 20) update(1/60);
+              } else hitPress();
+              continue;
+            }
+            M.talk.typed = 1e9;
+            advanceOrChoose();
+          }
+        }
+        for (var f0=0; f0<60; f0++) update(1/60);   // 先在出生点站够冷却
+        tickTalk();
+        for (var S=0; S<300 && M.screen === 'play'; S++){
+          tickTalk();
+          if (M.screen !== 'play') break;
+          /* 走到人跟前就说话 —— 几条线的关键推进都在 NPC 身上 */
+          (function(){
+            var n = nearNpc();
+            if (n && M.talk.cool <= 0){ pressAct(); tickTalk(); }
+          })();
+          var G = goalNow();
+          if (!G){
+            /* 这张图上没目标了 —— 找回去的口 */
+            var bk = null;
+            (CUR.portals||[]).forEach(function(P){ if (P.back) bk = P; });
+            if (!bk){ log.push('第'+S+'段：没目标了，也没回去的口（在'+M.map+'）'); break; }
+            G = { t:'原路返回', x:bk.x + Math.floor(bk.w/2), y:bk.y + Math.floor(bk.h/2) };
+          }
+          if (G.map && G.map !== M.map){
+            var por = null;
+            (CUR.portals||[]).forEach(function(P){ if (P.to === G.map) por = P; });
+            if (!por){ log.push('第'+S+'段：目标在'+G.map+'，可我在'+M.map+'，没出口'); break; }
+            G = { t:'去'+G.map+'的门', x:por.x + Math.floor(por.w/2), y:por.y + Math.floor(por.h/2) };
+          }
+          var path = walkPath(G);
+          if (!path){
+            var flood = {}, fq = [[Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE)]];
+            flood[fq[0][0]+','+fq[0][1]] = 1;
+            while (fq.length){
+              var fc = fq.shift();
+              for (var d5=0; d5<4; d5++){
+                var fx = fc[0]+[1,-1,0,0][d5], fy = fc[1]+[0,0,1,-1][d5], fk = fx+','+fy;
+                if (fx<0||fy<0||fx>=MAPW||fy>=MAPH||flood[fk]) continue;
+                if (TERRAIN[tileAt(fx,fy)].solid) continue;
+                flood[fk] = 1; fq.push([fx,fy]);
+              }
+            }
+            var seenN = 0; for (var sk in flood) seenN++;
+            var nx1 = G.x, ny1 = G.y;
+            log.push('  走位诊断=' + JSON.stringify(walkDiag) +
+                     ' 起点=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                     ' 起点格=' + tileAt(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE)) +
+                     ' · 相邻=' + ['右:'+tileAt(nx1+1,ny1),'左:'+tileAt(nx1-1,ny1),
+                                   '下:'+tileAt(nx1,ny1+1),'上:'+tileAt(nx1,ny1-1)].join(' '));
+            log.push('第'+S+'段：目标「'+G.t+'」在'+G.x+','+G.y+'，走不到（图='+M.map+
+                     ' 起点='+Math.floor(M.p.x/TILE)+','+Math.floor(M.p.y/TILE)+
+                     ' 能走到'+seenN+'格 目标格='+tileAt(G.x,G.y)+'）');
+            break;
+          }
+          seenGoals.push((M.map === 'campus' ? '' : M.map + ':') + G.t);
+          var stop = '', mapAt0 = M.map, jumped = false, deaths = 0;
+          if (M.dying > 0) continue;
+          for (var i2=0; i2<path.length; i2++){
+            M.p.x = path[i2][0]*TILE + TILE/2;
+            M.p.y = path[i2][1]*TILE + TILE/2;
+            M.run = !!M.chase;                 // 被追的时候就跑，别站着挨抓
+            var ff = M.chase ? 3 : 12;
+            for (var f2=0; f2<ff; f2++) update(1/60);
+            if (M.talk.open) tickTalk();
+            if (M.dying > 0){
+              deaths++;
+              for (var f4=0; f4<220 && M.dying > 0; f4++) update(1/60);   // 等死亡动画 + 读档
+              break;
+            }
+            if (M.screen !== 'play'){ stop = '结算了'; break; }
+            if (M.map !== mapAt0){ jumped = true; break; }   // 换图是进展，不是中断
+          }
+          if (jumped){
+            /* 刚落地的 0.7 秒不判触发区 —— 不站够，开场那几条永远不响 */
+            for (var f3=0; f3<75; f3++){ update(1/60); if (M.talk.open) tickTalk(); }
+            steps++;
+            continue;
+          }
+          if (stop){ log.push('第'+S+'段：'+stop+'（目标「'+G.t+'」）'); break; }
+          if (deaths){ log.push('第'+S+'段：死了一次，已读档（目标「'+G.t+'」）'); }
+          else if (log.length < 3 && M.p.x !== path[path.length-1][0]*TILE + TILE/2)
+            log.push('第'+S+'段：走完了「'+G.t+'」却停在' +
+                     Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE));
+          steps++;
+        }
+        out.push('【' + as + '】走了' + steps + '段 · 最后=' + M.screen +
+                 ' · 时刻=' + clockText(M.clock) + ' · 在哪=' + M.map);
+        out.push('目标链: ' + seenGoals.slice(0,40).join(' → '));
+        out.push('中断: ' + (log.join(' | ') || '（一路走通）'));
+        var on = []; for (var fk in FLAGS) if (FLAGS[fk] && fk.charAt(0) !== '@') on.push(fk);
+        out.push('旗标: ' + (on.join('、') || '（一个都没有）'));
+        out.push('站位: ' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' · 追逐=' + (M.chase ? M.chase.hounds.length + '人' : '没开') +
+                 ' · 存档点=' + (CP ? CP.map + ' ' + Math.floor(CP.x/TILE) + ',' + Math.floor(CP.y/TILE) +
+                                 ' 带被追=' + !!CP.flags['被追了'] : '无') +
+                 ' · 憋着=' + M.urge.toFixed(0) + ' · 正在说=' +
+                 (M.talk.open ? M.talk.script + '/' + M.talk.nodeId : '没有') +
+                 ' · cool=' + M.talk.cool.toFixed(1));
+      }
+      if (mode === 'tile'){
+        /* 定点体检：这一格能不能站、压着哪几个触发区、站上去会不会响。
+           ?probe=tile&x=13&y=74&set=可以上去了 */
+        var tx2 = parseInt((/[?&]x=(-?\d+)/.exec(q)||[,0])[1], 10);
+        var ty2 = parseInt((/[?&]y=(-?\d+)/.exec(q)||[,0])[1], 10);
+        var set2 = (/([?&]set=([^&]*))/.exec(q) || [,'',''])[2];
+        if (set2) set2.split(',').forEach(function(f){ if (f) setFlag(decodeURIComponent(f)); });
+        out.push('格 ' + tx2 + ',' + ty2 + '：地形=' + tileAt(tx2,ty2) +
+                 ' · 能站=' + !solidAt(tx2,ty2));
+        (CUR.triggers||[]).forEach(function(G, i){
+          if (tx2 >= G.x && tx2 < G.x+G.w && ty2 >= G.y && ty2 < G.y+G.h)
+            out.push('  压着触发区#' + i + ' ' + (G.talk||G.set||G.kill?'kill':'?') +
+                     ' · if=' + (G.if||'—') + ' · once=' + (G.once?'是':'否') +
+                     ' · seq=' + (G.seq===undefined?'—':G.seq));
+        });
+        M.p.x = tx2*TILE + TILE/2; M.p.y = ty2*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+        for (var ft=0; ft<90; ft++){
+          update(1/60);
+          if (M.talk.open){
+            for (var q3=0; q3<40 && M.talk.open; q3++){ M.talk.typed = 1e9; advanceOrChoose(); }
+          }
+        }
+        var on2 = []; for (var fk2 in FLAGS) if (FLAGS[fk2] && fk2.charAt(0) !== '@') on2.push(fk2);
+        out.push('  站完：地图=' + M.map + ' · 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' · 旗标=' + (on2.join('、')||'（无）'));
+      }
       if (mode === 'press'){
         /* 突现按钮：该冒出来、按了走 press、不按（超时）走 miss */
         FLAGS = {}; setFlag('该查名单了');
@@ -3774,6 +4038,7 @@ clockEl.style.display = 'none';
           var mp = MAPS[mid];
           (mp.portals||[]).forEach(function(P, i){
             FLAGS = {}; M.backTo = null; M.killAfter = false; M.dying = 0;
+            if (P.if) setFlag(P.if);        // 门上有条件就先把条件立上，不然测的是"没开的时候"
             loadMap(mid, P.x, P.y);
             M.portalCool = 0; M.talk.open = false; hidePress();
             update(1/60);
