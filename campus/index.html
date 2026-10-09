@@ -675,6 +675,8 @@ makeMap('campus', {
 
     /* ---- 水哥那条线的分岔：撞见 logic 从楼上下来 ---- */
     { x:13, y:82, w:2, h:2, once:true, if:'看懂树阵', talk:'shui_fork' },
+    /* 帮了 logic，他往你抽屉里留一张纸 —— 真提示 */
+    { x:20, y:76, w:2, h:2, once:true, if:'帮logic', talk:'logic_note' },
 
     /* ---- 从二楼下来，整队就开始了 ---- */
     { x:13, y:78, w:2, h:2, once:true, if:'该跑了', talk:'chase_go', chase:true },
@@ -865,6 +867,7 @@ var TALK = {
     start:'s', again:'s',
     entryBy: [
       { if:'拿过名单',   go:'done' },
+      { if:'帮值周生',   go:'page' },     // 水哥选"告诉他"，他就把那一页撕给你
       { if:'该查名单了', go:'roster' },
       { go:'s' }
     ],
@@ -881,7 +884,14 @@ var TALK = {
       r5:{ text:'……但是这一行，你看。', next:'r6' },
       r6:{ text:'第一个名字被人用红笔反复划过，把纸划穿了。\n划掉的是什么字，已经看不清。\n\n可那一行还在。\n每次点名，他都答"到"。',
            set:'拿过名单', end:true },
-      done:{ text:'……别问我了。\n我明天就不干了。', end:true }
+      done:{ text:'……别问我了。\n我明天就不干了。', end:true },
+
+      /* 水哥把 logic 的事告诉了他 —— 他真的上去了，什么也没找到 */
+      page:{ text:'你跟我说那个之后，我上去看了。', next:'p2' },
+      p2:{ text:'……空的。就是一间杂物间。\n我站了半个钟头，什么都没发生。', next:'p3' },
+      p3:{ text:'（他把本子翻开，把第一页撕了下来。）', next:'p4' },
+      p4:{ text:'拿着。我明天不来了。', next:'p5' },
+      p5:{ text:'（那一页上，第一行被红笔划穿了纸。）', set:'拿过名单', end:true }
     }
   },
   hint_deskmate: {
@@ -1054,6 +1064,13 @@ var TALK = {
          { t:'（还是告诉值周生）',   go:'tell' } ]},
     help: { text:'（他点了下头，走了。）\n\n（那张卷子上，一道题都没做。）', set:'帮logic', end:true },
     tell: { text:'（他看了你一会儿。）\n\n……随便你。', set:'帮值周生', end:true }
+  }},
+
+  /* 帮了 logic 之后，他留的那张纸条 —— 是真提示，不是气氛 */
+  logic_note: { nodes:{
+    s:{ text:'（你位子的抽屉里多了一张纸。）', next:'t' },
+    t:{ text:'（是 logic 的字。他写得很快。）', next:'u' },
+    u:{ text:'「你要是非上去不可 ——\n\n　走廊里念名字的时候，别停在门口。\n　他数到门口那间就不数了。」', set:'logic留的纸条', end:true }
   }},
 
   /* 追逐里能用上的两个机关 —— 你要的"把 6 分钟减下去" */
@@ -1577,7 +1594,7 @@ function die(why, delay){
    守则照旧管用：玻璃前面不能停。逃跑的时候你还得记着这条。
    ============================================ */
 var CHASE_SPD   = 150;                 // 追的人：比走路(108)快，比快跑(259)慢
-var CHASE_RATE  = 6 / 60;              // 六分钟游戏时间，压进大约 90 秒
+var CHASE_RATE  = 6 / 90;              // 六分钟游戏时间，压进大约 90 秒
 var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic'];
 var chaseEl = document.getElementById('chase');
 
@@ -1585,8 +1602,13 @@ function startChase(){
   if (M.chase) return;
   setClock(10*60 + 30);
   M.chase = { hounds: [] };
-  /* 他们不追你 —— 他们整队。队形横在回校门那条路上，你得从缝里钻过去 */
-  [[30,96],[37,101],[44,96],[33,109],[46,109],[39,115]].forEach(function(p, i){
+  /* 他们不追你 —— 他们整队。队形横在回校门那条路上，你得从缝里钻过去。
+     人数看你前面选帮谁：帮了 logic，他不来；告诉值周生，值周生带人来了 */
+  var spots = [[30,96],[37,101],[44,96],[33,109],[46,109],[39,115],[24,103]];
+  var cnt = 6;
+  if (flagOn('帮logic'))  cnt -= 1;
+  if (flagOn('帮值周生')) cnt += 1;
+  spots.slice(0, Math.max(3, Math.min(spots.length, cnt))).forEach(function(p, i){
     M.chase.hounds.push({
       x: p[0]*TILE + TILE/2, y: p[1]*TILE + TILE/2,
       dir:'up', anim: 0, id: CHASE_FACES[i % CHASE_FACES.length]
@@ -2676,6 +2698,24 @@ clockEl.style.display = 'none';
         update(1/60);
         out.push('出校门 → 屏幕=' + M.screen + ' 标题=' +
                  (document.getElementById('overTxt').querySelector('h1') || {}).textContent);
+
+        /* ⑥ 分叉得真改人数，不能只换结局文本 */
+        M.screen = 'play'; respawn(); M.dying = 0;
+        function houndCountFor(f){
+          FLAGS = {}; if (f) setFlag(f);
+          M.chase = null; startChase();
+          var n = M.chase.hounds.length; M.chase = null; return n;
+        }
+        out.push('追兵：没选=' + houndCountFor(null) +
+                 ' 帮logic=' + houndCountFor('帮logic') +
+                 ' 帮值周生=' + houndCountFor('帮值周生'));
+        /* ⑦ 选了"告诉值周生"，他该把那一页撕给你 */
+        FLAGS = {}; setFlag('帮值周生');
+        var du = null; M.npcs.forEach(function(n){ if (n.id === 'duty') du = n; });
+        M.p.x = du.x; M.p.y = du.y + 20; M.talk.cool = 0; M.killAfter = false;
+        openTalk(du);
+        var q5 = 0; while (M.talk.open && q5++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+        out.push('告诉值周生 → 拿到名单页=' + flagOn('拿过名单'));
       }
       if (mode === 'floor2'){
         /* 上楼 → 念名字起 → 这声没过去就推门该当死 → 退回楼梯口等 → 再推门 */
