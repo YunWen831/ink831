@@ -682,6 +682,10 @@ makeMap('campus', {
     { x:13, y:80, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx' },
     { x:13, y:85, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_game' },
 
+    /* ---- 三段专属吓点：只有那个人会走到那儿 ---- */
+    { x:7,  y:88, w:2, h:2, once:true, if:'镜子上三个字', talk:'ld_toilet' },
+    { x:16, y:74, w:2, h:2, once:true, if:'擦完墙', talk:'sh_laugh' },
+
     /* ---- 水哥那条线的分岔：撞见 logic 从楼上下来 ---- */
     { x:13, y:82, w:2, h:2, once:true, if:'看懂树阵', talk:'shui_fork' },
     /* 帮了 logic，他往你抽屉里留一张纸 —— 真提示 */
@@ -720,7 +724,9 @@ makeMap('floor2', {
     /* 从屋里出来，楼下已经开始整队了 */
     { x:40, y:11, w:5, h:2, once:true, if:'译出化学笔记', talk:'f2_alarm' },
     /* 牢李那条线收口：拿名单跟笔记上的签名对 */
-    { x:40, y:13, w:4, h:2, once:true, if:'拿过名单', talk:'f2_name' }
+    { x:40, y:13, w:4, h:2, once:true, if:'拿过名单', talk:'f2_name' },
+    /* logic 那条线专属：他在那间教室坐的那个位子 */
+    { x:43, y:20, w:2, h:2, once:true, if:'是:logic', talk:'lg_chair' }
   ]
 }, floor2Layout);
 function tileAt(tx, ty){
@@ -1134,6 +1140,40 @@ var TALK = {
     v:{ text:'"……你上去过吧。"', next:'w' },
     w:{ text:'（他没等你答。）\n\n"那我上去看看。"', next:'x' },
     x:{ text:'（他把衣服往你怀里一塞，转身上楼了。）\n\n（你抱着那件衣服站了很久。）', set:'zzx上楼了', end:true }
+  }},
+
+  /* ==================== 三段专属吓点 ====================
+     前面那些段子谁都能撞上。这三段不行 ——
+     只有那个人会走到那儿、只有那个人会在意。
+     恐怖片里最吓人的从来不是鬼，是"这事只跟你有关"。
+     ==================================================== */
+
+  /* 牢李：厕所。他随机想上厕所，只有他会往这儿跑 */
+  ld_toilet: { nodes:{
+    s:{ text:'（隔间里。）', next:'t' },
+    t:{ text:'（外面有人在洗手。）', next:'u' },
+    u:{ text:'（水开了很久。）\n\n（久到你觉得那个人是不是忘了关。）', next:'v' },
+    v:{ text:'（你推门出来 —— ）', next:'w' },
+    w:{ text:'（水龙头是干的。）\n\n四个池子，四个龙头，全干着。', next:'x' },
+    x:{ text:'（地上也没有水。）\n\n（刚才那不是水声吗。）', set:'厕所里的水声', end:true }
+  }},
+
+  /* 水哥：那一声笑。他上周就是因为这个被 lg7 骂了半节课 */
+  sh_laugh: { nodes:{
+    s:{ text:'（走廊里有人笑了一声。）', next:'t' },
+    t:{ text:'（很短。刚起了个头就憋回去了 ——\n　就是上课没憋住的那一声。）', next:'u' },
+    u:{ text:'（你顺着声音找过去。）', next:'v' },
+    v:{ text:'（走廊是空的。）', next:'w' },
+    w:{ text:'（可那一声还在。\n\n隔一会儿一下。隔一会儿一下。\n\n每次都在同一个地方。）', set:'走廊里那一声笑', end:true }
+  }},
+
+  /* logic：椅子。那间教室，那个位子，只有他坐过 */
+  lg_chair: { nodes:{
+    s:{ text:'（你坐到自己的位子上。）', next:'t' },
+    t:{ text:'（椅子是热的。）', next:'u' },
+    u:{ text:'（你摸了摸桌面。）\n\n（桌面是凉的。）', next:'v' },
+    v:{ text:'（你摸桌肚。凉的。）\n（你摸椅背。凉的。）', next:'w' },
+    w:{ text:'（只有坐垫是热的。\n\n（像是有人刚站起来。）', set:'热椅子', end:true }
   }},
 
   /* ==================== 最后一段 ==================== */
@@ -2942,6 +2982,23 @@ clockEl.style.display = 'none';
         out.push(tryAt('laoli'));
         out.push(tryAt('shui'));
         out.push(tryAt('logic'));
+
+        /* 三段专属吓点：拿对家的旗标去踩，该不触发 */
+        function hitAt(x, y, flags){
+          FLAGS = {}; flags.forEach(function(f){ setFlag(f); });
+          M.p.x = x*TILE + TILE/2; M.p.y = y*TILE + TILE/2;
+          M.talk.open = false; M.portalCool = 0; M.talk.cool = 0; M.killAfter = false;
+          update(1/60);
+          var t = M.talk.open
+            ? (M.talk.script.nodes[M.talk.nodeId].text||'').replace(/\s+/g,'').slice(0,7)
+            : '（没触发）';
+          M.talk.open = false;
+          return t;
+        }
+        out.push('厕所·拿牢李旗标 → ' + hitAt(7, 88, ['镜子上三个字']));
+        out.push('厕所·拿水哥旗标 → ' + hitAt(7, 88, ['擦完墙']));
+        out.push('走廊·拿水哥旗标 → ' + hitAt(16, 74, ['擦完墙']));
+        out.push('走廊·拿牢李旗标 → ' + hitAt(16, 74, ['镜子上三个字']));
       }
       if (mode === 'rule'){
         /* 守则第四条：在玻璃前面站住不动，应该死 */
