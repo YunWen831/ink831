@@ -1652,7 +1652,7 @@ window.addEventListener('orientationchange', function(){ setTimeout(resize, 120)
    这样不用下载素材，也不用管格式；坏处是只能做"电子味"的音效，
    可这是个校园恐怖游戏，铃、脚步、电流声，电子味正好。
    ============================================ */
-var AC = null, SND = false;
+var AC = null, SND = true;      // 默认开。上一版写成了 false —— 等于整个音效模块没接上
 function audioInit(){
   if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e){ AC = null; }
@@ -1739,7 +1739,8 @@ var M = {
   run:false,                 // 手机那个「跑」开关。键盘走 Shift，不占这个
   book:false,                // 线索本开着没
   clock:0,                   // 游戏里的时间，单位分钟
-  urge:0, urgeCool:22,       // 牢李那个随机想上厕所
+  urge:0, urgeCool:22,       // 
+  lightT:0,                  // 二楼灯灭到哪儿了
   map:'',                    // 现在在哪张图
   fade:0,                    // 换图时黑一下，0 就是没有
   portalCool:0,              // 刚落地别马上又被传回去
@@ -1813,6 +1814,9 @@ window.addEventListener('beforeunload', saveGame);
    所以他老是半路离队、老是撞见不该看见的。
    憋着走不快；找到厕所才算完。
    ==================================================== */
+/* 走廊尽头那扇玻璃的位置。守则第四条说的就是它 */
+var GLASS = [ { x:16, y:86, w:2, h:4 } ];
+
 var TOILETS = [
   { x:5, y:84, w:4, h:7 },      // 一号教学楼西翼南排
   { x:5, y:60, w:4, h:7 }       // 二号教学楼西翼南排
@@ -1872,9 +1876,11 @@ function respawn(){
 /* 死。默认一秒多之后自动回存档点 */
 function die(why, delay){
   if (M.dying > 0) return;
-  sfxDie(); droneOff(); flashRed();
-  M.dying = delay || 1.1;
-  if (why) toast(why, 2.6);
+  M.deathDur = delay || 1.1;
+  M.dying = M.deathDur;
+  M.deathMsg = why || '';
+  sfxDie(); droneOff(); flashRed(); shake(0.7);
+  /* 不用 toast：那行字直接写在死亡画面上，比角落飘一下重得多 */
 }
 /* ==================== 追逐战 ====================
    十点半，外面整队。追你的不是怪物，是那个 46 班 ——
@@ -1991,7 +1997,7 @@ function startWalk(charId){
   M.me = me;
   M.talked = {}; M.reentry = {}; M.t = 0;
   M.clock = CLOCK_START;
-  M.urge = 0; M.urgeCool = 22;
+  M.urge = 0; M.urgeCool = 22; M.lightT = 0;
   FLAGS = {};                    // 新开一局，剧情从头记
   /* 你选了谁，整条线就走谁那条 —— 对话和触发区都拿这个当条件 */
   setFlag('是:' + charId);
@@ -2266,6 +2272,7 @@ function gotoNode(id){
 function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
+  if (node.sh) shake(node.sh);            // 这一句该让画面抖一下
   if (node.card){ card(full2(node), 3.4); return; }
   dlgEl.classList.add('on');
   var who = M.talk.who;                   // 旁白是 null
@@ -2368,6 +2375,9 @@ function update(dt){
   /* 场景卡：自己淡出 */
   if (M.cardT > 0){ M.cardT -= dt; if (M.cardT <= 0 && cardEl) cardEl.classList.remove('on'); }
   if (M.shakeT > 0) M.shakeT = Math.max(0, M.shakeT - dt);
+  /* 二楼的灯：念名字一起来，就从西头一间一间地灭，往你这边推 */
+  if (M.map === 'floor2' && flagOn('走廊在念名字')) M.lightT = (M.lightT || 0) + dt;
+  else if (M.lightT) M.lightT = 0;
   if (M.toastT > 0){
     M.toastT -= dt;
     if (M.toastT <= 0 && toastEl) toastEl.classList.remove('on');
@@ -2622,6 +2632,11 @@ function render(){
   camX = clamp(M.p.x - W/2, 0, Math.max(0, MAPW*TILE - W));
   camY = clamp(M.p.y - H/2, 0, Math.max(0, MAPH*TILE - H));
   cx.save();
+  /* 死的时候镜头往玩家身上推一点 —— 就这一点，那一秒完全不一样 */
+  if (M.dying > 0){
+    var zk = (1 - M.dying / (M.deathDur || 1.1)) * 0.32;
+    cx.translate(W/2, H/2); cx.scale(1 + zk, 1 + zk); cx.translate(-W/2, -H/2);
+  }
   var sk = M.shakeT > 0 ? M.shakeT * 9 : 0;
   cx.translate(-Math.round(camX) + (sk ? (Math.random()*2-1)*sk : 0),
                -Math.round(camY) + (sk ? (Math.random()*2-1)*sk : 0));
@@ -2671,7 +2686,55 @@ function render(){
       }
     }
   });
+  /* ---- 玻璃那一段：画面本身该有点东西，不能全靠字 ----
+     走廊尽头那扇玻璃会反一下光。守则说别在它前面停下 */
+  GLASS.forEach(function(g){
+    var gx = g.x*TILE, gy = g.y*TILE, gw = g.w*TILE, gh = g.h*TILE;
+    cx.save();
+    cx.beginPath(); cx.rect(gx, gy, gw, gh); cx.clip();
+    var ph = (M.t * 0.22) % 1;
+    cx.globalAlpha = 0.10 + 0.07 * Math.abs(Math.sin(M.t * 0.9));
+    cx.fillStyle = '#cfe0ea';
+    cx.save();
+    cx.translate(gx + ph * gw * 2 - gw, gy);
+    cx.rotate(-0.45);
+    cx.fillRect(0, -gh, 14, gh * 3);
+    cx.restore();
+    cx.restore();
+  });
+
+  /* ---- 二楼：灯从西头一间一间地灭，往你这边推 ---- */
+  if (M.map === 'floor2' && M.lightT > 0){
+    var lw = Math.min(40, M.lightT * 6.5) * TILE;
+    var lg = cx.createLinearGradient(0, 0, lw, 0);
+    lg.addColorStop(0, 'rgba(4,4,6,.95)');
+    lg.addColorStop(0.82, 'rgba(4,4,6,.95)');
+    lg.addColorStop(1, 'rgba(4,4,6,0)');
+    cx.fillStyle = lg;
+    cx.fillRect(0, 0, lw, MAPH*TILE);
+  }
+
   cx.restore();
+
+  /* 死亡：黑幕压下来，中间一行字。
+     镜头推进是在外面（cx.save 之前）加的，所以是往玩家身上推 */
+  if (M.dying > 0){
+    var dp = 1 - M.dying / (M.deathDur || 1.1);
+    cx.fillStyle = 'rgba(6,5,5,' + Math.min(1, dp * 1.1) + ')';
+    cx.fillRect(0, 0, W, H);
+    if (M.deathMsg && dp > 0.3){
+      cx.globalAlpha = Math.min(1, (dp - 0.3) * 2.6);
+      cx.fillStyle = '#e8a33d';
+      cx.font = '600 ' + Math.round(Math.max(15, Math.min(24, W/32))) +
+                'px system-ui,"Microsoft YaHei",sans-serif';
+      cx.textAlign = 'center';
+      var dl = String(M.deathMsg).split('\n');
+      for (var di=0; di<dl.length; di++)
+        cx.fillText(dl[di], W/2, H/2 - (dl.length-1)*17 + di*34);
+      cx.globalAlpha = 1;
+      cx.textAlign = 'left';
+    }
+  }
 
   /* 换图那一下黑场。不加这个，人是从一个地方"啪"一下跳到另一个地方 */
   if (M.fade > 0){
@@ -3228,6 +3291,22 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'snd'){
+        /* 声音默认开着没？各条音效会不会抛异常？
+           （无头里听不见，只能验到这一层） */
+        out.push('SND=' + SND + ' AC=' + (AC ? AC.state : 'null'));
+        try {
+          sfxBell(1); sfxStep(); sfxBlip(); sfxDoor(); sfxPick(); sfxDie();
+          droneOn(); droneOff();
+          out.push('音效全部调用过，没抛异常');
+        } catch (e){ out.push('!!音效抛异常: ' + e.message); }
+        /* 死亡画面：推镜头 + 那行字 */
+        die('你被数进去了。\n（回头看它会更快。）', 3.0);
+        for (var sk2=0; sk2<110; sk2++) update(1/60);      // 停在半途，好截图
+        out.push('死亡中 dying=' + M.dying.toFixed(2) + ' 有字=' + !!M.deathMsg);
+        render();
+        out.push('死亡画面渲染 ok');
       }
       if (mode === 'px'){
         /* 手动画一帧再取个像素 —— 无头里 rAF 不一定跑，得自己调 */
