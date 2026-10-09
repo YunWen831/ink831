@@ -367,7 +367,7 @@ var TERRAIN = {
 
    现在不止一张图了 —— 见下面"地图不是一张，是一个表"那一段。
    一号图 campus = 校园；二号图 floor2 = 一号教学楼二楼
-   （从楼里天井北头那个楼梯间踩上去，踩二楼的楼梯口再下来）。
+   （从楼里北头那道楼梯踩上去，踩二楼的楼梯口再下来）。
    ================================================================== */
 
 /* ==================================================================
@@ -474,8 +474,8 @@ function house(x, y, w, h, name, doors, inner){
 }
 
 /* 教学楼/实验楼的一"翼"：9 宽 20 高。
-   靠天井那侧一条竖走廊；正中间横穿一条过道，把两间教室隔开。
-   side  = 走廊靠哪边（都朝着中间的天井）
+   靠中庭那侧一条竖走廊；正中间横穿一条过道，把两间教室隔开。
+   side  = 走廊靠哪边（都朝着中间的中庭）
    front = 这一翼的外墙面是不是"正面"（朝校园中心），是就在过道口开正门 */
 function wing(x, y, side, front){
   var w = 9, h = 20, east = (side === 'east');
@@ -497,19 +497,19 @@ function wing(x, y, side, front){
   if (front) R('door', east ? x : x+8, y+9, 1, 2);
 }
 
-/* 一栋大楼 = 西翼 + 竖天井 + 东翼，20×20。
+/* 一栋大楼 = 西翼 + 竖中庭 + 东翼，20×20。
    facing 是这栋楼"朝校园中心"的那一面：西边那排楼朝东，东边那排朝西。
-   两翼的走廊都朝着天井；正门开在 facing 那一面的外墙上，进门就是过道，
-   过道一头通竖走廊、一头通天井 —— 所以门一律冲着中心开。
+   两翼的走廊都朝着中庭；正门开在 facing 那一面的外墙上，进门就是过道，
+   过道一头通竖走廊、一头通中庭 —— 所以门一律冲着中心开。
    三栋教学楼、实验楼都用它，所以它们一样大、一个朝向。 */
 function bigBuilding(bx, by, name, facing){
   var east = (facing === 'east');
   wing(bx,    by, 'east', !east);        // 西翼：朝西的那排楼，它才是正面
   wing(bx+11, by, 'west', east);         // 东翼：朝东的那排楼，它才是正面
-  R('garden', bx+9, by+1,  2, 18);       // 中间竖着那条天井
-  R('stairs', bx+9, by+1,  2, 1);        // 天井两头是楼梯间，先当标记摆着
+  R('garden', bx+9, by+1,  2, 18);       // 中间竖着那条中庭
+  R('stairs', bx+9, by+1,  2, 1);        // 中庭两头是楼梯间，先当标记摆着
   R('stairs', bx+9, by+18, 2, 1);
-  R('door', bx+8,  by+9, 1, 2);          // 天井两侧各开一个门，两翼的过道都通
+  R('door', bx+8,  by+9, 1, 2);          // 中庭两侧各开一个门，两翼的过道都通
   R('door', bx+11, by+9, 1, 2);
   NAME(bx, by, 20, 20, name);
 }
@@ -567,7 +567,7 @@ bigBuilding(4, 48, '二号教学楼', 'east');
 NAME(5, 60, 4, 7, '厕所');    // 二号教学楼西翼南排。牢李的随机想上厕所，就靠这两间
 
 /* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
-   实验楼跟教学楼一样是"竖天井"的壳子；艺术楼是"回"字 */
+   实验楼跟教学楼一样是"竖中庭"的壳子；艺术楼是"回"字 */
 ringBuilding(56, 95, '艺术楼');                      // 离大门最近，占了原来艺术楼+实验楼两块地
 bigBuilding(56, 72, '实验楼', 'west');               // 顶到三教原来的位置
 bigBuilding(56, 48, '第三教学楼', 'west');           // 三教上移，跟西边二号教学楼并排
@@ -626,7 +626,7 @@ PROPS.forEach(function(p){ R(p.t, p.x, p.y, 1, 1); });
 }
 
 /* ================== 二号图：一号教学楼二楼 ==================
-   从一号教学楼天井北头的楼梯间上来。现在只是个雏形 ——
+   从一号教学楼北头那道楼梯上来。现在只是个雏形 ——
    一条横走廊、南北各几间教室、东头是楼梯口（踩上去回一楼）。
    以后要在这儿加剧情，就往这个函数里加。 */
 function floor2Layout(){
@@ -675,6 +675,23 @@ function toiletLayout(){
   NAME(1, 9, 7, 1, '洗手池');
 }
 
+/* ================== 四号图：后山那堵墙 ==================
+   六块苔长在一面墙上。原来它们散在校园后山那条路上（走四十格才凑齐），
+   单独一张图之后，"数苔藓"才像个谜题，而不是一次长跑。
+   西头往东依次刻着：如 上 数 玻 门 师 —— 而守则的头一个字是
+   上 师 如 玻 门 数。对上号，按条数擦。 */
+function hillLayout(){
+  var W = 22, H = 12;
+  R('wall', 1, 1, W-2, 3);                // 那堵墙（rows 1..3）
+  R('path', 1, 4, W-2, 6);                // 墙根下那条土路（rows 4..9）
+  R('wall', 1, 10, W-2, 1);
+  R('wall', 1, 1, 1, 10);
+  R('wall', W-2, 1, 1, 10);
+  /* 六块苔，一溜排开 */
+  [3, 6, 9, 12, 15, 18].forEach(function(mx){ R('garden', mx, 4, 2, 1); });
+  NAME(1, 1, 20, 3, '墙');
+}
+
 /* ================== 登记两张图 ================== */
 makeMap('campus', {
   w: 80, h: 125,
@@ -699,11 +716,13 @@ makeMap('campus', {
              [7*60+40,  9*60+30, 9,  6],
              [9*60+30, 99*60,    13, 78]] }
   ],
-  /* 出口：一号教学楼天井北头那个楼梯间，踩上去上二楼 */
+  /* 出口：一号教学楼北头那道楼梯，踩上去上二楼 */
   portals: [
     { x:13, y:73, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
     /* 三个教学楼的厕所门 —— 进去是另一张图。出来的时候回你刚才进的那间 */
     { x:6,  y:83, w:2, h:1, to:'toilet', tx:8, ty:10 },
+    /* 后山那条路走到头 —— 那堵墙现在是一张单独的图 */
+    { x:8,  y:6,  w:2, h:1, to:'hill', tx:10, ty:8 },
     { x:6,  y:59, w:2, h:1, to:'toilet', tx:8, ty:10 },
     { x:58, y:83, w:2, h:1, to:'toilet', tx:8, ty:10 }
   ],
@@ -728,7 +747,7 @@ makeMap('campus', {
     { x:16, y:76, w:2, h:2, once:true, if:'是:laoli', clock:7*60+30, talk:'free_laoli' },
     { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  clock:7*60+30, talk:'free_shui' },
     { x:16, y:76, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic' },
-    /* logic 那条：天井北头，快到楼梯口之前那一段 */
+    /* logic 那条：快到上楼的楼梯之前那一段 */
     { x:13, y:75, w:2, h:3, once:true, if:'该上二楼了', talk:'logic_route' },
     /* 上楼之前，lg7 把他捏了一年的那支笔塞给你 */
     { x:13, y:74, w:2, h:1, once:true, if:'可以上去了', talk:'lg7_pen' },
@@ -739,13 +758,6 @@ makeMap('campus', {
        管不管厕所的镜子，得玩家自己判断 */
 
     /* ---- 水哥那条的谜题：后山墙上六块苔，按守则的条数擦 ---- */
-    { x:8,  y:20, w:2, h:2, once:true, if:'该去后山了', talk:'wipe_intro' },
-    { x:10, y:22, w:2, h:2, if:'该去后山了', seq:1, talk:'wipe_1' },   // 上
-    { x:38, y:22, w:2, h:2, if:'该去后山了', seq:2, talk:'wipe_2' },   // 师
-    { x:8,  y:22, w:2, h:2, if:'该去后山了', seq:3, talk:'wipe_3' },   // 如
-    { x:24, y:22, w:2, h:2, if:'该去后山了', seq:4, talk:'wipe_4' },   // 玻
-    { x:34, y:22, w:2, h:2, if:'该去后山了', seq:5, talk:'wipe_5' },   // 门
-    { x:16, y:22, w:2, h:2, if:'该去后山了', seq:6, talk:'wipe_6' },   // 数
 
     /* ---- 水哥② 抽屉密码：三条线索散在三个地方，得跑一趟 ---- */
     { x:5,  y:73,  w:4, h:1, once:true, if:'擦完墙', talk:'pw_board' },   // 45 班空教室的黑板
@@ -785,6 +797,26 @@ makeMap('campus', {
     { x:38, y:35, w:2, h:2, once:true, if:'被追了', talk:'chase_bell', endchase:true }
   ]
 }, campusLayout);
+
+makeMap('hill', {
+  w: 22, h: 12,
+  base: 'void',
+  spawn: [10, 8],
+  portals: [
+    { x:10, y:9, w:2, h:1, to:'campus', tx:9, ty:8, back:true }
+  ],
+  triggers: [
+    { x:9,  y:6,  w:4, h:2, once:true, talk:'wipe_intro' },
+    /* 六个擦点。seq 是"守则第几条" —— 位置是打乱的，
+       得拿开擦之前给的那串字去对 */
+    { x:3,  y:4, w:2, h:1, if:'看到六块苔', seq:3, talk:'wipe_3' },   // 如
+    { x:6,  y:4, w:2, h:1, if:'看到六块苔', seq:1, talk:'wipe_1' },   // 上
+    { x:9,  y:4, w:2, h:1, if:'看到六块苔', seq:6, talk:'wipe_6' },   // 数
+    { x:12, y:4, w:2, h:1, if:'看到六块苔', seq:4, talk:'wipe_4' },   // 玻
+    { x:15, y:4, w:2, h:1, if:'看到六块苔', seq:5, talk:'wipe_5' },   // 门
+    { x:18, y:4, w:2, h:1, if:'看到六块苔', seq:2, talk:'wipe_2' }    // 师
+  ]
+}, hillLayout);
 
 makeMap('toilet', {
   w: 18, h: 14,
@@ -967,7 +999,7 @@ var TALK = {
 
   hint_laoli: { start:'s', again:'s', nodes:{
     s:{ text:'……我先去趟厕所。', next:'t' },
-    t:{ text:'（他往天井那头走了。\n　45 班在那边，厕所不在。）', set:'牢李总往45班绕', end:true }}},
+    t:{ text:'（他往楼梯那头走了。\n　45 班在那边，厕所不在。）', set:'牢李总往45班绕', end:true }}},
   /* 按时间段换一套话 —— entryBy 从上往下挑第一个条件成立的 */
   hint_teacher: {
     start:'cls', again:'cls',
@@ -1074,7 +1106,7 @@ var TALK = {
   /* logic 那条线：别人在查，他在瞒。开头就是独白 */
   logic_route: { nodes:{
     s:{ text:'（你没往楼下走。）', next:'t' },
-    t:{ text:'（你走到天井北头那个楼梯口。这个点，没人会上去。）', next:'u' },
+    t:{ text:'（你走到上楼的楼梯口。这个点，没人会上去。）', next:'u' },
     u:{ text:'（你不是今天才知道那间教室的。\n　开学第二个礼拜你就找到了。）', next:'v' },
     v:{ text:'（里面很静，静得能听见自己的笔尖。\n　黑板上的值日表永远停在同一天。\n　所以你在那儿刷题 —— 没人会来吵你。）', next:'w' },
     w:{ text:'（这件事你没跟任何人说过。）', set:'logic承认了', end:true }
@@ -1144,12 +1176,12 @@ var TALK = {
     w:{ text:'（擦的顺序不对，墙后面的声音会停。）', set:'看到六块苔', end:true }
   }},
 
-  wipe_1: { nodes:{ s:{ text:'你擦开第一块苔。\n石头上刻着一个字：「上」。', set:'擦墙1', end:true }}},
-  wipe_2: { nodes:{ s:{ text:'第二块。「师」。', set:'擦墙2', end:true }}},
-  wipe_3: { nodes:{ s:{ text:'第三块。「如」。', set:'擦墙3', end:true }}},
-  wipe_4: { nodes:{ s:{ text:'第四块。「玻」。\n\n（你手底下的石头，比别处凉。）', set:'擦墙4', end:true }}},
-  wipe_5: { nodes:{ s:{ text:'第五块。「门」。', set:'擦墙5', end:true }}},
-  wipe_6: { nodes:{ s:{ text:'第六块。「数」。', next:'t' },
+  wipe_1: { nodes:{ s:{ text:'（擦开一块。）\n\n石头上刻着一个字：\n\n　　「上」', set:'擦墙1', end:true }}},
+  wipe_2: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「师」', set:'擦墙2', end:true }}},
+  wipe_3: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「如」', set:'擦墙3', end:true }}},
+  wipe_4: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「玻」\n\n（你手底下这块石头，比别处凉。）', set:'擦墙4', end:true }}},
+  wipe_5: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「门」', set:'擦墙5', end:true }}},
+  wipe_6: { nodes:{ s:{ text:'（最后一块。）\n\n　　「数」', next:'t' },
     t:{ text:'六个字连起来，正好是守则六条的头一个字。\n\n上。师。如。玻。门。数。', next:'u' },
     u:{ text:'（墙后面，念书的声音停了一下 —— ）\n\n（然后，从第一页重新念起。）', set:'擦完墙', end:true }}},
 
@@ -1341,7 +1373,7 @@ var TALK = {
   /* ==================== 最后一段 ==================== */
   /* 水哥那条线的分岔：撞见 logic 从楼上下来。帮谁，看你 */
   shui_fork: { nodes:{
-    s:{ text:'（天井里站着个人。）', next:'t' },
+    s:{ text:'（楼梯口站着个人。）', next:'t' },
     t:{ text:'（是 logic。他从楼梯上下来，手里捏着一张卷子。）', next:'u' },
     u:{ text:'……你也在二楼。', next:'v' },
     v:{ text:'（他不等你答。）\n\n……你别跟别人说。', opts:[
@@ -1641,8 +1673,8 @@ var GOALS = [
   { if:'拉过铃',     map:'campus', t:'下楼，往校门走',          x:38, y:124 },
   { if:'该跑了',     map:'floor2', t:'下楼',                    x:4,  y:12  },
   { if:'上过二楼',   map:'floor2', t:'走廊东头那扇门',          x:38, y:12  },
-  { if:'可以上去了', map:'campus', t:'天井北头那个楼梯口',      x:13, y:73  },
-  { if:'该上二楼了', map:'campus', t:'去天井北头',              x:13, y:74  },
+  { if:'可以上去了', map:'campus', t:'上楼的楼梯口',      x:13, y:73  },
+  { if:'该上二楼了', map:'campus', t:'去上楼的那道楼梯',              x:13, y:74  },
   { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 去后山',  x:39, y:26  },
   { if:'该查名单了', map:'campus', t:'去大门口，找那个值周生',  x:37, y:119 },
   { if:'答过到',     map:'campus', t:'回教室，数一遍人 —— 只数两遍', x:19, y:78 },
@@ -2695,7 +2727,7 @@ function update(dt){
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
       if (P.if && !flagOn(P.if)) continue;
-      if (P.to === 'toilet') M.backTo = { map: M.map, tx: ptx, ty: pty + 1 };          // 条件没到，这扇"门"还没开
+      if (P.to !== 'campus') M.backTo = { map: M.map, tx: ptx, ty: pty + 1 };          // 条件没到，这扇"门"还没开
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
         if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty);
         else loadMap(P.to, P.tx, P.ty);
@@ -2828,7 +2860,7 @@ function drawTile(t, sx, sy){
     cx.fillStyle = '#6f7d4e';
     cx.beginPath(); cx.arc(sx+TILE/2, sy+TILE/2, TILE*0.34, 0, 7); cx.fill();
   } else if (t === 'garden'){
-    /* 天井：栽几株矮的，别跟草地一个样 */
+    /* 中庭：栽几株矮的，别跟草地一个样 */
     cx.fillStyle = '#4e7439';
     cx.beginPath(); cx.arc(sx+TILE*0.3, sy+TILE*0.55, 5, 0, 7); cx.fill();
     cx.beginPath(); cx.arc(sx+TILE*0.72, sy+TILE*0.4, 4, 0, 7); cx.fill();
@@ -2852,7 +2884,7 @@ function drawLabels(){
     /* ty 是可选的：中心广场要跟"韩愈像"那行字错开，不然两行叠一块 */
     var ty = (L.ty === undefined) ? (L.y + L.h/2) : L.ty;
     var px = (L.x + L.w/2)*TILE, py = ty*TILE;
-    /* 先白描边再填深色 —— 楼名有的落在浅色地板上、有的落在绿色天井上，
+    /* 先白描边再填深色 —— 楼名有的落在浅色地板上、有的落在绿色中庭上，
        一种颜色压不平，加圈白边两边都看得清 */
     cx.strokeText(L.t, px, py);
     cx.fillStyle = 'rgba(24,20,14,.42)';
