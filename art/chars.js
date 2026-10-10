@@ -350,6 +350,31 @@ function accVariant(g, c, base){
       for (var y=12; y<=13; y++) if (g[y][x]) g[y][x] = c.pal.cloth2;
     });
   }
+  /* 头上那个大蝴蝶结。写在外面的格子上也没关系 ——
+     addOutline 在后面跑，会自己给新格子描边 */
+  if (c.acc === 'ribbon'){
+    var rc = c.pal.ribbon  || '#c8392e';
+    var rd = c.pal.ribbon2 || '#8e2419';
+    function rcell(x, y, col){
+      if (x < 0 || y < 0 || x >= SW || y >= SH) return;
+      g[y][x] = col;
+    }
+    if (base === 'side'){
+      /* 侧面只看得见一边的结 */
+      for (var sx=0; sx<=4; sx++) rcell(sx, 2, sx < 2 ? rd : rc);
+      rcell(2, 1, rc); rcell(1, 0, rd); rcell(2, 3, rd);
+    } else {
+      /* 正面/背面：横过发顶一条，两边各甩出去一个结 */
+      for (var x2=4; x2<=11; x2++){ rcell(x2, 1, rc); rcell(x2, 2, rd); }
+      [0,1,2,3,12,13,14,15].forEach(function(bx, i){
+        var col = (i % 2) ? rd : rc;
+        rcell(bx, 1, col); rcell(bx, 2, col);
+      });
+      rcell(1, 0, rd); rcell(2, 0, rc);
+      rcell(13, 0, rc); rcell(14, 0, rd);
+      rcell(1, 3, rd); rcell(14, 3, rd);
+    }
+  }
 }
 
 function buildSprite(c, base, frame, flip){
@@ -453,6 +478,18 @@ var CHARS = [
     pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#241a14', cloth:'#9b8fc7',
           cloth2:'#8479ad', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#9c6a5c' } },
+
+  /* zzx —— 剧情里一直有这个人，可从来没画过他（只在旁白里"站在楼梯口"）。
+     他那身是博丽灵梦：白上衣、红袴、头上一个大红蝴蝶结。
+     这一版就他一个 acc:'ribbon'，所以人堆里一眼认得出来 */
+  { id:'zzx', name:'zzx', tag:'逻辑的',
+    bg:'#3a2c33', hairLine:14, sideburn:15, brow:'thin', eyes:'normal',
+    mouth:'small', spr:'short', acc:'ribbon',
+    collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
+    pal:{ skin:'#f4d6bb', skin2:'#dcb591', hair:'#241d1b', cloth:'#f2efe8',
+          cloth2:'#d6d0c4', pants:'#b8342c', shoe:'#6d2a24', frame:'#141110',
+          ribbon:'#cf3a2e', ribbon2:'#8e2419',
+          W:AV.white, O:'#17130f', M:'#a85a4e' } },
 
   /* 三个没名没姓的学生。背景里的人就该是背景 ——
      原来拿 laoli/shui/logic 的立绘去填人群，你选 logic 的时候

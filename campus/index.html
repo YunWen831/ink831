@@ -748,6 +748,9 @@ makeMap('campus', {
     { id:'laoli',     tx:11, ty:54, face:'right', talk:'hint_laoli' },
     { id:'logic',     tx:63, ty:60, face:'down',  talk:'hint_logic' },
     { id:'duty',      tx:37, ty:119, face:'down', talk:'hint_duty' },
+    /* zzx：逻辑那条线的人。平时靠在一号教学楼走廊墙边 ——
+       等剧情走到楼梯口那一段，会被 put 摆到楼梯口去 */
+    { id:'zzx',       tx:17, ty:83, face:'left',  talk:'hint_zzx' },
     { id:'shui',      tx:45, ty:100, face:'right', talk:'hint_shui' },
     { id:'dean',      tx:33, ty:100, face:'up',   talk:'hint_dean' },
     /* lg7 是全场跑得最勤的那个：早上堵校门、早读盯走廊、白天蹲后山、
@@ -908,7 +911,8 @@ makeMap('campus', {
     /* ---- 中段：一堆"什么都没发生，可都不太对" ---- */
     { x:6,  y:78, w:3, h:2, once:true, if:'该查名单了', talk:'ld_45' },
     { x:38, y:104, w:4, h:4, once:true, if:'该查名单了', talk:'ld_steps' },
-    { x:13, y:80, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx' },
+    { x:13, y:80, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx',
+      put:['zzx', 13, 80] },
     { x:13, y:88, w:2, h:2, once:true, if:'zzx上楼了', talk:'lg_told' },
 
     /* ---- 三段专属吓点：只有那个人会走到那儿 ---- */
@@ -1278,6 +1282,11 @@ var TALK = {
       page:{ text:'你跟我说那个之后，我上去看了。\n\n……空的。就是一间杂物间。\n我站了半个钟头，什么都没发生。\n\n（他把本子翻开，把第一页撕了下来。）\n\n拿着。我明天不来了。\n\n（那一页上，第一行被红笔划穿了纸。）', set:['拿过名单','可以上去了'], end:true }
     }
   },
+  hint_zzx: { start:'s', again:'s', nodes:{
+    s:{ text:'（他靠着墙站着，手里捏着一件叠好的东西。）', next:'t' },
+    t:{ text:'（你走过去的时候，他把那东西往身后藏了藏。）\n\n（没藏住。）', end:true }
+  }},
+
   hint_deskmate: {
     start:'s', again:'s',
     /* 拿到纸条之后，同桌才会说真话 */
