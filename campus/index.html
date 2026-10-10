@@ -1438,24 +1438,34 @@ makeMap('lab', {
    玩家也没地方躲。这场单独开一张大图：当中一个讲台，那个东西搁在上面，
    一圈一圈的"笑"从它那儿推出来，人从圈和圈中间穿过去。 */
 function arenaLayout(){
-  var W = 26, H = 18;
-  R('wall', 1, 1, W-2, H-2);                 // cols 1..24, rows 1..16
+  var W = 34, H = 24;
+  R('wall', 1, 1, W-2, H-2);                 // cols 1..32, rows 1..22
   R('floor', 2, 2, W-4, H-4);                // 屋里
-  R('stage', 11, 8, 4, 3);                   // 当中那个讲台 cols 11..14, rows 8..10
-  NAME(1, 1, 24, 2, '化学竞赛辅导室');
-  NAME(10, 7, 6, 5, '讲台');
+  R('stage', 15, 10, 4, 4);                  // 当中那个讲台 cols 15..18, rows 10..13
+  /* 三个台子：它歇下来的时候只有一个亮 */
+  R('stage', 5,  4,  4, 3);                  // 西北
+  R('stage', 25, 4,  4, 3);                  // 东北
+  R('stage', 15, 19, 4, 3);                  // 南边
+  NAME(1, 1, 32, 7, '化学竞赛辅导室');
+  NAME(14, 9, 6, 7, '讲台');
+  NAME(5, 4, 4, 3, '西北');
+  NAME(25, 4, 4, 3, '东北');
+  NAME(15, 19, 4, 3, '南边');
 }
 makeMap('arena', {
-  w: 26, h: 18,
+  w: 34, h: 24,
   base: 'void',
-  spawn: [13, 15],
+  spawn: [17, 17],
   objs: [
-    /* 圈就是从这儿发出来的 —— 它停下来的那一下，走到这儿按一下 */
-    { x:13, y:9, art:'frog', who:'讲台上那个东西', verb:'按一下', talk:'rs_frog' }
+    /* 圈就是从这儿发出来的。它自己不用按 —— 要按的是那三张讲桌里亮着的那张 */
+    { x:17, y:12, art:'frog',  who:'讲台上那个东西', verb:'看看', talk:'rs_frog' },
+    { x:7,  y:5,  art:'desk',  who:'西北那张讲桌', verb:'按下去', talk:'plat_nw' },
+    { x:27, y:5,  art:'desk',  who:'东北那张讲桌', verb:'按下去', talk:'plat_ne' },
+    { x:17, y:20, art:'desk',  who:'南边那张讲桌', verb:'按下去', talk:'plat_s' }
   ],
   /* 靠边那两排课桌：退到墙根去了，只是摆着看，不挡路 */
-  deco: [ { x:3, y:3,  n:5, dx:2, art:'desk', scale:1 },
-          { x:3, y:15, n:5, dx:2, art:'desk', scale:1 } ]
+  deco: [ { x:3,  y:3,  n:6, dx:2, art:'desk', scale:1 },
+          { x:3,  y:21, n:6, dx:2, art:'desk', scale:1 } ]
 }, arenaLayout);
 
 makeMap('resolve', {
@@ -2069,8 +2079,8 @@ var TALK = {
       kill2:{ text:'然后，讲台上那个东西笑了。\n\n很轻。像谁在喉咙里哼。', next:'kill3' },
       kill3:{ text:'屋里跟着笑起来。\n\n我也在笑。我捂不住嘴。', sh:0.8, next:'kill4' },
       kill4:{ text:'讲台上那个东西撑开了。\n\n整间屋子跟着往外涨 —— 墙退开，桌子退到边上，中间空出一大块。', next:'kill5' },
-      kill5:{ text:'它笑。\n\n笑声是一圈一圈推出来的 —— 我听得见，也看得见。', next:'kill6' },
-      kill6:{ card:'它笑一声，推出一圈。圈从它那儿往外推。\n\n（它有三次笑不到底。你有三条命。）\n\n一、圈推过来，从圈和圈中间穿过去。\n二、它推完会歇一下。\n三、它歇的那一下，走到讲台前面按它。', boss:true, end:true }
+      kill5:{ text:'它笑。\n\n笑声一圈一圈推出来 —— 我听得见，也看得见。\n\n（圈不是整圈的。每一圈都缺一段。）', next:'kill6' },
+      kill6:{ card:'每一圈都缺一段。缺口转到哪儿，你就站哪儿。\n\n一、圈推过来 —— 站在缺口那一段里，圈扫过去也没事。\n二、它推完会歇一下，那时候只有一张讲桌是亮的。\n三、跑过去按那一张。按错的白跑一趟。\n\n（三下。一圈比一圈紧。缺口每一圈都换地方。）', boss:true, end:true }
     }
   },
 
@@ -3044,11 +3054,15 @@ function goalNow(){
   }
   if (!M.chase && M.map === 'toilet') return toiletGoal();
   /* 打起来了：别再说"跟他说话"了，说怎么打 */
-  if (M.boss) return (M.boss.open > 0)
-    ? { t:'它歇了 —— 走过去按讲台上那个东西',
-        x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' }
-    : { t:'躲开推过来的圈 —— 从圈和圈中间穿过去',
-        x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' };
+  if (M.boss){
+    if (M.boss.open > 0 && M.boss.lit >= 0){
+      var LP = M.boss.plats[M.boss.lit];
+      return { t:'它歇了 —— 去' + LP.nm + '那张讲桌按下去',
+               x: LP.x, y: LP.y, map: 'arena' };
+    }
+    return { t:'圈上有缺口 —— 站到缺口那一段里',
+             x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' };
+  }
   /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
      静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
      读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
@@ -3862,16 +3876,22 @@ function spawnWave(){
    三条命、它三格血。命数掉光不读档 —— 从头再来一遍。
    ============================================ */
 function startBoss(){
-  /* 这场打完之前那张小图装不下 —— 换到大图上来打 */
-  if (M.map !== 'arena'){ loadMap('arena', 13, 15); M.fade = 0.4; M.portalCool = 0.8; }
-  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.3,
-             cd: 0, inv: 1.3, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
-             wave: 0, hudSig: '' };
+  /* 这场打完之前那张图装不下 —— 换到大图上来打 */
+  if (M.map !== 'arena'){ loadMap('arena', 17, 17); M.fade = 0.4; M.portalCool = 0.8; }
+  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
+             cd: 0, inv: 1.4, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
+             wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 6.5,
+             /* 一圈只盖这么多（弧度）—— 剩下的就是缺口 */
+             arcHalf: 1.75,
+             /* 三个台子 —— 它歇下来的时候，亮哪一张就按哪一张 */
+             plats: [ { x:7,  y:5,  nm:'西北' },
+                      { x:27, y:5,  nm:'东北' },
+                      { x:17, y:20, nm:'南边' } ] };
   var O = objByTalkHere('rs_frog');
-  M.boss.cx = (O ? O.x : 13) * TILE + TILE/2;
-  M.boss.cy = (O ? O.y : 9) * TILE + TILE/2;
+  M.boss.cx = (O ? O.x : 17) * TILE + TILE/2;
+  M.boss.cy = (O ? O.y : 12) * TILE + TILE/2;
   bossHud(true);
-  toast('它撑开了。躲开推过来的圈 —— 它歇下来的时候，走过去按它。', 3.4);
+  toast('它撑开了。躲开推过来的圈 —— 它歇下来的时候，跑去按亮着的那张讲桌。', 4.0);
   droneOn();
 }
 function bossHud(on){
@@ -3884,26 +3904,36 @@ function bossHudDraw(force){
   var el = document.getElementById('boss');
   if (!el || !M.boss) return;
   var B = M.boss;
-  /* 血条旁边那句"现在该干嘛" —— 原来只有三个点和三根杠，
-     玩家不知道该躲还是该打。这一行每秒只重画一次，别每帧写 DOM */
-  var sig = (B.open > 0 ? 'o' : 'w') + Math.ceil(B.open * 2) + ',' + B.hp + ',' + B.lives;
+  var sig = (B.open > 0 ? 'o' + B.lit : 'w') + Math.ceil(B.open * 2) + ',' + B.hp + ',' + B.lives;
   if (!force && sig === B.hudSig) return;
   B.hudSig = sig;
   var h = '';
   for (var i = 0; i < 3; i++) h += (i < B.hp) ? '●' : '○';
   var l = '';
   for (var j = 0; j < 3; j++) l += (j < B.lives) ? '▮' : '▯';
-  var say = (B.open > 0)
-    ? '它歇了 —— 现在走过去按它（' + B.open.toFixed(1) + ' 秒）'
-    : '躲开推过来的圈，从圈和圈中间穿过去';
+  var say;
+  if (B.open > 0 && B.lit >= 0){
+    say = '它歇了 —— 跑去按【' + B.plats[B.lit].nm + '】那张讲桌（' + B.open.toFixed(1) + ' 秒）';
+  } else {
+    say = '圈上有缺口 —— 站到缺口那一段里，圈扫过去也没事';
+  }
   el.innerHTML = '<div class="nm">奶蛙</div>' +
                  '<div class="hp">' + h + '</div>' +
                  '<div class="lf">' + l + '</div>' +
                  '<div class="say' + (B.open > 0 ? ' go' : '') + '">' + say + '</div>';
 }
-function bossHit(){
+/* O 是玩家按的那张讲桌。不给就当成"亮着的那张"（探针走这条）。
+   按错桌子不掉血 —— 但那一趟白跑，窗口就那么长 */
+function bossHit(O){
   var B = M.boss;
   if (!B || B.dead) return false;
+  if (O && O.talk && O.talk.indexOf('plat_') === 0){
+    var idx = { plat_nw: 0, plat_ne: 1, plat_s: 2 }[O.talk];
+    if (idx !== B.lit){
+      toast('（这张没亮。亮着的是' + (B.lit >= 0 ? B.plats[B.lit].nm : '——') + '那张。）', 1.8);
+      return true;
+    }
+  }
   if (B.open <= 0){                        // 它还在笑，按了没用
     toast('（现在按不动。等它停下来。）', 1.6);
     return true;
@@ -3936,31 +3966,49 @@ function bossTick(dt){
   /* 一轮：先推几圈，再歇一段 —— 歇的那一段才是能打的时候。
      歇多久是按"从最远那头跑回讲台"算的：地图大了，圈子推得慢了，
      给的时间也得跟着长，不然跑不回去 */
+  /* 一轮：推几圈，再歇一段。歇的那一段才亮一张讲桌，跑去按它。
+     打掉一格血，下一轮的圈就快一点 —— 三轮下来越来越紧 */
+  var lv = 3 - B.hp;                       // 0 / 1 / 2
   if (B.phase === 'wave'){
     B.since -= dt;
     if (B.since <= 0){
-      B.rings.push({ r: 10 });
+      /* 每一圈都留一段缺口 —— 缺口的角度一轮一轮换。
+         整圈的圈是躲不掉的（半径会扫过每一个距离），有缺口才站得住 */
+      B.rings.push({ r: 10, a0: B.wave * 2.1 + B.hp * 1.3 });
       B.wave++;
-      B.since = 0.9;
+      B.since = 1.35 - 0.15 * lv;          // 一轮比一轮紧
       B.open = 0;
       sfxBlip();
-      /* 血越少，推的圈越多 —— 但都在三次到五次之间 */
-      if (B.wave >= 3 + (3 - B.hp)){ B.phase = 'open'; B.cd = 5.5; }
+      if (B.wave >= 3 + lv){               // 三圈起，打掉一格多一圈
+        B.phase = 'open'; B.cd = B.win;
+        /* 亮哪一张：随机，但不跟上一轮重样 —— 上一回合站哪儿，这一回合不管用 */
+        var k = Math.floor(Math.random() * 3);
+        if (k === B.lastLit) k = (k + 1 + Math.floor(Math.random() * 2)) % 3;
+        B.lit = k; B.lastLit = k;
+      }
     }
   } else {
     B.cd -= dt;
     B.open = Math.max(0, B.cd);
-    if (B.cd <= 0){ B.phase = 'wave'; B.wave = 0; B.since = 0.7; B.open = 0; }
+    if (B.cd <= 0){ B.phase = 'wave'; B.wave = 0; B.since = 0.7; B.open = 0; B.lit = -1; }
   }
-  /* 圈往外推（速率 × 最远距离 = 一张图刚好扫完，没有安全角落） */
+  /* 圈往外推。压到 96 —— 比走路（108）慢一点，走位就够用，不用非按着跑。
+     射程 720 盖满整张图（最远的角 666），没有"站角落就安全"这种事 */
   var i;
-  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 130 * dt;
-  B.rings = B.rings.filter(function(R){ return R.r < 620; });
+  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 96 * dt;
+  B.rings = B.rings.filter(function(R){ return R.r < 720; });
   /* 撞上就掉一条命 */
+  /* 这一句得每帧叫一次 —— 否则"现在该干嘛"那行永远是上一轮的。
+     bossHudDraw 自己会比签名，没变就不碰 DOM */
+  bossHudDraw();
   var px = M.p.x - B.cx, py = M.p.y - B.cy, d = Math.hypot(px, py);
+  var pang = Math.atan2(py, px);
   if (B.inv <= 0){
     for (i = 0; i < B.rings.length; i++){
-      if (Math.abs(d - B.rings[i].r) < 13){
+      /* 半径对上了，还得看角度：落在缺口里就没事 */
+      var da = pang - B.rings[i].a0;
+      da = Math.abs(((da + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+      if (Math.abs(d - B.rings[i].r) < 13 && da < B.arcHalf){
         B.lives--;
         B.inv = 1.2;
         B.hurt = 0.5;
@@ -4267,7 +4315,7 @@ function jumpToBoss(charId){
   M.fade = 0; M.portalCool = 0.9; M.talk.cool = 0;
   setFlag(['擦完墙', '替他答了']);     // 前置旗标：结局那条路要用
   startBoss();                        // 它自己会把图换到 arena 去
-  toast('（调试入口）直接进奶蛙那场。躲圈，它歇下来那一下按它。', 3.6);
+  toast('（调试入口）直接进奶蛙那场：躲圈 → 它歇了 → 跑去按亮着的那张讲桌。', 4.0);
 }
 document.getElementById('btnBoss').addEventListener('click', function(){ jumpToBoss('laoli'); });
 
@@ -4577,7 +4625,11 @@ function thingNear(){
 /* 按 E 动一个实物。走的是和触发区同一条效果管线。
    动过的还能再动一次 —— 只是那一次只把话重念一遍 */
 function pressObj(O){
-  if (M.boss && O && O.talk === 'rs_frog'){ bossHit(); return; }
+  if (M.boss && O && O.talk && O.talk.indexOf('plat_') === 0){ bossHit(O); return; }
+  if (M.boss && O && O.talk === 'rs_frog'){
+    toast('（按它没用 —— 它歇下来的时候，去按亮着的那张讲桌。）', 2.2);
+    return;
+  }
   if (!objLive(O)) return;
   var k = objKey(O);
   if (objReplayable(O) && O.talk){
@@ -5492,7 +5544,7 @@ function render(){
     } else if (o.obj){
       var O = o.O;
       /* 打起来的时候，那个实物不画 —— 大的那只已经画在讲台上了 */
-      if (M.boss && O.talk === 'rs_frog') return;
+      if (M.boss && (O.talk === 'rs_frog')) return;
       var isGoal = !!(goalPos && Math.abs(goalPos.x - O.x) <= 2 && Math.abs(goalPos.y - O.y) <= 2);
       /* 动过的压暗（当下要找的那个除外）。顺序谜题那六块苔也算 ——
          不压暗的话，擦过的和没擦过的在屏幕上一模一样 */
@@ -5562,13 +5614,24 @@ function render(){
   if (M.boss){
     var B = M.boss;
     B.rings.forEach(function(R, i2){
-      var al = Math.max(0, 1 - R.r / 520);
-      cx.strokeStyle = 'rgba(232,163,61,' + (0.55 * al).toFixed(2) + ')';
-      cx.lineWidth = 5;
-      cx.beginPath(); cx.arc(B.cx, B.cy, R.r, 0, 7); cx.stroke();
-      cx.strokeStyle = 'rgba(255,240,210,' + (0.25 * al).toFixed(2) + ')';
+      var al = Math.max(0, 1 - R.r / 720);
+      var a1 = R.a0 - B.arcHalf, a2 = R.a0 + B.arcHalf;
+      /* 只画那一段弧（约 200°），剩下 160° 是缺口。
+         带子 26 像素厚 = 判定厚度 —— 看见的边就是真的边 */
+      cx.strokeStyle = 'rgba(232,163,61,' + (0.30 * al).toFixed(2) + ')';
+      cx.lineWidth = 26;
+      cx.beginPath(); cx.arc(B.cx, B.cy, R.r, a1, a2); cx.stroke();
+      cx.strokeStyle = 'rgba(255,240,210,' + (0.45 * al).toFixed(2) + ')';
       cx.lineWidth = 2;
-      cx.beginPath(); cx.arc(B.cx, B.cy, R.r, 0, 7); cx.stroke();
+      cx.beginPath(); cx.arc(B.cx, B.cy, R.r - 13, a1, a2); cx.stroke();
+      cx.beginPath(); cx.arc(B.cx, B.cy, R.r + 13, a1, a2); cx.stroke();
+      /* 两道断口也描一下 —— 缺口在哪儿得一眼看出来 */
+      cx.beginPath();
+      cx.moveTo(B.cx + Math.cos(a1) * (R.r - 13), B.cy + Math.sin(a1) * (R.r - 13));
+      cx.lineTo(B.cx + Math.cos(a1) * (R.r + 13), B.cy + Math.sin(a1) * (R.r + 13));
+      cx.moveTo(B.cx + Math.cos(a2) * (R.r - 13), B.cy + Math.sin(a2) * (R.r - 13));
+      cx.lineTo(B.cx + Math.cos(a2) * (R.r + 13), B.cy + Math.sin(a2) * (R.r + 13));
+      cx.stroke();
     });
     /* 它自己：一团绿，笑的时候鼓一下 */
     var puff = B.phase === 'wave' ? 1 + 0.25 * Math.sin(B.t * 18) : 1;
@@ -5586,20 +5649,24 @@ function render(){
     cx.beginPath();
     cx.arc(B.cx, B.cy + 2, (13 + 4 * puff), 0.12 * Math.PI, 0.88 * Math.PI);
     cx.stroke();
-    /* 能打的那一下：讲台亮一大圈，四个箭头从四边指过去 */
-    if (B.open > 0){
+    /* 能打的那一下：亮着的那张讲桌闪一大圈，四个箭头从四边指过去 */
+    if (B.open > 0 && B.lit >= 0){
+      var L = B.plats[B.lit];
+      var lx = L.x*TILE + TILE/2, ly = L.y*TILE + TILE/2;
       var pu = 0.45 + 0.4 * Math.sin(B.t * 9);
+      cx.fillStyle = 'rgba(255,255,255,' + (pu * 0.35).toFixed(2) + ')';
+      cx.beginPath(); cx.ellipse(lx, ly + 12, 46, 24, 0, 0, 7); cx.fill();
       cx.strokeStyle = 'rgba(255,255,255,' + pu.toFixed(2) + ')';
       cx.lineWidth = 4;
-      cx.beginPath(); cx.ellipse(B.cx, B.cy + 26, 40 + 6 * Math.sin(B.t * 9), 20, 0, 0, 7); cx.stroke();
+      cx.beginPath(); cx.ellipse(lx, ly + 12, 46 + 6 * Math.sin(B.t * 9), 24, 0, 0, 7); cx.stroke();
       cx.fillStyle = 'rgba(255,255,255,' + pu.toFixed(2) + ')';
       for (var a4 = 0; a4 < 4; a4++){
-        var ang = a4 * Math.PI / 2, rr = 52 + 5 * Math.sin(B.t * 9 + a4);
-        var ax2 = B.cx + Math.cos(ang) * rr, ay2 = B.cy + Math.sin(ang) * rr * 0.62;
+        var ang = a4 * Math.PI / 2, rr = 58 + 5 * Math.sin(B.t * 9 + a4);
+        var ax2 = lx + Math.cos(ang) * rr, ay2 = ly + Math.sin(ang) * rr * 0.62;
         cx.save();
         cx.translate(ax2, ay2);
         cx.rotate(ang + Math.PI);
-        cx.beginPath(); cx.moveTo(0, -7); cx.lineTo(6, 5); cx.lineTo(-6, 5); cx.closePath(); cx.fill();
+        cx.beginPath(); cx.moveTo(0, -8); cx.lineTo(7, 6); cx.lineTo(-7, 6); cx.closePath(); cx.fill();
         cx.restore();
       }
     }
@@ -6607,6 +6674,8 @@ clockEl.style.display = 'none';
         out.push('开打 hp=' + M.boss.hp + ' 命=' + M.boss.lives);
         var k0 = 0;
         for (k0 = 0; k0 < 900 && M.boss && M.boss.lives === 3; k0++){ update(1/60); M.talk.open = false; }
+        /* 截图用：&open=1 直接停在"它歇下来、某张讲桌亮着"那一屏 */
+        if (/[?&]open=1/.test(q)){ M.boss.phase = 'open'; M.boss.lit = 1; M.boss.cd = 9; M.boss.inv = 99; }
         if (/[?&]shot=1/.test(q)) return;   // 截图用：打到一半就别往下跑了
         out.push('站着不动 ' + (k0/60).toFixed(1) + ' 秒 → 命=' + (M.boss ? M.boss.lives : '（战斗没了）') +
                  ' 圈=' + (M.boss ? M.boss.rings.length : 0));
