@@ -1271,13 +1271,18 @@ makeMap('school1', {
       talk:'logic_note', if:'帮logic', once:true, oy:-6 }
   ],
   triggers: [
+    /* 新：走廊里挤满了笑的人 —— 站久了就跟着笑出声（守则第二条） */
+    { x:14, y:19, w:2, h:4, if:'上课', still:2.6, kill:true, talk:'crowd_death',
+      killMsg:'你在人堆里站得太久了。' + '\n' + '—— 笑是会传的。' },
+    { x:19, y:12, w:2, h:5, if:'午休', still:2.4, kill:true, talk:'crowd_death',
+      killMsg:'你在人堆里站得太久了。' + '\n' + '—— 笑是会传的。' },
     { x:19, y:21,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death',
       killMsg:'你破了守则第四条 ——\n不要在走廊尽头的玻璃前面停下来。' },
     { x:19, y:11, w:2, h:2, once:true, if:'是:laoli', clock:7*60+30, talk:'free_laoli', cp:'出了教室' },
     { x:19, y:11, w:2, h:2, once:true, if:'是:shui',  clock:7*60+30, talk:'free_shui',  cp:'出了教室' },
     { x:19, y:11, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic', cp:'出了教室' },
     { x:16, y:8, w:2, h:18, once:true, if:'可以上去了', talk:'lg7_pen',
-      put:['lg7', 14, 74], clock:10*60, cp:'拿到翻译笔' },
+      put:['lg7', 14, 74], clock:12*60, cp:'拿到翻译笔' },
     { x:9, y:13, w:3, h:2, once:true, if:'该查名单了', talk:'ld_45' },
     { x:16, y:15, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx',
       put:['zzx', 13, 80] },
@@ -1317,7 +1322,15 @@ makeMap('museum', {
     { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'挑一张', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
     { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'] }
   ],
-  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+  triggers: [
+    { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' },
+    /* 广播室门口：屋里那台机器把笑声放大了 —— 在门口站住就完了 */
+    { x:22, y:5, w:4, h:5, if:'上课', still:2.2, kill:true, talk:'crowd_death',
+      killMsg:'广播室的门开着。' + '\n' + '—— 里头那台机器，把笑声放大了几十倍。' },
+    /* 三教走廊：人挤着人 */
+    { x:18, y:8, w:4, h:12, if:'午休', still:2.4, kill:true, talk:'crowd_death',
+      killMsg:'你在人堆里站得太久了。' + '\n' + '—— 笑是会传的。' }
+  ]
 }, museumLayout);
 
 makeMap('office', {
@@ -1367,6 +1380,12 @@ makeMap('hall3', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:57 } ],
   npcs: [ { id:'logic', tx:26, ty:6, face:'down', talk:'hint_logic' } ],
+  objs: [
+    /* 广播室：学校那台机器一直自己在放东西 */
+    { x:27, y:8, art:'speaker', who:'广播室那台机器', verb:'看看', talk:'h3_pa', once:true },
+    /* 值班记录本：一行一次启动，得自己数 */
+    { x:24, y:4, art:'roster',  who:'广播室的值班记录', verb:'翻翻', talk:'h3_log', once:true }
+  ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, hall3Layout);
 
@@ -1548,13 +1567,16 @@ makeMap('floor2', {
     { x:4,  y:12, w:2, h:2, once:true, talk:'f2_enter', cp:'上二楼' },  // 刚上来
     { x:30, y:12, w:2, h:2, once:true, talk:'f2_rollcall', cp:'走廊在念名字' },  // 往东走，念名字开始了
     /* 门：念名声还没过去就推门 —— 死 */
+    /* 新：那间不笑的屋子，待久了照样出事 —— 笑在你身上，不在屋里 */
+    { x:41, y:16, w:5, h:8, if:'上过二楼', still:5.0, kill:true, talk:'room_death',
+      killMsg:'屋里是静的。' + '\n' + '—— 静得你听见自己憋着的那一声。' },
     { x:38, y:12, w:1, h:2, if:'走廊在念名字', kill:true, talk:'f2_door_death',
       killMsg:'你破了守则 ——\n点名的时候不能进那间教室。' },
     /* 从屋里出来，楼下已经开始整队了（这个还是"走着走着发生的事"） */
     /* 这一条铺满整间教室 —— 原来只有屋子南头那么两格，
        可目标写的是"出来"，箭头却把人指向屋里，谁看谁懵。
        现在笔记一译出来就响：你还在黑板跟前，楼下就开始整队了 */
-    { x:39, y:2, w:7, h:22, once:true, if:'译出化学笔记', talk:'f2_alarm' }
+    { x:39, y:2, w:7, h:22, once:true, if:'译出化学笔记', clock:17*60+30, talk:'f2_alarm' }
   ],
   /* 门后面那间屋子里的东西，全是能按 E 的 */
   objs: [
@@ -1766,9 +1788,9 @@ var TALK = {
       threey4:{ text:'他摸出一张报名表，捏得皱巴巴的。\n\n"名字是我填的。"\n\n"我填的。我签的字。我把他送进去的。"\n\n"—— 你还要上去吗。"',
                 set:'lg7承认', end:'b' },
       /* 水哥那条线：后山那片林子后面是什么 */
-      hill: { text:'他往身后那片树看了一眼。\n\n"……你也要去？"\n\n"路走到头是一堵墙。墙后面有人念书。"\n\n"我在那儿蹲了好几天了，就想听清念的是哪一页。"\n\n（他掏出一张折了很多次的纸，又塞回兜里。）\n\n"……听不清。怎么都听不清。"',
+      hill: { text:'他往身后那片树看了一眼。\n\n"……你也要去？"\n\n"路走到头是一堵墙。墙后面有人念书。"\n\n"我听见过。就这两天。"\n\n（他掏出一张折了很多次的纸，又塞回兜里。）\n\n"……听不清。怎么都听不清。"',
               clock:9*60, set:'墙后面的书声', end:true },
-      why:  { text:'"这儿安静。安静的地方，才有人肯站下来听我说话。"\n\n"市里那个化学竞赛，报名表在我抽屉里压了半个月。你们 46 班，我一个都还没抓到。"\n\n"想通了自己来拿。"', set:'知道lg7在抓人', end:true },
+      why:  { text:'"这儿安静。安静的地方，才有人肯站下来听我说话。"\n\n"市里那个化学竞赛，报名表在我抽屉里。你们 46 班，我一个都还没抓齐。"\n\n"……别问了。"', set:'知道lg7在抓人', end:true },
       tw:   { text:'"……二楼？"\n\n"二楼不归我管。"\n\n（他说这句的时候没看我，像在背一句练过很多遍的话。）', set:'lg7提过二楼', end:true },
       bye:  { text:'"嗯。"', end:true },
 
@@ -1845,35 +1867,35 @@ var TALK = {
   /* ==================== 正片 ==================== */
   open_arrive: { nodes:{
     s:{ text:'六点五十。校门口没有人。', next:'t' },
-    t:{ text:'保安室的灯亮着，窗帘拉了一半。\n屋里那把椅子空着 —— 书包搭在椅背上，保温杯还是热的。\n刚倒的。人不在。', set:'到校', card:true, end:true }
+    t:{ text:'围墙里面有一片笑声 —— 不是一两个人在笑，是一整片，闷在墙里头，\n像水快要烧开。\n\n保安室的灯亮着。屋里那把椅子空着。', set:'到校', card:true, end:true }
   }},
 
   open_bell: { nodes:{
-    s:{ text:'我推开教学楼的门。早读铃正在响。', next:'u' },
+    s:{ text:'我推开教学楼的门。早读铃正在响。', scene:'open_laugh', next:'u' },
     u:{ text:'响到一半，它卡了一下，又接着响。\n音调比刚才低了半格。\n走廊里没有人回头。', set:'进了教学楼', end:true }
   }},
 
   open_class: { nodes:{
-    s:{ text:'我走到自己的位子坐下。', next:'t' },
-    t:{ text:'教室里坐满了人。没有人说话，连翻书的声音都没有。', next:'u' },
-    u:{ text:'老师翻着点名册，从第一页念到最后一页。\n又翻回去，从头念了一遍。\n\n"……不对。"\n\n"怎么多一个。"\n\n没有人接话。', next:'x' },
-    x:{ text:'我低头。\n桌上多了一张对折的纸。铅笔写的，笔迹蹭花了一半：\n\n　　　「别去二楼。」', set:'纸条', end:true }
+    s:{ text:'我走到自己的位子坐下。', scene:'open_class_laugh', next:'t' },
+    t:{ text:'教室里坐满了人。\n\n他们都在笑 —— 笑着翻书、笑着写字、笑着回过头来看我。\n\n（笑声是叠着的，一层压一层。）', next:'u' },
+    u:{ text:'（我也想笑。）\n\n（从腮帮子往上顶。我咬住牙，把它压下去了。）\n\n（讲台上，老师也在笑。他笑得念不出点名。）\n\n（他翻着点名册，从第一页念到最后一页，又翻回去，从头念了一遍。）\n\n（"……不对。"）\n\n（"怎么多一个。"）\n\n（没有人接话。前排有个人笑着把头低了下去。）', next:'x' },
+    x:{ text:'我低头。\n\n桌上多了一张对折的纸。铅笔写的，笔迹蹭花了一半：\n\n　　　「别去二楼。」', set:'纸条', end:true }
   }},
 
   /* ==================== 三条线的分岔口 ====================
      老师被叫走 = 可以走动了。三个角色各接到不同的"该去哪儿"，
      各自那条线只认自己那个旗标，互不串味。
      ==================================================== */
-  free_laoli: { nodes:{ s:{
-    text:'走廊里响起一阵脚步，越走越远。\n老师被叫走了。教室门开着，没有人拦我。\n\n我摸了摸口袋 —— 大门口那个值周生，他本子上什么都有。',
+  free_laoli: { nodes:{ s:{ scene:'route_laoli',
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被叫走了。他笑着摆摆手，像是放我出去。\n\n我站起来 —— 身后那间教室的笑声叠成一片。\n\n我压得住。别人压不住。',
     set:['可以走动了','上过课','该查名单了'], end:true }}},
 
-  free_shui: { nodes:{ s:{
-    text:'走廊里响起一阵脚步，越走越远。\n老师被叫走了。教室门开着，没有人拦我。\n\nlg7 这会儿大概又蹲在哪堵人。昨天他堵的是我。',
+  free_shui: { nodes:{ s:{ scene:'route_shui',
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被叫走了。他笑着摆摆手，像是放我出去。\n\n走廊里靠墙站着几个笑弯了腰的人。\n\n（lg7 今天早上刚把我堵在门口骂了半节课 —— 就因为我笑了一声。）\n\n（满楼的人笑个不停没事，我笑一声挨骂。）',
     set:['可以走动了','上过课','该去后山了'], end:true }}},
 
-  free_logic: { nodes:{ s:{
-    text:'走廊里响起一阵脚步，越走越远。\n老师被叫走了。教室门开着，没有人拦我。\n\n我站起来比别人快。我知道该去哪儿 —— 我每天都去。',
+  free_logic: { nodes:{ s:{ scene:'route_logic',
+    text:'走廊里响起一阵脚步，越走越远。\n\n老师被叫走了。他笑着摆摆手，像是放我出去。\n\n整栋楼都在笑 —— 只有走廊尽头那一间，安安静静。\n\n（那是我的地方。我每天都去。）\n\n（一开学我就知道那间屋子不对劲。我没跟任何人说过。）',
     set:['可以走动了','上过课','该上二楼了'], end:true }}},
 
   /* ==================== logic 的中段：数教室 ====================
@@ -1975,7 +1997,7 @@ var TALK = {
 
   /* 站在镜子前面不动 */
   mirror_death: { nodes:{
-    s:{ text:'我又站住了。\n\n镜子里的我，没有停下来看我。', end:true }
+    s:{ text:'我又站住了。\n\n镜子里的我，嘴角在往上走 —— 他在笑。', end:true }
   }},
 
   /* ---- 厕所：第 2 趟起，一趟比一趟多一样东西 ----
@@ -2043,7 +2065,7 @@ var TALK = {
     v:{ text:'然后他笑了。', sh:0.6, next:'w' },
     w:{ text:'笑得站不住，扶着讲台，一路笑到咳嗽。', sh:0.4, next:'x' },
     x:{ text:'可这一回，屋里没有人跟着笑。走廊外面也没有。\n\n那一屋子的笑，全进他一个人身上了。',
-        set:'lg7收了它', resolve:true, end:true }
+        set:'lg7收了它', resolve:true, scene:'what_happened', end:true }
   }},
 
   him: {
@@ -2079,7 +2101,7 @@ var TALK = {
       kill2:{ text:'然后，讲台上那个东西笑了。\n\n很轻。像谁在喉咙里哼。', next:'kill3' },
       kill3:{ text:'屋里跟着笑起来。\n\n我也在笑。我捂不住嘴。', sh:0.8, next:'kill4' },
       kill4:{ text:'讲台上那个东西撑开了。\n\n整间屋子跟着往外涨 —— 墙退开，桌子退到边上，中间空出一大块。', next:'kill5' },
-      kill5:{ text:'它笑。\n\n笑声一圈一圈推出来 —— 我听得见，也看得见。\n\n（圈不是整圈的。每一圈都缺一段。）', next:'kill6' },
+      kill5:{ text:'它笑。\n\n笑声一圈一圈推出来 —— 我听得见，也看得见。\n\n（圈不是整圈的。每一圈都缺一段。）', scene:'lights_out', next:'kill6' },
       kill6:{ card:'圈从它那儿往外推。每一圈都缺一段。\n\n一、慢的那种：缺口转到哪儿，你就站哪儿。\n二、会转的：缺口一直在动，跟着挪。\n三、又快又窄的：冲着你来 —— 赶紧闪开。\n\n它推完会歇一下，那时候只有一张讲桌是亮的，跑过去按它。\n（三下。一圈比一圈多。同一次歇着只能按一下。）', boss:true, end:true }
     }
   },
@@ -2467,9 +2489,9 @@ var TALK = {
 
   /* 水哥 · 墙根的饭盒：lg7 一直在给谁留饭 */
   sh_lunch: { nodes:{
-    s:{ text:'墙根底下摆着一个饭盒。没开封。', next:'t' },
-    t:{ text:'边上压着一张纸条，是他的字：\n\n「不吃也别扔。」', next:'u' },
-    u:{ text:'纸条下面还有一行，写得很小，像是后补的：\n\n「我一直给你留着。」', set:'墙根的饭盒', end:true }
+    s:{ text:'后山那条路走到头，墙根底下钉着一块木牌。', next:'t' },
+    t:{ text:'牌子上是印的字，日期手填 ——\n\n「此处墙体开裂，禁止靠近。」\n\n（日期是这一周的。）', next:'u' },
+    u:{ text:'（可墙是好好的。）\n\n（他们钉的不是墙。）', set:'墙根的饭盒', end:true }
   }},
 
   /* logic · 那一局：监管者一直站在门外 */
@@ -2646,8 +2668,8 @@ var TALK = {
   final_gate: { nodes:{
     s:{ text:'校门口。', next:'t' },
     t:{ text:'墙根底下站着个人。', next:'u' },
-    u:{ text:'是 lg7。他手里还拎着那个没开封的饭盒。', next:'v' },
-    v:{ text:'他看见我了。\n\n他没动。', opts:[
+    u:{ text:'是 lg7。\n\n他就那样站着，手插在兜里，什么也没拿。', next:'v' },
+    v:{ text:'他看见我了。他没动。', opts:[
          { t:'（走过去，把那页笔记念给他听）', go:'n1', if:'译出化学笔记' },
          { t:'（走过去，跟他说那个人不会再来了）', go:'s1' },
          { t:'（跑出去。别理他。）',             go:'go' } ]},
@@ -2656,29 +2678,29 @@ var TALK = {
     n1:{ text:'我把那页笔记摊开。\n\n蓝墨水，横格纸。', next:'n2' },
     n2:{ text:'我念了一遍。', next:'n3' },
     n3:{ text:'他一开始只是听着。', next:'n4' },
-    n4:{ text:'念到"老师"两个字的时候，他手里的饭盒抖了一下。', next:'n5' },
+    n4:{ text:'念到"老师"两个字的时候，他往后退了半步。', next:'n5' },
     n5:{ text:'我念完最后一行，停下。', next:'n6' },
-    n6:{ text:'（他没说话。）\n\n（很久。）', next:'n7' },
+    n6:{ text:'他没说话。\n\n很久。', next:'n7' },
     n7:{ text:'"……他字还是这么难看。"', next:'n8' },
-    n8:{ text:'（他蹲下去，把饭盒放在墙根上。）\n\n（放得很正。）', next:'n9' },
-    n9:{ text:'"三年了。"', next:'n10' },
-    n10:{ text:'"我每天早上六点二十到这儿。"\n\n"他要是来，得从那个路口拐进来。"', next:'n11' },
-    n11:{ text:'"我没等到过。"\n\n"一次都没有。"', next:'n12' },
-    n12:{ text:'他站直了，拍了拍手上的土。', next:'n13' },
-    n13:{ text:'"……行了。"\n\n"回去吧。今天别迟到。"', set:'告诉lg7', end:true },
+    n8:{ text:'他蹲下去了。\n\n（墙根底下什么也没有 —— 就是一道墙根。）', next:'n9' },
+    n9:{ text:'"那天早上，人是我送进去的。"', next:'n10' },
+    n10:{ text:'"报名表是我填的。签名也是我签的。"', next:'n11' },
+    n11:{ text:'"我那天早上在楼下。我听见楼上一间一间地笑。"', next:'n12' },
+    n12:{ text:'"等我上去的时候，屋里只剩他一个 —— "', next:'n13' },
+    n13:{ text:'他没说完。\n\n他站起来，拍了拍手上的土。\n\n"……行了。回去吧。今天别迟到。"', set:'告诉lg7', end:true },
 
     /* ② 没带笔记，只说一句 */
-    s1:{ text:'"……那个人，不会再来了。"', next:'s2' },
+    s1:{ text:'"……那个人，不会再出来了。"', next:'s2' },
     s2:{ text:'他"嗯"了一声。', next:'s3' },
-    s3:{ text:'"我知道。"\n\n"我早就知道了。"', next:'s4' },
-    s4:{ text:'（他把饭盒放下。）\n\n（放得很正。）', next:'s5' },
-    s5:{ text:'"……可我还是每天来。"', next:'s6' },
-    s6:{ text:'他蹲下去了。', set:'告诉lg7', end:true },
+    s3:{ text:'"我知道。\n\n我早就知道了。"', next:'s4' },
+    s4:{ text:'（他没动。）', next:'s5' },
+    s5:{ text:'"……可我每天还是从那个路口过。"', next:'s6' },
+    s6:{ text:'他不说话了。', set:'告诉lg7', end:true },
 
     /* ③ 不理他 */
     go:{ text:'我没停。', next:'go2' },
     go2:{ text:'跑到路口的时候，我回头看了一眼。', next:'go3' },
-    go3:{ text:'（他还蹲在那儿。）\n\n（把饭盒往墙根推了推。）', end:true }
+    go3:{ text:'（他还站在那儿。）', end:true }
   }},
 
   chase_go: { nodes:{
@@ -2688,7 +2710,7 @@ var TALK = {
     v:{ text:'身后 —— 一整排门，同时开了。', sh:0.6, next:'w' },
     w:{ text:'他们从每一间教室里出来。\n\n很多。全都穿着校服。', next:'x' },
     x:{ text:'他们不喊，也不跑。他们只是一个一个地点数。', next:'y' },
-    y:{ text:'我只剩六分钟。\n\n校门在最南边。中间隔着一整座校园。', set:'被追了', card:true, end:true }
+    y:{ text:'我只剩六分钟。\n\n校门在最南边。中间隔着一整座校园。', set:'被追了', card:true, scene:'line_up', end:true }
   }},
 
   /* ==================== 二楼 ====================
@@ -2708,7 +2730,7 @@ var TALK = {
     s:{ text:'我从屋里出来。', next:'t' },
     t:{ text:'楼下有人在整队。脚步声一层一层往上扫。', next:'u' },
     u:{ text:'广播还没停。\n\n全校只有一处能把它掐掉 —— 科技楼，网控中心。', next:'v' },
-    v:{ text:'科技楼在校园最北头。从这儿过去，要横穿整个校园。', set:'该去科技楼了', end:true }
+    v:{ text:'科技楼在校园最北头。从这儿过去，要横穿整个校园。', set:'该去科技楼了', scene:'bell_nobody', end:true }
   }},
 
   lg7_pen: { nodes:{
@@ -2717,7 +2739,7 @@ var TALK = {
     u:{ text:'—— 这个。', next:'v' },
     v:{ text:'是那支翻译笔。外壳上的字全花了。\n\n他从水桶里捞出来的。', next:'w' },
     w:{ text:'捏了整整一年。', next:'x' },
-    x:{ text:'带上。\n\n他没解释，转身就走了。', set:'有翻译笔', end:true }
+    x:{ text:'带上。\n\n他没解释，转身就走了。', set:'有翻译笔', scene:'noon_nobody', end:true }
   }},
 
   f2_enter: { nodes:{
@@ -2738,7 +2760,7 @@ var TALK = {
   }},
 
   f2_door_death: { nodes:{ s:{
-    text:'我推门进去。\n\n念名字的声音就在门后面。\n\n它念到了我。',
+    text:'我推门进去。\n\n（念名字的声音就在门后面。）\n\n（它还带着一串笑。）',
     kill:true, end:true }}},
 
   /* 值日表：日期对得上，星期对不上 —— 这是全篇最关键的一处"对不上" */
@@ -2847,14 +2869,44 @@ var TALK = {
   scare_45: { nodes:{
     s:{ text:'45 班的门开着。', next:'t' },
     t:{ text:'里头黑着。窗帘拉得很严，缝里也没有光。像里面根本没装灯。', next:'u' },
-    u:{ text:'守则第五条：门开着的时候，不要往里看。\n\n我从门口走过去。\n走的时候，听见里面有人翻了翻书。',
+    u:{ text:'守则第五条：门开着的时候，不要往里看。\n\n我从门口走过去。\n\n（走过去的时候，里头有人笑了一声。\n\n　跟我的声音一模一样。）',
         set:'45班有人', end:true }
   }},
 
   /* 第四条如果破了 —— 站在玻璃前面不动，就是死。
      这是"告诉你规矩、再让你自己撞上去"的那一下 */
+  /* 新：在笑的人堆里站久了 —— 跟着笑出声 */
+  crowd_death: { nodes:{
+    s:{ text:'走廊里全是人。\n\n他们扶着墙，笑着；一层一层地笑过来。\n\n（你要是站在这儿不动 —— ）', end:true }
+  }},
+
+  /* 那三张讲桌：打起来的时候是"按它"，平时按只是看一眼 */
+  /* 三教广播室：学校那台机器自己在放东西 */
+  h3_pa: { nodes:{
+    s:{ text:'广播室。一台老式广播机，电源指示灯亮着，可没人在。', next:'t' },
+    t:{ text:'调音台的推子全推到头了 —— 红色的限幅灯一下一下地跳。', next:'u' },
+    u:{ text:'（它一直在往外放。）\n\n（放的不是下课铃。）', set:'找过广播机', end:true }
+  }},
+  h3_log: { nodes:{
+    s:{ text:'门后挂着一本值班记录，一行一次启动。', next:'t' },
+    t:{ text:'（那一页从早上六点开始记。）\n\n（六点、六点二十、六点四十、七点、七点二十、七点四十、八点、八点二十……）', next:'u' },
+    u:{ text:'（一行一行往下数。）',
+        ask:{ key:'11', len:2, to:'ok', ask:'记录上一共几行？' } },
+    ok:{ text:'十一行。\n\n最后一行的末尾，笔停了。\n\n（写记录的人，从那一刻起就没再往下写。）', set:'数过广播记录', end:true }
+  }},
+
+  /* 二楼那间不笑的屋子 —— 待久了照样出事 */
+  room_death: { nodes:{
+    s:{ text:'屋里是静的。\n\n静得能听见自己的笔尖。', next:'t' },
+    t:{ text:'（可我身上还带着外面那些笑。）\n\n（它在我这儿，不在屋里。）', end:true }
+  }},
+
+  plat_nw: { nodes:{ s:{ text:'西北那张讲桌。\n\n桌面上什么也没有。', end:true } }},
+  plat_ne: { nodes:{ s:{ text:'东北那张讲桌。\n\n桌面上什么也没有。', end:true } }},
+  plat_s:  { nodes:{ s:{ text:'南边那张讲桌。\n\n桌面上什么也没有。', end:true } }},
+
   glass_death: { nodes:{ s:{
-    text:'我站住了。\n\n玻璃里头，我身后那个人也站住了。',
+    text:'我站住了。\n\n玻璃里头，我身后那个人也站住了 —— 他在笑。',
     end:true }}},
 
   /* ---------- 剧情片段 ----------
@@ -3286,7 +3338,7 @@ var TASKS = [
   { ch:2, who:'shui',  t:'45 班黑板上那半行字',        f:'看过黑板式子' },
   { ch:2, who:'shui',  t:'实验楼墙上那张周期表',       f:'查过周期表' },
   { ch:2, who:'shui',  t:'行政楼抽屉里那个密码',       f:'拿回手机' },
-  { ch:2, who:'shui',  t:'墙根那个饭盒',               f:'墙根的饭盒', opt:true },
+  { ch:2, who:'shui',  t:'后山墙根那块新钉的木牌',               f:'墙根的饭盒', opt:true },
 
   { ch:2, who:'logic', t:'走到二楼走廊东头',         f:'zzx上楼了' },
   { ch:2, who:'logic', t:'自己去那间教室，把话说开',   f:'logic承认了' },
@@ -3300,6 +3352,8 @@ var TASKS = [
   { ch:3, who:'logic', t:'靠窗那张桌子坐下看看', f:'热椅子', opt:true },
   { ch:3, t:'二楼那间教室的值日表，对一下日期', f:'算过值日表', opt:true },
   { ch:3, t:'最后一排那张桌上的那局游戏',       f:'看过那局游戏', opt:true },
+  { ch:2, t:'三教那台没人管的广播机',           f:'找过广播机', opt:true },
+  { ch:2, t:'广播室那本值班记录，数一数',       f:'数过广播记录', opt:true },
   { ch:2, who:'laoli', t:'数一数教室墙上那张长名单', f:'数过名单', opt:true },
   { ch:2, who:'logic', t:'数一数走廊那排窗户',       f:'数过窗户', opt:true },
   { ch:2, who:'laoli', t:'45 班那张桌子上的两个名字', f:'45班那张桌子', opt:true },
@@ -3347,10 +3401,17 @@ function progressNow(){
    NPC 按点换地方：sched 写 [起始分钟, 结束分钟, x, y]。
    ============================================ */
 var CLOCK_START = 6 * 60 + 50;           // 06:50 到校
-var CLOCK_END   = 10 * 60 + 36;          // 10:36 出校门
+var CLOCK_END   = 22 * 60 + 30;          // 22:30 熄灯（这一整天才结束）
+/* 时间分档：旗标跟着时间自己立、自己撤。
+   这一版是"一整天"，从早读一路排到夜里 */
 var BANDS = [
   { from: 6*60+40, to:  7*60+30, flag:'早读' },
-  { from: 7*60+30, to: 11*60+40, flag:'上课' }
+  { from: 7*60+30, to: 11*60+40, flag:'上课' },
+  { from: 11*60+40,to: 13*60+0, flag:'午休' },
+  { from: 13*60+0,to: 17*60+0, flag:'下午' },
+  { from: 17*60+0,to: 18*60+0, flag:'放学' },   // 铃响了，没人走
+  { from: 18*60+0,to: 21*60+0, flag:'天黑了' },
+  { from: 21*60+0,to: 22*60+30, flag:'熄灯前' }
 ];
 function clockText(min){
   var m = ((Math.floor(min) % 1440) + 1440) % 1440;
@@ -3499,6 +3560,220 @@ function droneOff(){ if (droneOsc){ try { droneOsc.stop(); droneOsc.disconnect()
   try { if (droneGain) droneGain.disconnect(); } catch (e){}
   droneOsc = null; droneGain = null; } }
 
+/* ==================== 过场演出 ====================
+   一段一段排队放：黑场、字、抖、音、还有"现场"动作。
+   放的时候不收操作 —— 不然玩家能一边看演出一边跑路。
+   每一拍的写法：
+     { text:'…', secs:3.2 }   出一张全屏字
+     { sh:0.8 }               抖一下
+     { fade:1 } 黑掉 / { fade:0 } 亮回来
+     { wait:1.2 }             干等
+     { bell:2 } / { blip:1 }  音
+     { live:function(){} }    现场动一下
+*/
+var SCENES = {};
+
+/* ---- 开场：从校门口到教室里那一片笑 ---- */
+SCENES.open_laugh = [
+  { fade: 1, wait: 0.3 },
+  { text: '六点五十。\n\n围墙里面有一片声音 —— 闷着的，一层压着一层。\n\n是笑声。', secs: 4.0, fade: 0 },
+  { text: '不是一个两个人在笑。\n\n是整座学校。', secs: 3.6, sh: 0.4, bell: 1 },
+  { fade: 0.2 }
+];
+
+/* ---- 推门进教室那一下 ---- */
+SCENES.open_class_laugh = [
+  { fade: 1, wait: 0.4 },
+  { text: '推开门。\n\n一屋子人都在笑 —— 笑着翻书、笑着写字、笑着回过头来看我。', secs: 4.2, fade: 0, sh: 0.6 },
+  { text: '（没有一个停下来。）\n\n（我也想笑。从腮帮子往上顶。）', secs: 3.8, sh: 0.4 },
+  { text: '（我咬住牙，把它压下去了。）', secs: 2.8 },
+  { fade: 0.1 }
+];
+
+/* ---- 干掉奶蛙之后：把所有事情讲明白 ----
+   玩家熬了一整天，最后要的就是这个。一段一段给他说清楚，
+   最后才落到各人自己的结局上 */
+SCENES.what_happened = [
+  { fade: 0.15 },
+  { text: '它瘪下去的时候，满楼的笑声一层一层地停了。\n\n走廊、教室、操场 —— 一层一层安静下来。', secs: 4.6 },
+  { text: '\n\n【那天早上】\n\n46 班几个学生被叫去参加化学竞赛。', secs: 4.4 },
+  { text: '他们没去考场。\n\n他们进了实验楼三楼那间化学竞赛辅导室。', secs: 4.2 },
+  { text: '他们在里面"合成"了一个东西。\n\n记录本上写着：失败、失败、失败……第七次，它动了一下。', secs: 5.0 },
+  { text: '「我们几个都笑了 ——\n\n　不是它让我们笑的。是我们自己笑的。」', secs: 5.0 },
+  { text: '它笑了。它一笑，整栋楼跟着笑，停不下来。', secs: 4.4, sh: 0.4 },
+  { text: '【学校做了什么】\n\n把学生送去了医院。\n\n把那间屋子封了。', secs: 4.6 },
+  { text: '牌子还钉在那儿：「化学竞赛辅导室在三楼」。\n\n牌子没有说谎 —— 是他们把三楼封了。', secs: 5.2 },
+  { text: '【那它为什么今天又笑了】\n\n因为它一直没停过。', secs: 4.2, bell: 1 },
+  { text: '封得住屋子，封不住声音。\n\n今天早上，它漏到了整座学校。', secs: 4.8, sh: 0.5 },
+  { text: '【最后那间屋里】\n\n最后一排靠门那个位子上，坐着个人。', secs: 4.6 },
+  { text: '他是那天早上没走出来的那个。\n\n他一直坐在那儿，等着有人念到他的名字。', secs: 5.0 },
+  { text: '报名表是 lg7 填的。\n\n他签的字。', secs: 4.2 },
+  { text: '所以他一进门就把那东西捧走了 ——\n\n他知道那是什么。他比谁都知道。', secs: 5.0, sh: 0.3 },
+  { fade: 0.3 }
+];
+
+/* ---- 三条线各一张入口卡：一眼知道自己这条线在查什么 ---- */
+SCENES.route_laoli = [
+  { fade: 0.4, wait: 0.2 },
+  { text: '【牢李】\n\n全班都在笑。\n\n只有 45 班那间屋子是空的，也是静的。', secs: 4.4, fade: 0.05 },
+  { text: '他今天本来就要弄明白那间屋子。\n\n现在，他更要弄明白。', secs: 4.4 }
+];
+SCENES.route_shui = [
+  { fade: 0.4, wait: 0.2 },
+  { text: '【水哥】\n\n他今天早上已经被 lg7 骂了 —— 就因为他笑了一声。', secs: 4.6, fade: 0.05 },
+  { text: '满楼的人笑个不停，没人管。\n\n他笑一声，挨骂。\n\n这里头有他不该知道的事。', secs: 5.0 }
+];
+SCENES.route_logic = [
+  { fade: 0.4, wait: 0.2 },
+  { text: '【logic】\n\n整栋楼都在笑。\n\n只有走廊尽头那一间，安安静静。', secs: 4.6, fade: 0.05 },
+  { text: '那是他的地方。\n\n一开学他就知道那间屋子不对劲 —— 他没跟任何人说过。', secs: 5.0 }
+];
+
+/* ---- 中午：食堂开着，没有人 ---- */
+SCENES.noon_nobody = [
+  { fade: 1, wait: 0.3 },
+  { text: '中午十二点。\n\n食堂开着，灯全亮着，饭菜还热着。', secs: 3.6, fade: 0 },
+  { text: '打饭的窗口前排着队。\n\n队伍一动不动。', secs: 3.4 },
+  { text: '（他们在原地笑。\n\n没有人往前挪。）', secs: 3.8, sh: 0.4 },
+  { fade: 0.15 }
+];
+
+/* ---- 放学：铃响了，没人走 ---- */
+SCENES.bell_nobody = [
+  { fade: 1, wait: 0.3 },
+  { text: '五点三十。\n\n放学铃响了。', secs: 3.2, fade: 0, bell: 2 },
+  { text: '走廊里、楼梯上、教室里 ——\n\n没有一个人站起来。', secs: 4.0 },
+  { text: '老师笑着摆摆手，学生笑着收拾书包。\n\n然后笑着，坐回去了。', secs: 4.4, sh: 0.5 },
+  { fade: 0.15 }
+];
+
+/* ---- 21:30 整队 ---- */
+SCENES.line_up = [
+  { fade: 1, wait: 0.3 },
+  { text: '灯一排一排地灭。', secs: 3.0, fade: 0, sh: 0.4 },
+  { text: '走廊里那些人不再乱笑了。', secs: 3.2 },
+  { text: '他们整整齐齐排成一排一排 ——\n\n笑着往前走，笑着数人头。', secs: 4.2, sh: 0.7 },
+  { text: '他们不是在抓我。\n\n他们要赶在熄灯前，把我数进去。', secs: 4.0, bell: 2 },
+  { fade: 0.2 }
+];
+
+/* ---- 22:30 熄灯 / 推门 ---- */
+SCENES.lights_out = [
+  { fade: 1, wait: 0.4 },
+  { text: '二十二点三十。\n\n全校熄灯。', secs: 3.6, fade: 0 },
+  { text: '黑暗里，笑声还在。', secs: 3.0, sh: 0.6 },
+  { text: '我推开三楼那扇门。', secs: 3.0, bell: 1 },
+  { text: '屋里是那天早上七点十分。\n\n黑板上的题没写完，窗户上还有雾。', secs: 4.4, sh: 0.3 },
+  { text: '最后一排靠门那个位子上，坐着个人。', secs: 4.0, fade: 0.05 }
+];
+
+function playScene(name, after){
+  var list = SCENES[name];
+  if (!list){ if (after) after(); return; }
+  M.cut = { list: list, i: -1, t: 0 };
+  M.cutAfter = after || null;
+  cutNext();
+}
+function cutNext(){
+  var C = M.cut;
+  if (!C) return;
+  C.i++;
+  if (C.i >= C.list.length){
+    M.cut = null;
+    var f = M.cutAfter; M.cutAfter = null;
+    if (f) f();
+    return;
+  }
+  var b = C.list[C.i];
+  C.t = b.secs || b.wait || 3.0;
+  if (b.fade !== undefined) M.fade = b.fade;
+  if (b.sh) shake(b.sh);
+  if (b.bell) sfxBell(b.bell);
+  if (b.blip) sfxBlip();
+  if (b.text) card(b.text, C.t);
+  if (b.live) b.live();
+}
+function cutTick(dt){
+  var C = M.cut;
+  if (!C) return;
+  /* 按任意键 / 点一下 = 跳这一拍（按住就一路快进）——
+     开场那两段十几秒不能跳的话，第二遍玩的人要骂人 */
+  if (keys['w'] || keys['a'] || keys['s'] || keys['d'] ||
+      keys[' '] || keys['z'] || keys['enter'] || keys['shift']) C.t = 0;
+  C.t -= dt;
+  if (C.t <= 0) cutNext();
+}
+
+/* ==================== 笑 ====================
+   这一版全场只有一个恐怖：笑。
+   底噪是笑的，画面边上是笑的，玩家自己也一直在忍着。
+   M.laugh 0..1：靠近笑的人涨、退开落；满了就笑出声 —— 笑出声就完了 */
+var LAUGH_BASE = 0.008;   // 每秒最低涨幅（越到晚上越快）
+var LAUGH_NEAR = 0.032;   // 身边有人笑的时候
+var LAUGH_FALL = 0.10;    // 身边没人时往回落
+var laughVig = document.getElementById('vig');
+
+function laughNearby(){
+  var n = 0, i;
+  for (i = 0; i < CROWD.length; i++){
+    var c = CROWD[i];
+    if (c.map !== M.map) continue;
+    if (Math.hypot(c.x*TILE + TILE/2 - M.p.x, c.y*TILE + TILE/2 - M.p.y) < TILE*5.5) n++;
+  }
+  /* 到了晚上，连空走廊也在传笑 —— 给夜场加压力 */
+  if (flagOn('天黑了') || flagOn('熄灯前')) n += 1;
+  return n;
+}
+function laughTick(dt){
+  if (M.screen !== 'play' || M.chase || M.boss || M.dying > 0){ laughSet(0); return; }
+  /* 念对白、翻本子、看过场的时候停住 ——
+     不然玩家读着读着就被自己的笑填满了，那是"卡住"，不是恐怖 */
+  if (M.talk.open || M.book || M.cut || M.cardT > 0) return;
+  var m = M.clock / 1440;
+  var rate = LAUGH_BASE * (1 + m * 2.2);
+  var near = laughNearby();
+  if (near > 0) M.laugh = Math.min(1, (M.laugh || 0) + (LAUGH_NEAR * Math.min(near, 4) / 4 + rate) * dt);
+  else          M.laugh = Math.max(0, (M.laugh || 0) - LAUGH_FALL * dt);
+  laughSet(M.laugh);
+  if (M.laugh >= 1){
+    M.laugh = 0; laughSet(0);
+    die('你笑出声了。');
+  }
+}
+/* 画面边上那圈白：涨得越高越糊、越晃 */
+function laughSet(v){
+  if (laughVig) laughVig.style.opacity = (0.15 + 0.85 * v).toFixed(2);
+  laughAudio(v);
+}
+
+/* ---- 笑声底噪：一段噪声 + 每秒五下的"哈哈"起伏 ---- */
+var laughSrc = null, laughGain = null, laughLFO = null, laughLfoGain = null;
+var laughWant = 0;
+function laughAudio(v){
+  laughWant = v;
+  if (!AC || !SND) return;
+  if (!laughSrc){
+    try {
+      var n = Math.floor(AC.sampleRate * 1.6);
+      var buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
+      var q = 0;
+      for (var i = 0; i < n; i++){ q = 0.985 * q + (Math.random()*2-1) * 0.15; d[i] = q; }
+      laughSrc = AC.createBufferSource(); laughSrc.buffer = buf; laughSrc.loop = true;
+      var bp = AC.createBiquadFilter(); bp.type = 'bandpass';
+      bp.frequency.value = 620; bp.Q.value = 0.9;
+      laughGain = AC.createGain(); laughGain.gain.value = 0;
+      laughLFO = AC.createOscillator(); laughLFO.frequency.value = 5.2;
+      laughLfoGain = AC.createGain(); laughLfoGain.gain.value = 0.55;
+      laughLFO.connect(laughLfoGain); laughLfoGain.connect(laughGain.gain);
+      laughSrc.connect(bp); bp.connect(laughGain); laughGain.connect(AC.destination);
+      laughSrc.start(); laughLFO.start();
+    } catch (e){ laughSrc = null; }
+  }
+  if (laughGain){
+    try { laughGain.gain.setTargetAtTime(laughWant * 0.16, AC.currentTime, 0.35); } catch (e){}
+  }
+}
+
 /* ==================== 状态 ==================== */
 function freshTalk(){
   return { open:false, npc:null, who:null, nodeId:null, sel:0, shown:[],
@@ -3506,6 +3781,7 @@ function freshTalk(){
 }
 var M = {
   screen:'title',            // title | pick | play
+  laugh:0,                   // 笑欲值 0..1
   me:null,                   // 玩家选的角色
   p:{ x:0, y:0, dir:'down', anim:0, moving:false },
   npcs:[],
@@ -3589,7 +3865,8 @@ function saveGame(){
       me: M.me.id, map: M.map, x: M.p.x, y: M.p.y, clock: M.clock,
       flags: FLAGS, talked: M.talked, reentry: M.reentry, seq: M.seq,
       doors: DOOR_OPEN, toiletN: M.toiletN || 0,
-      walked: M.walked || 0, urgeNext: M.urgeNext || 0, urgeGap: M.urgeGap || URGE_STEP
+      walked: M.walked || 0, urgeNext: M.urgeNext || 0, urgeGap: M.urgeGap || URGE_STEP,
+      laugh: M.laugh || 0
     }));
   } catch (e){}          // 隐私模式之类存不了就算了，不能因为存档把游戏搞崩
 }
@@ -3613,6 +3890,7 @@ function loadGame(){
   /* 走了多远也跟着回来 —— 不存的话读一次档，计数器归零，
      一出厕所就又是一趟 */
   M.walked = s.walked || 0;
+  M.laugh = s.laugh || 0;
   M.urgeGap = s.urgeGap || URGE_STEP;
   M.urgeNext = s.urgeNext || ((M.walked) + M.urgeGap);
   if (M.toiletN > 0) toiletEnter2();     // 把『厕所第N回』重新立上（别再多算一趟）
@@ -3814,7 +4092,7 @@ function die(why, delay){
 /* 一排一排压过来的速度。你跑得比他们快得多，但你是迎着头撞上去的 ——
    躲的是那个缝，不是速度 */
 var CHASE_SPD   = 118;
-var CHASE_RATE  = 6 / 90;              // 六分钟游戏时间，压进大约 90 秒
+var CHASE_RATE  = 60 / 90;             // 从 21:30 跑到 22:30 熄灯，压进大约 90 秒
 var WAVE_EVERY  = 2.6;                 // 隔多久来一排
 var WAVE_AHEAD  = 21;                  // 提前多少格出排（给够看缝的时间）
 var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic',
@@ -3855,7 +4133,7 @@ function restartFromChase(){
   M.chase = null;                        // 先清掉，startChase 才肯重开
   loadMap('campus', 39, 44);             // 科技楼门口 —— 人排就是从这儿往南压过来的
   setFlag('被追了');
-  setClock(10 * 60 + 30);
+  setClock(21 * 60 + 30);
   startChase(true);                      // 人已经在校门外了，waveT 会自己给成 1.4
   toast('（它又笑了。得从科技楼那儿再跑一趟。）', 3.0);
   sfxBell(2);
@@ -3864,7 +4142,7 @@ function restartFromChase(){
 function startChase(fromRespawn){
   if (M.chase) return;
   if (!fromRespawn) setFlag('被追了');   // 先立旗标再存档：读档回来还得知道自己在被追
-  setClock(10*60 + 30);
+  setClock(21*60 + 30);                  // 整队是在熄灯前
   /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死 */
   if (flagOn('想上厕所')){ clearFlag('想上厕所'); M.urge = 0; }
   /* 在科技楼里开追的时候不出排（楼里放不下）——
@@ -4117,7 +4395,7 @@ function chaseTick(dt){
   if (chaseEl){
     chaseEl.querySelector('.big').textContent = clockText(M.clock);
     chaseEl.querySelector('.sm').textContent =
-      '离下课铃 ' + Math.max(0, Math.ceil(CLOCK_END - M.clock)) + ' 分';
+      '离熄灯 ' + Math.max(0, Math.ceil(CLOCK_END - M.clock)) + ' 分';
     var ctEl = chaseEl.querySelector('.ct');
     if (ctEl) ctEl.textContent = '已经数到 ' + Math.floor(C.count);
   }
@@ -4176,23 +4454,23 @@ function endChase(){
 function wallTail(told, notes){
   if (told && notes) return [
     '我走的时候，他还站在那儿。',
-    '他手里那个饭盒是空的。他打开了。',
-    '第二天早上六点二十，墙根底下没有饭盒。\n到今天也没再来。'
+    '他什么也没拿。',
+    '第二天早上，校门口那个位置空了。'
   ];
   if (told) return [
     '我走的时候，他还站在那儿。',
-    '第二天，墙根底下那个饭盒不见了。',
-    '放着的地方留了一圈干净的土。'
+    '第二天，他不在那儿了。',
+    '地上留着一圈干净的土 —— 像是一直有人站在那儿。'
   ];
   if (notes) return [
-    '墙根底下还有一个饭盒。',
-    '没开封。',
-    '纸条压在底下，还是那四个字。'
+    '后山那条路走到头，墙上新钉着一块木牌。',
+    '牌子上写着：此处墙体开裂，禁止靠近。',
+    '（可墙是好好的 —— 他们钉的不是墙。）'
   ];
   return [
     '我没往墙根那边看。',
-    '跑出校门的时候，我听见后面有人说了一句什么。',
-    '没听清。'
+    '跑出校门的时候，我听见后面有人笑了一声。',
+    '没回头。'
   ];
 }
 /* 你查清了几处，结尾就不是同一个结尾 ——
@@ -4405,6 +4683,7 @@ function startWalk(charId){
   M.clock = CLOCK_START;
   /* 走够 URGE_STEP 才来第一趟 —— 别一进校门就想上厕所 */
   M.urge = 0; M.urgePulse = 0; M.walked = 0; M.lightT = 0;
+  M.laugh = 0; laughSet(0);
   M.urgeGap = URGE_STEP; M.urgeNext = URGE_STEP;
   DOOR_OPEN = {};                // 新开一局，门全是关的
   M.progSig = '';                // 进度条下一条要重画
@@ -4860,6 +5139,7 @@ function gotoNode(id){
     if (node.relieve) relieveUrge();                      // 牢李上完了
     if (node.resolve) M.resolveAfter = true;               // 这声"到"答完就收尾
     if (node.boss) M.bossPending = true;                   // 念完这段再换图开打
+    if (node.scene) playScene(node.scene);                 // 这一句带一段过场
   }
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
@@ -5107,7 +5387,7 @@ function update(dt){
   if (flagOn('想上厕所')) spd *= 0.62;  // 牢李憋着的时候走不快
 
   var mvx = 0, mvy = 0;
-  if (M.screen === 'play' && !M.talk.open && !M.book){
+  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut){
     if (keys['a']||keys['arrowleft'])  mvx -= 1;
     if (keys['d']||keys['arrowright']) mvx += 1;
     if (keys['w']||keys['arrowup'])    mvy -= 1;
@@ -5134,6 +5414,8 @@ function update(dt){
   }
 
   dbgTick(dt);
+  cutTick(dt);
+  laughTick(dt);
 
   /* arena 上没 Boss 就是死局 —— 那张图没有出口，存档又不存战斗状态。
      读一次档回来就站在一张空图上动不了。这儿自愈：重开这一场；
@@ -7630,7 +7912,11 @@ clockEl.style.display = 'none';
         function drain(pick, ans){
           var g = 0;
           while (M.talk.open && g++ < 40){
+            var ndk = M.talk.script.nodes[M.talk.nodeId];
             if (M.pad){
+              /* 答案直接从题面上读（ask.key）—— 写死在表里的话，
+                 题面一改，探针就自己过期了 */
+              if (!ans && ndk && ndk.ask) ans = String(ndk.ask.key);
               if (ans){
                 for (var ci = 0; ci < ans.length; ci++) padKey(ans.charAt(ci));
                 padKey('定'); ans = '';
@@ -7685,8 +7971,7 @@ clockEl.style.display = 'none';
           var got = pressByName(S2.talk);
           var seen = got ? ((M.talk.script.nodes[M.talk.nodeId].text || '')
                             .replace(/\s+/g, '').slice(0, 12)) : '按不开';
-          drain(S2.how === 'opt' ? S2.pick : undefined,
-                S2.how === 'ask' ? S2.ans : '');
+          drain(S2.how === 'opt' ? S2.pick : undefined, '');   // 答案一律从题面读
           var done = flagOn(sideFlag({ b: S2.b, who: wh2 }));
           if (done) okinv++;
           out.push((done ? '[过] ' : '[死] ') + S2.b + ' 线索=' + clOk +
@@ -7986,17 +8271,25 @@ clockEl.style.display = 'none';
       if (mode === 'ask'){
         /* 只为一件事：把数字键盘那一屏停住，截图看它有没有压住要答的那句话 */
         startWalk('laoli'); M.fade = 0;
-        setFlag(['是:laoli','可以走动了','该上二楼了']);
-        loadMap('museum', 3, 13);
+        setFlag(['是:laoli','可以走动了','该上二楼了','擦完墙']);
+        var am3 = /[?&]o=(\w+)/.exec(q);
+        var ob = am3 ? am3[1] : 'sd_museum_laoli';
+        var at = null;
+        Object.keys(MAPS).forEach(function(mid){
+          (MAPS[mid].objs || []).forEach(function(O){ if (O.talk === ob) at = mid; });
+        });
+        loadMap(at || 'museum', MAPS[at || 'museum'].spawn[0], MAPS[at || 'museum'].spawn[1]);
         M.portalCool = 0; M.talk.cool = 0;
-        pressByName('sd_museum_laoli');
+        pressByName(ob);
         var ga = 0;
         while (M.talk.open && ga++ < 20){
           var ndA = M.talk.script.nodes[M.talk.nodeId];
           if (ndA && ndA.ask) break;
           M.talk.typed = 1e9; advanceOrChoose();
         }
-        out.push('键盘=' + (M.pad ? 'on' : 'off') + ' 正文=' +
+        out.push('对象=' + ob + ' 键盘=' + (M.pad ? 'on' : 'off') +
+                 '（key=' + (M.pad ? M.pad.key : '-') + ' len=' + (M.pad ? M.pad.len : '-') +
+                 ' 打的字=' + (M.pad ? M.pad.buf : '-') + '） 节点=' + M.talk.nodeId + ' 正文=' +
                  (M.talk.script ? (M.talk.script.nodes[M.talk.nodeId].text || '') : '—'));
       }
       if (mode === 'snd'){
@@ -8071,7 +8364,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v13';
+var BUILD = 'v14';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
