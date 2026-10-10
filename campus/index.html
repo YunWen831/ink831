@@ -221,13 +221,22 @@
   #press button:active { transform:scale(.95); }
 
   /* 场景卡：大段旁白走这里，不走聊天框 */
+  /* 过场不再是一整块黑屏 —— 改成底下压一层薄暗、字当字幕挂在下面。
+     底下的教室、走廊、人还看得见，玩家知道自己站在哪儿 */
   #card { position:absolute; inset:0; z-index:10; pointer-events:none;
-    display:flex; align-items:center; justify-content:center;
-    background:#0b0a09; opacity:0; transition:opacity .5s; }
+    display:flex; align-items:flex-end; justify-content:center;
+    padding-bottom:calc(12vh + env(safe-area-inset-bottom,0px));
+    background:linear-gradient(to bottom,
+      rgba(8,7,6,0) 0%, rgba(8,7,6,.10) 45%, rgba(8,7,6,.34) 100%);
+    opacity:0; transition:opacity .35s; }
   #card.on { opacity:1; }
-  #card span { max-width:min(80vw,620px); text-align:center;
-    font-size:clamp(15px,4vw,22px); line-height:2.1; letter-spacing:.06em;
-    color:#e8e4dc; white-space:pre-wrap; }
+  /* 字自己带一块底 —— 压在地板上也读得清，而屏幕上其它地方全亮着 */
+  #card span { max-width:min(88vw,660px); text-align:center;
+    font-size:clamp(15px,4vw,22px); line-height:2.0; letter-spacing:.06em;
+    color:#f4f1ea; white-space:pre-wrap;
+    background:rgba(8,7,6,.80); border-radius:10px;
+    padding:10px 18px; box-shadow:0 6px 26px rgba(0,0,0,.55);
+    text-shadow:0 1px 6px rgba(0,0,0,.9); }
 
   /* 目标那一行。挂在左上角时间和地点的下面 */
   #goal { position:absolute; z-index:5; pointer-events:none;
@@ -4052,7 +4061,7 @@ function respawn(){
   loadMap(CP.map, 0, 0);
   M.p.x = CP.x; M.p.y = CP.y;
   M.clock = CP.clock;
-  M.fade = 0.9; M.portalCool = 1.0;
+  M.fade = 0.55; M.portalCool = 1.0;
   M.chase = null;                        // 追逐战的东西全清掉
   /* 可是"被追着"这件事还在旗标里 —— 死在追逐里读档回来，
      队得重新整起来，不然走到校门也不会结算，人就卡死在那儿了 */
@@ -8352,7 +8361,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v18';
+var BUILD = 'v19';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
