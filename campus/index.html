@@ -160,6 +160,15 @@
   /* 他们数到几了。小小的，一直在往上走 */
   #chase .ct { font-size:clamp(10px,2.8vw,13px); opacity:.5; letter-spacing:.14em;
     margin-top:3px; font-variant-numeric:tabular-nums; }
+  /* BOSS 的血条：挂在上头正中 */
+  #boss { position:absolute; z-index:6; pointer-events:none; display:none;
+    left:50%; transform:translateX(-50%);
+    top:calc(14px + env(safe-area-inset-top,0px)); text-align:center;
+    text-shadow:0 2px 6px rgba(0,0,0,.85); }
+  #boss.on { display:block; }
+  #boss .nm { font-size:clamp(11px,3vw,14px); letter-spacing:.3em; opacity:.75; }
+  #boss .hp { font-size:clamp(18px,5vw,24px); color:#e05a4a; letter-spacing:.2em; }
+  #boss .lf { font-size:clamp(11px,3vw,14px); color:#e8a33d; letter-spacing:.25em; }
 
   /* ---------- 画面层 ----------
      以前所有东西都塞进底下那个黑框里，那是最偷懒的做法。
@@ -284,6 +293,7 @@
 <button id="btnFast" type="button">疾</button>
 <div id="toast"></div>
 <div id="chase"><div class="big"></div><div class="sm">离下课铃</div><div class="ct"></div></div>
+<div id="boss"><div class="nm"></div><div class="hp"></div><div class="lf"></div></div>
 
 <div class="screen" id="scOver">
   <div id="overTxt"></div>
@@ -1122,12 +1132,12 @@ makeMap('hill', {
   objs: [
     { x:2,  y:3, ox:0, oy:-6, art:'moss', who:'墙根那排苔', verb:'蹭一下',
       talk:'wipe_intro', once:true, cp:'后山' },
-    { x:6,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:1, if:'看到六块苔', talk:'wipe_1' },  // 上
-    { x:18, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:2, if:'看到六块苔', talk:'wipe_2' },  // 师
-    { x:3,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:3, if:'看到六块苔', talk:'wipe_3' },  // 如
-    { x:12, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:4, if:'看到六块苔', talk:'wipe_4' },  // 玻
-    { x:15, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:5, if:'看到六块苔', talk:'wipe_5' },  // 门
-    { x:9,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
+    { x:6,  y:4, art:'moss', who:'苔 · 上',   verb:'擦开', seq:1, if:'看到六块苔', talk:'wipe_1' },  // 上
+    { x:18, y:4, art:'moss', who:'苔 · 师',   verb:'擦开', seq:2, if:'看到六块苔', talk:'wipe_2' },  // 师
+    { x:3,  y:4, art:'moss', who:'苔 · 如',   verb:'擦开', seq:3, if:'看到六块苔', talk:'wipe_3' },  // 如
+    { x:12, y:4, art:'moss', who:'苔 · 玻',   verb:'擦开', seq:4, if:'看到六块苔', talk:'wipe_4' },  // 玻
+    { x:15, y:4, art:'moss', who:'苔 · 门',   verb:'擦开', seq:5, if:'看到六块苔', talk:'wipe_5' },  // 门
+    { x:9,  y:4, art:'moss', who:'苔 · 数',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
 
     /* 后山这三处支线：同一面墙，三个角色各看各的 */
     { x:16, y:7, art:'moss', who:'那面墙',     verb:'贴上去听', talk:'sd_hill_laoli', if:['是:laoli','可以走动了'], once:true },
@@ -1896,16 +1906,9 @@ var TALK = {
       kill1:{ text:'（走廊里那串名字，往下走了。）\n\n（没有再绕回来。）', sh:0.5, next:'kill2' },
       kill2:{ text:'（然后，讲台上那个东西笑了。）\n\n（很轻。像谁在喉咙里哼。）', next:'kill3' },
       kill3:{ text:'（屋里跟着笑起来。）\n\n（你也在笑。你捂不住嘴。）', sh:0.8, next:'kill4' },
-      kill4:{ text:'（你一步一步走过去。）\n\n（手按在讲台上。它就在你手底下 —— 还是热的。）', opts:[
-               { t:'（按住它）',       go:'kill5' },
-               { t:'（转身走掉）',     go:'walk' } ]},
-      kill5:{ text:'（它还在笑。）\n\n（你两只手一起按下去。）', next:'kill6' },
-      kill6:{ text:'（笑了很久。）', next:'kill7' },
-      kill7:{ text:'（—— 不笑了。）', sh:0.9, next:'kill8' },
-      kill8:{ text:'（你松开手。）\n\n（讲台上只剩一滩水。）\n\n（窗外的下课铃响了。）',
-              set:'干掉奶蛙', resolve:true, end:true },
-      walk:{ text:'（你退到门口。）\n\n（屋里还在笑。一间一间地传出去。）', next:'walk2' },
-      walk2:{ text:'（你把门带上了。）\n\n（走廊里，那一声还在。）', set:'没管它', resolve:true, end:true }
+      kill4:{ text:'（讲台上那个东西撑开了。）\n\n（一下子有脸盆那么大。绿得发白。）', next:'kill5' },
+      kill5:{ text:'（它笑。）\n\n（笑声是一圈一圈推出来的 —— 你听得见，也看得见。）', next:'kill6' },
+      kill6:{ card:'它笑的时候，屋里跟着笑。\n\n你也在笑，捂不住嘴。\n\n笑声一圈一圈推过来 ——\n从圈和圈中间穿过去。\n\n它停下来的那一下，走到讲台前面按一下。', boss:true, end:true }
     }
   },
 
@@ -3481,6 +3484,110 @@ function spawnWave(){
   }
   C.rows++;
 }
+/* ==================== 奶蛙 BOSS ====================
+   它不是追着你打 —— 它笑。笑声一圈一圈从讲台上推出来，
+   碰到就笑到跪下去。圈和圈之间有缝，你得从缝里过去；
+   它笑完一轮会歇一下，就那一下，走到讲台前面按一下才算打中。
+   三条命、它三格血。命数掉光不读档 —— 从头再来一遍。
+   ============================================ */
+function startBoss(){
+  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 0,
+             cd: 0, inv: 0, open: 0, cx: 0, cy: 0, dead: false, hurt: 0 };
+  var O = objByTalkHere('rs_frog');
+  M.boss.cx = (O ? O.x : 11) * TILE + TILE/2;
+  M.boss.cy = (O ? O.y : 3) * TILE + TILE/2;
+  bossHud(true);
+  toast('它笑了。', 2.0);
+  droneOn();
+}
+function bossHud(on){
+  var el = document.getElementById('boss');
+  if (!el) return;
+  el.classList.toggle('on', !!on);
+  if (on) bossHudDraw();
+}
+function bossHudDraw(){
+  var el = document.getElementById('boss');
+  if (!el || !M.boss) return;
+  var h = '';
+  for (var i = 0; i < 3; i++) h += (i < M.boss.hp) ? '●' : '○';
+  var l = '';
+  for (var j = 0; j < 3; j++) l += (j < M.boss.lives) ? '▮' : '▯';
+  el.innerHTML = '<div class="nm">奶蛙</div><div class="hp">' + h +
+                 '</div><div class="lf">' + l + '</div>';
+}
+function bossHit(){
+  var B = M.boss;
+  if (!B || B.dead) return false;
+  if (B.open <= 0){                        // 它还在笑，按了没用
+    toast('（现在按不动。等它停下来。）', 1.6);
+    return true;
+  }
+  B.hp--;
+  B.open = 0;
+  B.inv = 0.8;
+  sfxPick();
+  shake(0.5);
+  bossHudDraw();
+  if (B.hp <= 0){ bossEnd(); return true; }
+  toast('（按住了一下。）', 1.4);
+  return true;
+}
+function bossEnd(){
+  var B = M.boss; B.dead = true; M.boss = null;
+  bossHud(false);
+  droneOff();
+  sfxBell(3);
+  setFlag('干掉奶蛙');
+  showOver(endingFor());
+}
+function bossTick(dt){
+  var B = M.boss;
+  B.t += dt;
+  if (B.inv > 0) B.inv -= dt;
+  if (B.hurt > 0) B.hurt -= dt;
+  /* 一轮：先推两圈，再歇一下（那一下才是能打的时候） */
+  if (B.phase === 'wave'){
+    B.since -= dt;
+    if (B.since <= 0){
+      B.rings.push({ r: 8 });
+      B.since = 0.78;
+      B.open = 0;
+      sfxBlip();
+      if (B.rings.length >= (4 - B.hp) + 1){ B.phase = 'open'; B.cd = 1.5; }
+    }
+  } else {
+    B.cd -= dt;
+    B.open = Math.max(0, B.cd);
+    if (B.cd <= 0){ B.phase = 'wave'; B.since = 0.5; B.open = 0; }
+  }
+  /* 圈往外推 */
+  var i;
+  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 96 * dt;
+  B.rings = B.rings.filter(function(R){ return R.r < 520; });
+  /* 撞上就掉一条命 */
+  var px = M.p.x - B.cx, py = M.p.y - B.cy, d = Math.hypot(px, py);
+  if (B.inv <= 0){
+    for (i = 0; i < B.rings.length; i++){
+      if (Math.abs(d - B.rings[i].r) < 13){
+        B.lives--;
+        B.inv = 1.2;
+        B.hurt = 0.5;
+        flashRed(); shake(0.5);
+        bossHudDraw();
+        if (B.lives <= 0){
+          toast('（笑到跪下去了。……从头再来。）', 2.2);
+          M.boss = null;
+          setTimeout(function(){ if (M.screen === 'play') startBoss(); }, 900);
+          return;
+        }
+        toast('（你也在笑。笑到扶不住墙。）', 1.5);
+        break;
+      }
+    }
+  }
+}
+
 /* 把追兵整体挪到玩家身后（换图、或者从楼里冲出来的时候用） */
 function houndsBehind(){
   if (!M.chase) return;
@@ -4061,6 +4168,7 @@ function thingNear(){
 /* 按 E 动一个实物。走的是和触发区同一条效果管线。
    动过的还能再动一次 —— 只是那一次只把话重念一遍 */
 function pressObj(O){
+  if (M.boss && O && O.talk === 'rs_frog'){ bossHit(); return; }
   if (!objLive(O)) return;
   var k = objKey(O);
   if (objReplayable(O) && O.talk){
@@ -4344,6 +4452,7 @@ function runBeat(G, key, byPlayer){
   }
   if (G.card){ card(G.card, G.cardSecs); return; }    // 大段旁白走全屏，不走黑框
   if (G.chase) startChase();                          // 到这儿，整队开始
+  if (G.boss) startBoss();                            // 到这儿，它撑开了
   if (G.kill) M.killAfter = true;
   if (G.killMsg) M.deathMsg = G.killMsg;              // 这段话读完就死
   if (G.say) toast(G.say);                            // 或者只飘一行字
@@ -4429,6 +4538,7 @@ function update(dt){
   }
 
   /* 追逐战。被追上或者过了下课铃都会死 —— 死在哪儿就从哪个存档点重来 */
+  if (M.boss && M.screen === 'play' && !M.talk.open && !M.book) bossTick(dt);
   if (M.chase && M.screen === 'play' && !M.talk.open && !M.book){
     chaseTick(dt);
     if (M.dying > 0 || M.screen !== 'play') return;
@@ -4890,6 +5000,35 @@ function render(){
       }
     }
   });
+  /* ---- 奶蛙：一圈一圈往外推的"笑" ---- */
+  if (M.boss){
+    var B = M.boss;
+    B.rings.forEach(function(R, i2){
+      var al = Math.max(0, 1 - R.r / 520);
+      cx.strokeStyle = 'rgba(232,163,61,' + (0.55 * al).toFixed(2) + ')';
+      cx.lineWidth = 5;
+      cx.beginPath(); cx.arc(B.cx, B.cy, R.r, 0, 7); cx.stroke();
+      cx.strokeStyle = 'rgba(255,240,210,' + (0.25 * al).toFixed(2) + ')';
+      cx.lineWidth = 2;
+      cx.beginPath(); cx.arc(B.cx, B.cy, R.r, 0, 7); cx.stroke();
+    });
+    /* 它自己：一团绿，笑的时候鼓一下 */
+    var puff = B.phase === 'wave' ? 1 + 0.25 * Math.sin(B.t * 18) : 1;
+    cx.fillStyle = '#8fa86a';
+    cx.beginPath(); cx.arc(B.cx, B.cy, 16 * puff, 0, 7); cx.fill();
+    cx.fillStyle = '#a8bd80';
+    cx.beginPath(); cx.arc(B.cx - 4, B.cy - 5, 7 * puff, 0, 7); cx.fill();
+    cx.fillStyle = '#16160f';
+    cx.beginPath(); cx.arc(B.cx - 5, B.cy - 2, 2.4, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(B.cx + 4, B.cy - 2, 2.4, 0, 7); cx.fill();
+    /* 能打的那一下：讲台前面亮一圈 */
+    if (B.open > 0){
+      cx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.35 * Math.sin(B.t * 10)).toFixed(2) + ')';
+      cx.lineWidth = 3;
+      cx.beginPath(); cx.ellipse(B.cx, B.cy + 30, 26, 12, 0, 0, 7); cx.stroke();
+    }
+  }
+
   /* ---- 玻璃那一段：画面本身该有点东西，不能全靠字 ----
      走廊尽头那扇玻璃会反一下光。守则说别在它前面停下 */
   GLASS.forEach(function(g){
@@ -5765,6 +5904,30 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'boss'){
+        FLAGS = { '是:laoli': true };
+        loadMap('resolve', 8, 11);
+        M.fade = 0; M.screen = 'play'; M.talk.open = false;
+        FLAGS['@resolve:0'] = true;          // 开场那段先吃掉，专心测战斗
+        startBoss();
+        out.push('开打 hp=' + M.boss.hp + ' 命=' + M.boss.lives);
+        var k0 = 0;
+        for (k0 = 0; k0 < 900 && M.boss && M.boss.lives === 3; k0++){ update(1/60); M.talk.open = false; }
+        out.push('站着不动 ' + (k0/60).toFixed(1) + ' 秒 → 命=' + (M.boss ? M.boss.lives : '（战斗没了）') +
+                 ' 圈=' + (M.boss ? M.boss.rings.length : 0));
+        /* 现在是"它停下来的那一下"能不能打中 */
+        M.boss.inv = 9999;                       // 测试里先别让它把玩家打死
+        out.push('它还在笑的时候按 → ' + (function(){
+          M.boss.open = 0; var h0 = M.boss.hp; bossHit(); return M.boss.hp === h0 ? '不掉血 ✓' : '掉了 ✗'; })());
+        var hits = 0, guard = 0;
+        while (M.boss && M.boss.hp > 0 && guard++ < 20000){
+          update(1/60); M.talk.open = false;
+          if (M.boss && M.boss.open > 0){ bossHit(); hits++; }
+        }
+        out.push('趁空档按 ' + hits + ' 下 → hp=' + (M.boss ? M.boss.hp : 0) +
+                 ' 屏幕=' + M.screen);
+        out.push('结局=' + ((document.getElementById('overTxt').querySelector('h1') || {}).textContent || '（没结算）'));
       }
       if (mode === 'tiers'){
         /* 调查度 → 三档 → 结局。这条链是这一版新加的主干，得钉死 */
