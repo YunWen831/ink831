@@ -157,6 +157,9 @@
   #chase .big { font-size:clamp(18px,5vw,26px); font-weight:700; color:#e05a4a;
     letter-spacing:.06em; }
   #chase .sm { font-size:clamp(10px,2.8vw,13px); opacity:.75; letter-spacing:.1em; }
+  /* 他们数到几了。小小的，一直在往上走 */
+  #chase .ct { font-size:clamp(10px,2.8vw,13px); opacity:.5; letter-spacing:.14em;
+    margin-top:3px; font-variant-numeric:tabular-nums; }
 
   /* ---------- 画面层 ----------
      以前所有东西都塞进底下那个黑框里，那是最偷懒的做法。
@@ -280,7 +283,7 @@
 <button id="btnBook" type="button">本</button>
 <button id="btnFast" type="button">疾</button>
 <div id="toast"></div>
-<div id="chase"><div class="big"></div><div class="sm">离下课铃</div></div>
+<div id="chase"><div class="big"></div><div class="sm">离下课铃</div><div class="ct"></div></div>
 
 <div class="screen" id="scOver">
   <div id="overTxt"></div>
@@ -2950,24 +2953,49 @@ function chaseTick(dt){
     C.cpY = pyNow;
     checkpoint();                      // 不出提示：正跑着呢，别拿字糊屏幕
   }
+  /* 他们在数。数到几了，右上角那个数字一直往上走 ——
+     你跑你的，它数它的，谁也不看谁 */
+  /* 数到十九，就数完了 —— 而下课铃正好在那一刻响。
+     你能早点出去，就等不到他们数完。 */
+  C.count = Math.max(0, (M.clock - 10*60) * 3.17);
   if (clockEl) clockEl.textContent = clockText(M.clock);
   if (chaseEl){
     chaseEl.querySelector('.big').textContent = clockText(M.clock);
     chaseEl.querySelector('.sm').textContent =
       '离下课铃 ' + Math.max(0, Math.ceil(CLOCK_END - M.clock)) + ' 分';
+    var ctEl = chaseEl.querySelector('.ct');
+    if (ctEl) ctEl.textContent = '已经数到 ' + Math.floor(C.count);
   }
+  /* ---- 他们不是在追你，是在数你 ----
+     看得见的那几个，你一动他们就是站着的 —— 站在那儿看着你，不动。
+     你一转开、一走远（出了画面），他们才挪。
+     可你要是停下来，他们全都过来。
+     所以这一场不是"跑得比 AI 快"，是"别停、别回头看太久"。 */
+  var moving = !!M.p.moving;
+  /* 画面框自己算一份，别去读 render 里的相机 —— 那个这时候还是上一帧的 */
+  var vx0 = M.p.x - W/2, vy0 = M.p.y - H/2;
   for (k = 0; k < C.hounds.length; k++){
     var h = C.hounds[k];
     var dx = M.p.x - h.x, dy = M.p.y - h.y, d = Math.hypot(dx, dy) || 1;
-    var vx = dx/d*CHASE_SPD*dt, vy = dy/d*CHASE_SPD*dt;
-    if (canWalk(h.x+vx, h.y)) h.x += vx;
-    if (canWalk(h.x, h.y+vy)) h.y += vy;
-    h.dir = (Math.abs(vx) > Math.abs(vy)) ? (vx>0?'right':'left') : (vy>0?'down':'up');
-    h.anim += dt;
+    h.onScreen = (h.x > vx0 - 40 && h.x < vx0 + W + 40 &&
+                  h.y > vy0 - 40 && h.y < vy0 + H + 40);
+    var live = !(h.onScreen && moving);          // 你看着他的时候，他是站着的
+    h.moving = live;
+    if (live){
+      var vx = dx/d*CHASE_SPD*dt, vy = dy/d*CHASE_SPD*dt;
+      if (canWalk(h.x+vx, h.y)) h.x += vx;
+      if (canWalk(h.x, h.y+vy)) h.y += vy;
+      h.anim += dt;
+      if (Math.abs(vx) > Math.abs(vy)) h.dir = vx > 0 ? 'right' : 'left';
+      else                             h.dir = vy > 0 ? 'down' : 'up';
+    } else {
+      h.anim = 0;
+      h.dir = faceTowards(h.x, h.y, M.p.x, M.p.y);   // 站着，看着你
+    }
     if (Math.hypot(M.p.x-h.x, M.p.y-h.y) < 17) return die('被数进去了。');
   }
   if (M.p.y > 122*TILE) return endChase();                    // 出校门了
-  if (M.clock >= CLOCK_END) return die('下课铃响了。\n你没走出去。', 2.0);
+  if (M.clock >= CLOCK_END) return die('下课铃响了。\n他们数到十九个。\n第十九个是你。', 2.4);
 }
 /* 全查清了：校门口那场之后不走，回楼里，进那一章 */
 function enterResolve(){
@@ -4218,7 +4246,7 @@ function render(){
   var order = M.npcs.slice();
   order.push({ id:'__me', me:true, x:M.p.x, y:M.p.y });
   if (M.chase) M.chase.hounds.forEach(function(h){
-    order.push({ id:h.id, hound:true, x:h.x, y:h.y, dir:h.dir, anim:h.anim });
+    order.push({ id:h.id, hound:true, x:h.x, y:h.y, dir:h.dir, anim:h.anim, moving:h.moving });
   });
   /* 下一步要找的那个实物，隔着半张图也得看得见 ——
      不然走进一屋子人里，谁都找不着自己那个位子 */
@@ -4274,8 +4302,9 @@ function render(){
         cx.setLineDash([]);
       }
     } else if (o.hound){
-      /* 整队追过来的那些。不挂名字 —— 你知道那是谁，可你不想认 */
-      drawSprite(o.id, o.x, o.y, o.dir, o.anim, true, 2);
+      /* 整队追过来的那些。不挂名字 —— 你知道那是谁，可你不想认。
+         站着的时候画成站着的：你回头，看见的就是一排站着不动的人 */
+      drawSprite(o.id, o.x, o.y, o.dir, o.anim, !!o.moving, 2);
     } else {
       /* NPC 站着不动。给过它一个周期性小动作，结果看着像抽搐，就去掉了 */
       drawSprite(o.id, o.x, o.y, o.dir, 0, false, 2);
@@ -4325,7 +4354,8 @@ function render(){
     if (c.map !== M.map) return;
     var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
     var cdir = 'down';
-    if (M.stare > 0) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
+    /* 被追的时候，全校的人一起转过来看着你 —— 他们在数你 */
+    if (M.stare > 0 || M.chase) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
     /* 画完整小人，再把桌子压在他腿前面 —— 挡住腿就是"坐着"。
        （先前想裁掉下半身，裁切没生效，人整个不见了） */
     drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
