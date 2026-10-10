@@ -694,6 +694,15 @@ function floor2Layout(){
    东头一截封着的楼梯。名字和每间的名字传进来就行 ——
    这样每栋楼只写三四行，而且楼里够大，后面塞东西方便。
    ==================================================== */
+/* ================== 七号图：一号教学楼 ==================
+   楼里是整块从校园那张图搬过来的 —— 形状一点没改（还是 bigBuilding 那套：
+   两翼 + 竖天井 + 天井两头的楼梯口），只是原点从 (4,72) 挪到 (7,7)。
+   里头每样东西坐标都加同一个偏移，所以门牌、走廊、天井的相对位置全对得上。
+   ==================================================== */
+function school1Layout(){
+  bigBuilding(7, 7, '一号教学楼', 'east');
+}
+
 var HALL_X = [2, 11, 21, 31], HALL_W = [8, 9, 9, 7];
 function hallLayout(name, N, S){
   return function(){
@@ -812,34 +821,26 @@ makeMap('campus', {
           [5, 97, 22, 104],     // 行政楼
           [5, 49, 22, 66],      // 二号教学楼
           [57, 49, 74, 66],     // 第三教学楼
-          [57, 96, 74, 113]],   // 艺术楼                     // 大门口
+          [57, 96, 74, 113],   // 艺术楼
+          [5, 73, 22, 90],     // 一号教学楼
+          [33, 32, 46, 42]],   // 科技楼                     // 大门口
   statue: STATUE,                       // 只有校园有像，别的图没有就不画
-  npcs: [
-    /* 老师、牢李、logic 都进楼里去了（office / hall2 / hall3 各一张图） */
-    { id:'deskmate',  tx:19, ty:74, face:'left',  talk:'hint_deskmate' },
+  npcs: [,
     { id:'duty',      tx:37, ty:119, face:'down', talk:'hint_duty' },
-    /* zzx：逻辑那条线的人。平时靠在一号教学楼走廊墙边 ——
-       等剧情走到楼梯口那一段，会被 put 摆到楼梯口去 */
-    { id:'zzx',       tx:17, ty:83, face:'left',  talk:'hint_zzx' },
     { id:'shui',      tx:45, ty:100, face:'right', talk:'hint_shui' },
     { id:'dean',      tx:33, ty:100, face:'up',   talk:'hint_dean' },
-    /* lg7 是全场跑得最勤的那个：早上堵校门、早读盯走廊、白天蹲后山、
-       后半场守楼梯口。位置跟着剧情时间换 —— 这就是 sched 的用处 */
     { id:'lg7',       tx:9,  ty:6,  face:'down',  talk:'lg7',
       sched:[[0,        7*60+10, 39, 117],
-             [7*60+10,  7*60+40, 16, 74],
+             [7*60+10,  7*60+40, 24, 79],
              [7*60+40,  9*60+30, 9,  6],
-             [9*60+30, 99*60,    13, 78]] }
+             [9*60+30, 99*60,    26, 84]] }
   ],
   /* 出口：一号教学楼北头那道楼梯，踩上去上二楼 */
   portals: [
     /* 天井两头各有一道楼梯，画得一模一样 —— 原来只有北头那道通，
        南头那道只是个路标。玩家走哪道全凭运气，走错了就是"没反应"。
        现在两道都通 */
-    { x:13, y:73, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
-    { x:13, y:90, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
     /* 三个教学楼的厕所门 —— 进去是另一张图。出来的时候回你刚才进的那间 */
-    { x:6,  y:83, w:2, h:1, to:'toilet', tx:8, ty:10 },
     /* 后山那条路走到头 —— 那堵墙现在是一张单独的图 */
     { x:8,  y:6,  w:2, h:1, to:'hill', tx:10, ty:8 },
     /* 二号教学楼那间厕所现在在 hall2 那张图里 */
@@ -850,6 +851,9 @@ makeMap('campus', {
     { x:23, y:57,  w:1, h:2, to:'hall2',  tx:3, ty:13 },
     { x:56, y:57,  w:1, h:2, to:'hall3',  tx:3, ty:13 },
     { x:56, y:104, w:1, h:2, to:'art',    tx:3, ty:13 },
+    /* 得先按门那段（open_bell）—— 不然人一踩就被传进去，开场白没了 */
+    { x:23, y:81,  w:1, h:2, to:'school1', tx:21, ty:16, if:'进了教学楼' },
+    { x:39, y:43,  w:1, h:1, to:'tech',    tx:3, ty:13 },
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -858,16 +862,9 @@ makeMap('campus', {
      剧情不再靠踩一个看不见的框往前推。
      ox/oy 是画的时候往上抬多少像素（挂在墙上的那些用）。
      ==================================================== */
-  objs: [
+  objs: [,
     { x:32, y:117, ox:0, oy:-14, art:'window', who:'保安室的窗', verb:'看看',
-      talk:'open_arrive', once:true, cp:'到校' },                       // 六点五十，校门口
-    { x:23, y:81,  art:'door',   who:'一号教学楼的正门', verb:'推开',
-      talk:'open_bell', bell:3, once:true, cp:'进了教学楼', open:true },
-
-    /* ---- 每栋楼的正门都能推开 ----
-       原来只有一号教学楼那扇按下去有反应，别处的门走到跟前按"说话"
-       什么都不发生 —— 门就长得像画在地上的一块色，谁都觉得是摆设。
-       现在每一扇按一下都真开：推开、你人迈进去。 */
+      talk:'open_arrive', once:true, cp:'到校' },
     { x:23, y:57,  art:'door', who:'二号教学楼的正门', verb:'推开',
       talk:'door_2', once:true, open:true },
     { x:56, y:57,  art:'door', who:'第三教学楼的正门', verb:'推开',
@@ -882,127 +879,28 @@ makeMap('campus', {
       talk:'door_museum', once:true, open:true },
     { x:39, y:43,  art:'door', who:'科技楼的正门',     verb:'推开',
       talk:'door_tech', once:true, open:true },
-    { x:21, y:76,  art:'desk',   who:'你那个位子', verb:'坐下',
-      talk:'open_class', once:true, cp:'落座' },
-    { x:10, y:77,  art:'bucket', who:'楼梯拐角那只水桶', verb:'看看',
-      talk:'clue_pen', once:true },
-    /* 这张纸得等你先坐下 —— 不然人一进门先看墙，纸条那一步就整段跳过去了 */
-    { x:21, y:79,  ox:0, oy:-22, art:'paper', who:'后墙上贴的塑封纸', verb:'看',
-      talk:'rule_sheet', if:'纸条', once:true, cp:'看过守则' },
-    { x:20, y:79,  art:'roster', who:'讲台上摊着的点名册', verb:'翻翻',
-      talk:'scare_count', if:'看过守则', once:true, cp:'数过两遍' },
-    /* 门要开在门上 —— 这扇原来是画在教室正中间地上的。
-       它同时是这道门唯一的把手：《45 班》里那句话是站在门口读的，
-       按一下要真把门推开，不然那间屋子（水哥要去看黑板）就进不去了 */
-    { x:6,  y:80,  art:'door',   who:'45 班的门', verb:'看看',
-      talk:'scare_45', if:'看过守则', once:true, open:true },
-    { x:16, y:80,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
-      talk:'pz_rollcall', if:'该查名单了', once:true },
-    { x:16, y:82,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
-      talk:'ld_radio', if:'该查名单了', once:true },
-    /* 楼梯画在楼梯口上（真的楼梯在 13,73 那两格，这儿挨着它），
-       原来是画在院子正中间的 */
-    { x:13, y:75,  art:'stairs', who:'上楼的楼梯', verb:'上去',
-      talk:'logic_route', if:'该上二楼了', once:true },
-
-    /* logic 中段那三处线索 —— 都在一号教学楼走廊上，跑一趟就齐 */
-    { x:17, y:85, art:'paper',  who:'走廊里的楼层平面图', verb:'看',   talk:'lg_floorplan', if:['是:logic','该上二楼了'], once:true },
-    { x:16, y:87, art:'paper',  who:'走廊里那排门牌',     verb:'看',   talk:'lg_plates',    if:['是:logic','该上二楼了'], once:true },
-    { x:17, y:78, art:'roster', who:'门口那本登记表',     verb:'翻翻', talk:'lg_classbook', if:['是:logic','该上二楼了'], once:true },
-
-    /* ---- 水哥那条：三处线索各是个能动手的东西 ---- */
-    { x:6,  y:73,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
-      talk:'pw_board', if:'擦完墙', once:true },
     { x:8,  y:22,  art:'tree',   who:'那排朝向不对的树', verb:'看看',
       talk:'pz_trees', if:'擦完墙', once:true },
-
-    /* ---- 中段那些"有东西可看"的 ---- */
     { x:39, y:25,  art:'phone',  who:'你的手机', verb:'摸出来',
       talk:'sh_group', if:'该去后山了', once:true },
     { x:39, y:28,  art:'phone',  who:'班级群', verb:'往上翻',
       talk:'sh_chat', if:'班级群那张照片', once:true },
     { x:9,  y:8,   art:'lunchbox', who:'墙根那个饭盒', verb:'看看',
       talk:'sh_lunch', if:'擦完墙', once:true },
-    { x:13, y:85,  art:'phone',  who:'架在桌角的手机', verb:'坐下',
-      talk:'lg_game', if:'该上二楼了', once:true },
-    { x:20, y:76,  art:'paper',  who:'抽屉里多出来的一张纸', verb:'拿出来',
-      talk:'logic_note', if:'帮logic', once:true, oy:-6 },
-
-    /* ---- 六栋楼的支线 ----
-       同一格挂三条，各认自己的角色 —— 所以谁走谁那条，不会串味。
-       第二个条件是"可以走动了"：出教室之前，你还没理由跑去查这些 */
     { x:10, y:111, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
     { x:10, y:111, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true },
-
     { x:14, y:103, art:'drawer',who:'学籍卡柜',       verb:'拉开', talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
     { x:14, y:103, art:'paper', who:'广播稿存档',     verb:'翻翻', talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true },
-
     { x:65, y:105, art:'window',who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',     if:['是:shui','可以走动了'],  once:true },
     { x:65, y:105, art:'paper', who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic',    if:['是:logic','可以走动了'], once:true },
-
-
     { x:7,  y:52, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',   if:['是:shui','可以走动了'],  once:true },
     { x:7,  y:52, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic',  if:['是:logic','可以走动了'], once:true },
-
+    { x:23, y:81,  art:'door',   who:'一号教学楼的正门', verb:'推开',
+      talk:'open_bell', bell:3, once:true, cp:'进了教学楼', open:true }
   ],
-  triggers: [
-    /* 拿到纸条之后才开始吓人 —— 按顺序读就是"越走越不对" */
-    /* 守则第四条：不要在玻璃前面停下来。停够 1.6 秒就死 ——
-       这一条不写 once，破了守则死一次，读档回来还能再撞一遍 */
-    { x:16, y:86,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death',
-      killMsg:'你破了守则第四条 ——\n不要在走廊尽头的玻璃前面停下来。' },
-
-    /* 走出教室这一步，三个角色各接到各的。同一格上摞三条，
-       每条只认自己那个旗标，所以谁走谁那条，不会串味 */
-    { x:16, y:76, w:2, h:2, once:true, if:'是:laoli', clock:7*60+30, talk:'free_laoli', cp:'出了教室' },
-    { x:16, y:76, w:2, h:2, once:true, if:'是:shui',  clock:7*60+30, talk:'free_shui',  cp:'出了教室' },
-    { x:16, y:76, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic', cp:'出了教室' },
-    /* logic 那条：快到上楼的楼梯之前那一段 */
-    /* 上楼之前，lg7 把他捏了一年的那支笔塞给你 */
-    /* 他堵在楼梯间，不是堵在第 74 行那一格 —— 你从天井的门一进来就撞上他。
-       原来那条只有 2×1，得正好踩在那两格上才算数 */
-    { x:13, y:73, w:2, h:18, once:true, if:'可以上去了', talk:'lg7_pen',
-      put:['lg7', 14, 74], clock:10*60, cp:'拿到翻译笔' },
-
-    /* ---- 牢李那条的谜题 ---- */
-    /* 镜子要"站着不动"才显字 —— 可守则第四条就写着不要在玻璃前面停。
-       管不管厕所的镜子，得玩家自己判断 */
-
-    /* ---- 水哥那条的谜题：后山墙上六块苔，按守则的条数擦 ---- */
-
-    /* ---- 水哥② 抽屉密码：三条线索散在三个地方，得跑一趟 ---- */
-
-    /* ---- 水哥③ 树阵：走错不是死，是"又回到墙根" ---- */
+  triggers: [,
     { x:8,  y:12, w:2, h:2, once:true, if:'擦完墙', talk:'loop_back', warp:[9,7] },
-
-    /* ---- 中段：一堆"什么都没发生，可都不太对" ---- */
-    { x:6,  y:78, w:3, h:2, once:true, if:'该查名单了', talk:'ld_45' },
     { x:38, y:104, w:4, h:4, once:true, if:'该查名单了', talk:'ld_steps' },
-    { x:13, y:80, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx',
-      put:['zzx', 13, 80] },
-    { x:13, y:88, w:2, h:2, once:true, if:'zzx上楼了', talk:'lg_told' },
-
-    /* ---- 三段专属吓点：只有那个人会走到那儿 ---- */
-    { x:16, y:74, w:2, h:2, once:true, if:'擦完墙', talk:'sh_laugh' },
-
-    /* ---- 水哥那条线的分岔：撞见 logic 从楼上下来 ---- */
-    { x:13, y:82, w:2, h:2, once:true, if:'看懂树阵', talk:'shui_fork' },
-    /* 帮了 logic，他往你抽屉里留一张纸 —— 真提示 */
-
-    /* ---- 最后一场：整队从科技楼开始 ----
-       科技楼在中轴最北，离校门整整八十格 —— 这一场就是"从最里头
-       一路冲到大门口"。整队的声音从楼上一间一间下来，你在走廊西头
-       撞上他们，然后只能往南跑。 */
-    { x:33, y:41, w:2, h:2, once:true, if:'该去科技楼了', talk:'chase_go', chase:true },
-
-    /* 别的楼那几道楼梯口 —— 画着楼梯，其实是不通的。
-       一号教学楼那两道（13,73 / 13,90）是真入口，不在这儿 */
-
-    /* ---- 追逐里能用的机关：一个挡人，一个直接提前下课 ----
-       拉铃那个在科技楼的网控中心（走廊北边那间），得绕进屋里去，
-       跟逃命的方向正好相反；换掉的是一整段追逐 */
-    { x:13, y:90, w:2, h:2, once:true, if:'被追了', talk:'chase_door', hounds:2 },
-    { x:38, y:35, w:2, h:2, once:true, if:'被追了', talk:'chase_bell', endchase:true }
   ]
 }, campusLayout);
 
@@ -1032,6 +930,81 @@ makeMap('hill', {
   ],
   triggers: []
 }, hillLayout);
+
+makeMap('school1', {
+  w: 28, h: 28, base: 'void', spawn: [21, 16],
+  portals: [
+    { x:26, y:16, w:1, h:2, to:'campus', tx:24, ty:81 },   // 正门（东头）
+    { x:16, y:8,  w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
+    { x:16, y:25, w:2, h:1, to:'floor2', tx:5, ty:12, if:'可以上去了' },
+    { x:9,  y:18, w:2, h:1, to:'toilet', tx:8, ty:10 }    // 西翼南排那间厕所
+  ],
+  npcs: [
+    { id:'deskmate',  tx:22, ty:9, face:'left',  talk:'hint_deskmate' },
+    { id:'zzx',       tx:20, ty:18, face:'left',  talk:'hint_zzx' },
+    /* lg7 在楼里的那班岗（门外那两班留在校园上） */
+    { id:'lg7', tx:17, ty:11, face:'down', talk:'lg7' }
+  ],
+  objs: [
+    { x:24, y:11,  art:'desk',   who:'你那个位子', verb:'坐下',
+      talk:'open_class', once:true, cp:'落座' },
+    { x:13, y:12,  art:'bucket', who:'楼梯拐角那只水桶', verb:'看看',
+      talk:'clue_pen', once:true },
+    { x:24, y:14,  ox:0, oy:-22, art:'paper', who:'后墙上贴的塑封纸', verb:'看',
+      talk:'rule_sheet', if:'纸条', once:true, cp:'看过守则' },
+    { x:23, y:14,  art:'roster', who:'讲台上摊着的点名册', verb:'翻翻',
+      talk:'scare_count', if:'看过守则', once:true, cp:'数过两遍' },
+    { x:9, y:15,  art:'door',   who:'45 班的门', verb:'看看',
+      talk:'scare_45', if:'看过守则', once:true, open:true },
+    { x:19, y:15,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
+      talk:'pz_rollcall', if:'该查名单了', once:true },
+    { x:19, y:17,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
+      talk:'ld_radio', if:'该查名单了', once:true },
+    { x:16, y:10,  art:'stairs', who:'上楼的楼梯', verb:'上去',
+      talk:'logic_route', if:'该上二楼了', once:true },
+    { x:20, y:20, art:'paper',  who:'走廊里的楼层平面图', verb:'看',   talk:'lg_floorplan', if:['是:logic','该上二楼了'], once:true },
+    { x:19, y:22, art:'paper',  who:'走廊里那排门牌',     verb:'看',   talk:'lg_plates',    if:['是:logic','该上二楼了'], once:true },
+    { x:20, y:13, art:'roster', who:'门口那本登记表',     verb:'翻翻', talk:'lg_classbook', if:['是:logic','该上二楼了'], once:true },
+    { x:9, y:8,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
+      talk:'pw_board', if:'擦完墙', once:true },
+    { x:16, y:20,  art:'phone',  who:'架在桌角的手机', verb:'坐下',
+      talk:'lg_game', if:'该上二楼了', once:true },
+    { x:23, y:11,  art:'paper',  who:'抽屉里多出来的一张纸', verb:'拿出来',
+      talk:'logic_note', if:'帮logic', once:true, oy:-6 }
+  ],
+  triggers: [
+    { x:19, y:21,  w:2, h:4, if:'看过守则', still:1.6, kill:true, talk:'glass_death',
+      killMsg:'你破了守则第四条 ——\n不要在走廊尽头的玻璃前面停下来。' },
+    { x:19, y:11, w:2, h:2, once:true, if:'是:laoli', clock:7*60+30, talk:'free_laoli', cp:'出了教室' },
+    { x:19, y:11, w:2, h:2, once:true, if:'是:shui',  clock:7*60+30, talk:'free_shui',  cp:'出了教室' },
+    { x:19, y:11, w:2, h:2, once:true, if:'是:logic', clock:7*60+30, talk:'free_logic', cp:'出了教室' },
+    { x:16, y:8, w:2, h:18, once:true, if:'可以上去了', talk:'lg7_pen',
+      put:['lg7', 14, 74], clock:10*60, cp:'拿到翻译笔' },
+    { x:9, y:13, w:3, h:2, once:true, if:'该查名单了', talk:'ld_45' },
+    { x:16, y:15, w:2, h:2, once:true, if:'该上二楼了', talk:'lg_zzx',
+      put:['zzx', 13, 80] },
+    { x:16, y:23, w:2, h:2, once:true, if:'zzx上楼了', talk:'lg_told' },
+    { x:19, y:9, w:2, h:2, once:true, if:'擦完墙', talk:'sh_laugh' },
+    { x:16, y:17, w:2, h:2, once:true, if:'看懂树阵', talk:'shui_fork' },
+    { x:16, y:25, w:2, h:2, once:true, if:'被追了', talk:'chase_door', hounds:2 }
+  ]
+}, school1Layout);
+
+makeMap('tech', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:39, ty:44 } ],
+  objs: [
+    /* 红色的扳手：拉下去就下课 */
+    { x:34, y:6, art:'speaker', who:'广播台上那个红扳手', verb:'拉下去',
+      talk:'chase_bell', if:'被追了', once:true, endchase:true }
+  ],
+  triggers: [
+    /* 走廊最里头 —— 整队就是从这儿开始的。楼里不出排（放不下），
+       出了楼到校园上才是一排一排压过来 */
+    { x:33, y:13, w:2, h:2, once:true, if:'该去科技楼了', talk:'chase_go', chase:true }
+  ]
+}, hallLayout('科技楼', ['网控中心','机房（一）','机房（二）','器材室'],
+                        ['办公室','会议室','创客室','库房']));
 
 makeMap('museum', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
@@ -1191,7 +1164,7 @@ makeMap('floor2', {
   base: 'void',                         // 楼板外头是空的，不是草地
   spawn: [5, 12],
   portals: [
-    { x:2, y:12, w:2, h:2, to:'campus', tx:13, ty:75 }   // 西头楼梯口，下楼
+    { x:2, y:12, w:2, h:2, to:'school1', tx:16, ty:9 }   // 西头楼梯口，下楼
   ],
   triggers: [
     /* 这两条压在同一格上：先看"念名字有没有过去"，再轮到"刚上来"。
@@ -2351,7 +2324,7 @@ var GOALS = [
   { if:'被追了',     map:'campus', t:'冲出去 —— 一路往南，到校门',     x:38, y:124 },
 
   /* ——— 追逐：从二楼下来，跑出教学楼 ——— */
-  { if:'该去科技楼了', map:'campus', t:'穿过校园往北 —— 科技楼，走廊最里头', x:34, y:42 },
+  { if:'该去科技楼了', map:'tech',   t:'走廊最里头',                     x:33, y:14 },
   { if:'该去科技楼了', map:'floor2', t:'下楼',                         x:2,  y:12  },
 
   /* ——— 二楼：念名字的时候别推东头那扇门，得先退回来等它过去 ——— */
@@ -2364,24 +2337,24 @@ var GOALS = [
   {                  map:'floor2', t:'往东走 —— 走廊那头',            x:30, y:12  },
 
   /* ——— 上楼 ——— */
-  { if:'有翻译笔',   map:'campus', t:'上楼的楼梯口',                   x:13, y:73  },
+  { if:'有翻译笔',   map:'school1', t:'上楼的楼梯口',                   x:16, y:8  },
   /* 数过两遍 排在 拿过名单 前面：翻完点名册才轮到上楼。
      拿过名单 是一辈子的旗标，不拿新旗标把它顶开，这步永远轮不到 */
   /* 这一条要两个旗标同时成立。少了后面那个，玩家要是先把点名册翻了，
      就会被指着去"上楼"—— 可楼梯口还没解锁，人站在那儿什么都不发生。
      写成数组：两个没凑齐就跳过它，往下走，去干那件真正该干的事 */
-  { if:['数过两遍','可以上去了'], map:'campus', t:'上楼 —— 楼梯口在西头', x:13, y:74 },
-  { if:'拿过名单',   map:'campus', t:'回教室',   x:20, y:79  },
-  { if:'可以上去了', map:'campus', t:'楼梯口有人等着你',               x:13, y:74  },
+  { if:['数过两遍','可以上去了'], map:'school1', t:'上楼 —— 楼梯口在西头', x:16, y:9 },
+  { if:'拿过名单',   map:'school1', t:'回教室',   x:23, y:14  },
+  { if:'可以上去了', map:'school1', t:'楼梯口有人等着你',               x:16, y:9  },
   /* logic 中段那三处线索不写成静态条目 —— 写在 goalNow 里，
      因为"这条还没看"需要取反，静态条目表达不了（见 goalNow 里那段） */
   { if:'答过到',     map:'campus', t:'去大门口',         x:37, y:119 },
-  { if:'该查名单了', map:'campus', t:'走廊上的广播',             x:16, y:80  },
+  { if:'该查名单了', map:'school1', t:'走廊上的广播',             x:19, y:15  },
 
   /* ——— 水哥那条：抽屉密码三处线索 ——— */
   { if:'查过周期表',   map:'office', t:'行政楼',   x:6,  y:21  },
   { if:'看过黑板式子', map:'lab',    t:'实验楼',         x:15, y:5   },
-  { if:'擦完墙',       map:'campus', t:'45 班空教室', x:6,  y:73  },
+  { if:'擦完墙',       map:'school1', t:'45 班空教室', x:9, y:8  },
 
   /* ——— 数苔藓：一块一块来，箭头直接指下一块 ——— */
   { if:'擦完墙',     map:'hill',   t:'原路出去 —— 回校园',              x:10, y:9  },
@@ -2391,9 +2364,9 @@ var GOALS = [
   { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 后山那条路走到头', x:9,  y:6  },
 
   /* ——— 共同的开场 ——— */
-  { if:'看过守则',   map:'campus', t:'走出教室 —— 走廊里有人叫你',     x:16, y:76  },
-  { if:'纸条',       map:'campus', t:'教室后墙上贴着一张纸',           x:21, y:79  },
-  { if:'进了教学楼', map:'campus', t:'进去 —— 你那个位子在 46 班',     x:21, y:77  },
+  { if:'看过守则',   map:'school1', t:'走出教室 —— 走廊里有人叫你',     x:19, y:11  },
+  { if:'纸条',       map:'school1', t:'教室后墙上贴着一张纸',           x:24, y:14  },
+  { if:'进了教学楼', map:'school1', t:'进去 —— 你那个位子在 46 班',     x:24, y:12  },
   { if:'到校',       map:'campus', t:'推开教学楼的正门',              x:23, y:82  },
   {                  map:'campus', t:'先到校门口 —— 看一眼保安室',    x:33, y:118 }
 ];
@@ -2451,15 +2424,15 @@ function goalNow(){
   /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
      静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
      读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
-  if (!M.chase && M.map === 'campus' && flagOn('是:logic') &&
+  if (!M.chase && M.map === 'school1' && flagOn('是:logic') &&
       flagOn('该上二楼了') && !flagOn('可以上去了')){
     if (!flagOn('看过平面图'))
-      return { t:'走廊墙上的楼层平面图', x:17, y:85, map:'campus' };
+      return { t:'走廊墙上的楼层平面图', x:20, y:20, map:'school1' };
     if (!flagOn('数过门牌'))
-      return { t:'走廊里那排门牌', x:16, y:87, map:'campus' };
+      return { t:'走廊里那排门牌', x:19, y:22, map:'school1' };
     if (!flagOn('看过登记表'))
-      return { t:'班主任办公室门口那本登记表', x:17, y:78, map:'campus' };
-    return { t:'走廊东头那道楼梯', x:13, y:75, map:'campus' };
+      return { t:'班主任办公室门口那本登记表', x:20, y:13, map:'school1' };
+    return { t:'走廊东头那道楼梯', x:16, y:10, map:'school1' };
   }
   for (var i=0;i<GOALS.length;i++){
     var G = GOALS[i];
@@ -2982,7 +2955,7 @@ var GLASS = [ { x:16, y:86, w:2, h:4 } ];
 /* 有些地方会多站一个人。走近了就没有 —— 这条比任何文字都管用 */
 var GHOSTS = [
   { x:36, y:12, map:'floor2', if:'上过二楼',  id:'deskmate' },
-  { x:13, y:84, map:'campus', if:'看过守则',  id:'logic' },
+  { x:16, y:19, map:'school1', if:'看过守则',  id:'logic' },
   /* 见过镜子里那半拍之后，回头再去厕所 —— 最里头站着个人，背对着你。
      走近了就没了。不写一个字 */
   { x:12, y:7,  map:'toilet', if:'镜子盯着你', id:'laoli' }
@@ -3001,10 +2974,10 @@ var CROWD = [];
   var k = 0;
   /* 46 班里坐着的（desk:true 会给他们画张桌子） */
   for (var r=0; r<5; r++) for (var c=0; c<4; c++){
-    var gx = 19 + c, gy = 74 + r;                 // 46 班：cols 19..22, rows 74..78
+    var gx = 22 + c, gy = 9 + r;                  // 46 班：搬进 school1 那张图了
     if (gx === 19 && gy === 74) continue;         // 同桌那个位子留出来
     if (gx === 21 && gy === 74) continue;         // 老师站着的地方
-    CROWD.push({ map:'campus', x:gx, y:gy, id:ids[k++ % ids.length], desk:true });
+    CROWD.push({ map:'school1', x:gx, y:gy, id:ids[k++ % ids.length], desk:true });
   }
   /* 校园里站着的 —— 一所学校不该只有你一个人。
      走廊、主干道、广场、校门口都该有人。
@@ -3017,7 +2990,7 @@ var CROWD = [];
 })();
 
 var TOILETS = [
-  { map:'campus', x:5,  y:84, w:4, h:7 },   // 一号教学楼西翼南排
+  { map:'school1', x:8, y:19, w:4, h:7 },   // 一号教学楼西翼南排（现在在 school1 那张图里）
   { map:'hall2',  x:2,  y:17, w:8, h:9 },   // 二号教学楼南排（现在在 hall2 那张图里）
   { map:'lab',    x:32, y:19, w:6, h:8 }    // 实验楼西翼南排（门在 58,83）
 ];
@@ -3186,7 +3159,9 @@ function startChase(fromRespawn){
   setClock(10*60 + 30);
   /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死 */
   if (flagOn('想上厕所')){ clearFlag('想上厕所'); M.urge = 0; }
-  M.chase = { hounds: [], cpY: 0, waveT: 1.8, rows: 0 };
+  /* 在科技楼里开追的时候不出排（楼里放不下）——
+     waveT 给大一点，出了楼 houndsBehind 会把它压回 1.4 */
+  M.chase = { hounds: [], cpY: 0, waveT: 99, rows: 0 };
   if (!fromRespawn) checkpoint();      // 死在半路就从这儿重来（读档重开时别再覆盖）
   droneOn(); shake(0.9);
   sfxBell(2);
@@ -3199,7 +3174,7 @@ function startChase(fromRespawn){
 function spawnWave(){
   var C = M.chase;
   var rowY = M.p.y + WAVE_AHEAD*TILE;
-  if (rowY > (MAPH - 3)*TILE) return;          // 快到校门了就不再出
+  if (rowY > (MAPH - 3)*TILE) return;   // 快到校门（或者楼里放不下）就不再出
   var gap = chaseGap();
   /* 缝开在哪儿 —— 别贴着地图边，不然等于没有 */
   var gapAt = 4 + Math.floor(Math.random() * (72 - gap - 4));
@@ -3211,6 +3186,18 @@ function spawnWave(){
     });
   }
   C.rows++;
+}
+/* 把追兵整体挪到玩家身后（换图、或者从楼里冲出来的时候用） */
+function houndsBehind(){
+  if (!M.chase) return;
+  var px = M.p.x/TILE, py = M.p.y/TILE, i = 0, n = M.chase.hounds.length;
+  for (i = 0; i < n; i++){
+    var sp = walkableNear(Math.round(px + (i - (n-1)/2) * 3), Math.round(py - 9));
+    if (!sp) continue;
+    M.chase.hounds[i].x = sp.x*TILE + TILE/2;
+    M.chase.hounds[i].y = sp.y*TILE + TILE/2;
+  }
+  M.chase.waveT = 1.4;                 // 出了楼，隔一会儿再放第一排
 }
 function chaseTick(dt){
   var C = M.chase, k = 0;
@@ -3248,7 +3235,9 @@ function chaseTick(dt){
   if (C.hounds.length > 400 || (C.hounds.length && C.hounds[0].y < M.p.y - 24*TILE)){
     C.hounds = C.hounds.filter(function(z){ return z.y > M.p.y - 24*TILE; });
   }
-  if (M.p.y > 122*TILE) return endChase();                    // 出校门了
+  /* 出校门才算完 —— 但只有校园这张图上有校门。
+     在科技楼里那一程是"冲出楼"，出楼靠门口那个传送口 */
+  if (M.map === 'campus' && M.p.y > 122*TILE) return endChase();
   if (M.clock >= CLOCK_END) return die('下课铃响了。\n他们数到十九个。\n第十九个是你。', 2.4);
 }
 /* 全查清了：校门口那场之后不走，回楼里，进那一章 */
@@ -4156,9 +4145,13 @@ function update(dt){
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
         /* 这是第几趟进厕所 —— 那间屋按趟数换东西 */
         if (P.to === 'toilet' && M.map !== 'toilet') toiletEnter();
+        /* 追着的时候换图：追兵的坐标是上一张图的，得重新摆到身后，
+           不然他们会凭空出现在校园的某个角落 */
+        var chaseJump = !!(M.chase && (P.to === 'campus' || (P.back && M.backTo && M.backTo.map === 'campus')));
         /* 朝向你走出去的那个方向 —— 从厕所出来就是朝外，不是顶着门 */
         if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty, M.p.dir);
         else loadMap(P.to, P.tx, P.ty, M.p.dir);
+        if (chaseJump) houndsBehind();
         break;
       }
     }
@@ -5787,10 +5780,13 @@ clockEl.style.display = 'none';
             var por = null;
             (CUR.portals || []).forEach(function(P){ if (P.to === G.map && !por) por = P; });
             if (!por && M.map !== 'campus'){
-              /* 目标在另一栋楼里 —— 楼和楼之间不直连，得先出楼回校园。
-                 真人也是这么走的：出实验楼、横穿校园、再进行政楼 */
+              /* 目标在另一栋楼里 —— 楼和楼之间不直连，得中转。
+                 先找出楼回校园的，没有再随便挑一个口（多跳几段总能绕到） */
               (CUR.portals || []).forEach(function(P){
                 if (!por && P.to === 'campus') por = P;
+              });
+              if (!por) (CUR.portals || []).forEach(function(P){
+                if (!por && !P.back) por = P;
               });
             }
             if (!por){ hLog.push('目标在' + G.map + '，可我在' + M.map + '，没出口'); break; }
