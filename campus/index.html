@@ -689,6 +689,35 @@ function floor2Layout(){
   NAME(39, 2, 7, 22, '45班');           // 楼上也有一间 45 班
 }
 
+/* ================== 通用：一栋楼里的样子 ==================
+   拆成独立图的楼都用这一套：一条长走廊，南北各四间，西头正门，
+   东头一截封着的楼梯。名字和每间的名字传进来就行 ——
+   这样每栋楼只写三四行，而且楼里够大，后面塞东西方便。
+   ==================================================== */
+var HALL_X = [2, 11, 21, 31], HALL_W = [8, 9, 9, 7];
+function hallLayout(name, N, S){
+  return function(){
+    var W = 40, H = 28;
+    R('wall', 1, 1, W-2, H-2);
+    R('classroom', 2, 2, W-4, 9);        // 北排 rows 2..10
+    R('wall', 2, 11, W-4, 1);
+    R('corridor', 2, 12, W-4, 4);        // 走廊 rows 12..15
+    R('wall', 2, 16, W-4, 1);
+    R('classroom', 2, 17, W-4, 9);       // 南排 rows 17..25
+    [10, 20, 30].forEach(function(vx){ R('wall', vx, 2, 1, 9); R('wall', vx, 17, 1, 9); });
+    [4, 14, 24, 34].forEach(function(dx){ R('door', dx, 11, 2, 1); R('door', dx, 16, 2, 1); });
+    R('door', 1, 13, 1, 2);              // 正门开在西头
+    R('stairs', 35, 12, 3, 4);           // 东头那截楼梯：焊着铁栅
+    NAME(1, 1, 38, 3, name);
+    NAME(2, 12, 33, 4, '走廊');
+    var i;
+    for (i = 0; i < 4; i++){
+      if (N[i]) NAME(HALL_X[i], 2,  HALL_W[i], 9, N[i]);
+      if (S[i]) NAME(HALL_X[i], 17, HALL_W[i], 9, S[i]);
+    }
+  };
+}
+
 /* ================== 六号图：实验楼 ==================
    楼里从校园那张图里拆出来了 —— 校园上只剩一个壳和一道门。
    里面的形状还是 bigBuilding() 生成的那套，只是原点挪到了 (1,1)。
@@ -778,16 +807,16 @@ makeMap('campus', {
   w: 80, h: 125,
   spawn: [39, 122],
   /* 实验楼里头：画得跟以前一模一样，可人走不进去（楼里另有一张图） */
-  solid: [[57, 73, 74, 90]],                     // 大门口
+  solid: [[57, 73, 74, 90],     // 实验楼
+          [5, 109, 14, 112],    // 校史馆
+          [5, 97, 22, 104],     // 行政楼
+          [5, 49, 22, 66],      // 二号教学楼
+          [57, 49, 74, 66],     // 第三教学楼
+          [57, 96, 74, 113]],   // 艺术楼                     // 大门口
   statue: STATUE,                       // 只有校园有像，别的图没有就不画
   npcs: [
-    /* 老师：晚自习在一号教学楼教室，其余时间在行政楼办公室。
-       sched 就是"到点换地方"：[起始分钟, 结束分钟, x, y] */
-    { id:'teacher',   tx:10, ty:100, face:'down', talk:'hint_teacher',
-      sched:[[6*60+40, 7*60+30, 21, 73]] },   // 早读站在 46 班最前排（黑板底下）
+    /* 老师、牢李、logic 都进楼里去了（office / hall2 / hall3 各一张图） */
     { id:'deskmate',  tx:19, ty:74, face:'left',  talk:'hint_deskmate' },
-    { id:'laoli',     tx:11, ty:54, face:'right', talk:'hint_laoli' },
-    { id:'logic',     tx:63, ty:60, face:'down',  talk:'hint_logic' },
     { id:'duty',      tx:37, ty:119, face:'down', talk:'hint_duty' },
     /* zzx：逻辑那条线的人。平时靠在一号教学楼走廊墙边 ——
        等剧情走到楼梯口那一段，会被 put 摆到楼梯口去 */
@@ -813,8 +842,14 @@ makeMap('campus', {
     { x:6,  y:83, w:2, h:1, to:'toilet', tx:8, ty:10 },
     /* 后山那条路走到头 —— 那堵墙现在是一张单独的图 */
     { x:8,  y:6,  w:2, h:1, to:'hill', tx:10, ty:8 },
-    { x:6,  y:59, w:2, h:1, to:'toilet', tx:8, ty:10 },
+    /* 二号教学楼那间厕所现在在 hall2 那张图里 */
     { x:56, y:81, w:1, h:2, to:'lab', tx:3, ty:10 },   // 实验楼门口 —— 楼里是单独一张图
+    /* 其余五栋：踩门口进楼，楼里各有自己一张图 */
+    { x:15, y:110, w:1, h:2, to:'museum', tx:3, ty:13 },
+    { x:23, y:100, w:1, h:2, to:'office', tx:3, ty:13 },
+    { x:23, y:57,  w:1, h:2, to:'hall2',  tx:3, ty:13 },
+    { x:56, y:57,  w:1, h:2, to:'hall3',  tx:3, ty:13 },
+    { x:56, y:104, w:1, h:2, to:'art',    tx:3, ty:13 },
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -878,8 +913,6 @@ makeMap('campus', {
     /* ---- 水哥那条：三处线索各是个能动手的东西 ---- */
     { x:6,  y:73,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
       talk:'pw_board', if:'擦完墙', once:true },
-    { x:10, y:102, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉',
-      talk:'pw_drawer', if:'擦完墙', once:true },
     { x:8,  y:22,  art:'tree',   who:'那排朝向不对的树', verb:'看看',
       talk:'pz_trees', if:'擦完墙', once:true },
 
@@ -898,20 +931,16 @@ makeMap('campus', {
     /* ---- 六栋楼的支线 ----
        同一格挂三条，各认自己的角色 —— 所以谁走谁那条，不会串味。
        第二个条件是"可以走动了"：出教室之前，你还没理由跑去查这些 */
-    { x:10, y:111, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'], once:true },
     { x:10, y:111, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
     { x:10, y:111, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true },
 
-    { x:14, y:103, art:'board', who:'门厅的值班表',   verb:'看看', talk:'sd_office_laoli', if:['是:laoli','可以走动了'], once:true },
     { x:14, y:103, art:'drawer',who:'学籍卡柜',       verb:'拉开', talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
     { x:14, y:103, art:'paper', who:'广播稿存档',     verb:'翻翻', talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true },
 
-    { x:65, y:105, art:'paper', who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli',    if:['是:laoli','可以走动了'], once:true },
     { x:65, y:105, art:'window',who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',     if:['是:shui','可以走动了'],  once:true },
     { x:65, y:105, art:'paper', who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic',    if:['是:logic','可以走动了'], once:true },
 
 
-    { x:7,  y:52, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli',  if:['是:laoli','可以走动了'], once:true },
     { x:7,  y:52, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',   if:['是:shui','可以走动了'],  once:true },
     { x:7,  y:52, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic',  if:['是:logic','可以走动了'], once:true },
 
@@ -968,10 +997,6 @@ makeMap('campus', {
 
     /* 别的楼那几道楼梯口 —— 画着楼梯，其实是不通的。
        一号教学楼那两道（13,73 / 13,90）是真入口，不在这儿 */
-    { x:13, y:49, w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:13, y:66, w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:65, y:49, w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:65, y:66, w:2, h:1, once:true, talk:'stairs_shut' },
 
     /* ---- 追逐里能用的机关：一个挡人，一个直接提前下课 ----
        拉铃那个在科技楼的网控中心（走廊北边那间），得绕进屋里去，
@@ -1007,6 +1032,68 @@ makeMap('hill', {
   ],
   triggers: []
 }, hillLayout);
+
+makeMap('museum', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:16, ty:110 } ],
+  objs: [
+    { x:6,  y:6, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true }
+  ],
+  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+}, hallLayout('校史馆', ['展厅（一）','展厅（二）','荣誉室','库房'],
+                        ['办公室','接待室','资料室','值班室']));
+
+makeMap('office', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:24, ty:100 } ],
+  npcs: [ { id:'teacher', tx:16, ty:21, face:'up', talk:'hint_teacher' } ],
+  objs: [
+    { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
+    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true }
+  ],
+  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+}, hallLayout('行政楼', ['校长室','教导处','财务室','档案室'],
+                        ['值班室','会议室','文印室','库房']));
+
+makeMap('hall2', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [
+    { x:1, y:13, w:1, h:2, to:'campus', tx:24, ty:57 },
+    { x:4, y:16, w:2, h:1, to:'toilet', tx:8, ty:10 }      // 南排最西头那间是厕所
+  ],
+  npcs: [ { id:'laoli', tx:16, ty:6, face:'down', talk:'hint_laoli' } ],
+  objs: [
+    { x:6,  y:6, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:6,  y:6, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:6,  y:6, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'], once:true }
+  ],
+  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+}, hallLayout('二号教学楼', ['46 班','45 班','43 班','教师办公室'],
+                            ['厕所','化学实验室','图书角','教研室']));
+
+makeMap('hall3', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:57 } ],
+  npcs: [ { id:'logic', tx:26, ty:6, face:'down', talk:'hint_logic' } ],
+  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+}, hallLayout('第三教学楼', ['41 班','42 班','广播室','器材室'],
+                            ['自习室','教研室','资料室','库房']));
+
+makeMap('art', {
+  w: 40, h: 28, base: 'void', spawn: [3, 13],
+  portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:104 } ],
+  objs: [
+    { x:16, y:13, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:16, y:13, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'], once:true }
+  ],
+  triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
+}, hallLayout('艺术楼', ['音乐教室','美术教室','琴房','乐器室'],
+                        ['舞蹈房','排练厅','画室','器材室']));
 
 makeMap('lab', {
   w: 42, h: 30,
@@ -2292,7 +2379,7 @@ var GOALS = [
   { if:'该查名单了', map:'campus', t:'走廊上的广播',             x:16, y:80  },
 
   /* ——— 水哥那条：抽屉密码三处线索 ——— */
-  { if:'查过周期表',   map:'campus', t:'行政楼',   x:10, y:102 },
+  { if:'查过周期表',   map:'office', t:'行政楼',   x:6,  y:21  },
   { if:'看过黑板式子', map:'lab',    t:'实验楼',         x:15, y:5   },
   { if:'擦完墙',       map:'campus', t:'45 班空教室', x:6,  y:73  },
 
@@ -2931,7 +3018,7 @@ var CROWD = [];
 
 var TOILETS = [
   { map:'campus', x:5,  y:84, w:4, h:7 },   // 一号教学楼西翼南排
-  { map:'campus', x:5,  y:60, w:4, h:7 },   // 二号教学楼西翼南排
+  { map:'hall2',  x:2,  y:17, w:8, h:9 },   // 二号教学楼南排（现在在 hall2 那张图里）
   { map:'lab',    x:32, y:19, w:6, h:8 }    // 实验楼西翼南排（门在 58,83）
 ];
 function inToilet(){
@@ -5699,6 +5786,13 @@ clockEl.style.display = 'none';
           if (G.map && G.map !== M.map){
             var por = null;
             (CUR.portals || []).forEach(function(P){ if (P.to === G.map && !por) por = P; });
+            if (!por && M.map !== 'campus'){
+              /* 目标在另一栋楼里 —— 楼和楼之间不直连，得先出楼回校园。
+                 真人也是这么走的：出实验楼、横穿校园、再进行政楼 */
+              (CUR.portals || []).forEach(function(P){
+                if (!por && P.to === 'campus') por = P;
+              });
+            }
             if (!por){ hLog.push('目标在' + G.map + '，可我在' + M.map + '，没出口'); break; }
             G = { t:'去' + G.map, x:por.x + Math.floor(por.w/2), y:por.y + Math.floor(por.h/2) };
           }
