@@ -1711,18 +1711,20 @@ var TALK = {
   wipe_intro: { nodes:{
     s:{ text:'林子尽头那堵墙上，长了六块苔。', next:'t' },
     t:{ text:'（你拿手指挨个蹭了一下。\n　每块底下都刻着一个字，蹭开一点就认得出。）', next:'u' },
-    u:{ text:'（从西头往东数，依次是：）\n\n　如　上　数　玻　门　师', next:'v' },
-    v:{ text:'（守则六条的头一个字，正好就是这六个。）\n\n（那就按条数擦 —— \n　第一条"上"、第二条"师"、第三条"如"……）', next:'w' },
-    w:{ text:'（擦的顺序不对，墙后面的声音会停。）', set:'看到六块苔', end:true }
+    u:{ text:'（一共六个字。）', next:'v' },
+    /* 只给"钥匙是哪一把"，不给"锁怎么开" ——
+       顺序得自己从守则上读出来 */
+    v:{ text:'（守则六条 —— 头一个字。）', next:'w' },
+    w:{ text:'（擦的顺序不对，墙后面的声音会停。）\n\n（擦过的字，看一遍就记住了。）', set:'看到六块苔', end:true }
   }},
 
-  wipe_1: { nodes:{ s:{ text:'（擦开一块。）\n\n石头上刻着一个字：\n\n　　「上」', set:'擦墙1', end:true }}},
-  wipe_2: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「师」', set:'擦墙2', end:true }}},
-  wipe_3: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「如」', set:'擦墙3', end:true }}},
-  wipe_4: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「玻」\n\n（你手底下这块石头，比别处凉。）', set:'擦墙4', end:true }}},
-  wipe_5: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「门」', set:'擦墙5', end:true }}},
-  wipe_6: { nodes:{ s:{ text:'（最后一块。）\n\n　　「数」', next:'t' },
-    t:{ text:'六个字连起来，正好是守则六条的头一个字。\n\n上。师。如。玻。门。数。', next:'u' },
+  wipe_1: { nodes:{ s:{ text:'（擦开一块。）\n\n石头上刻着一个字：\n\n　　「上」', set:'认得苔1', end:true }}},
+  wipe_2: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「师」', set:'认得苔2', end:true }}},
+  wipe_3: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「如」', set:'认得苔3', end:true }}},
+  wipe_4: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「玻」\n\n（你手底下这块石头，比别处凉。）', set:'认得苔4', end:true }}},
+  wipe_5: { nodes:{ s:{ text:'（再擦一块。）\n\n　　「门」', set:'认得苔5', end:true }}},
+  wipe_6: { nodes:{
+    s:{ text:'（最后一块。）\n\n　　「数」', set:'认得苔6', next:'u' },
     u:{ text:'（墙后面，念书的声音停了一下 —— ）\n\n（然后，从第一页重新念起。）', set:'擦完墙', end:true }}},
 
   /* ===== 水哥② 抽屉密码 =====
@@ -2136,13 +2138,13 @@ var TALK = {
      这张纸进本子，后面每一条都会应验 */
   rule_sheet: { nodes:{
     s:{ text:'教室后墙贴着一张塑封纸，边角翘起来了。\n上头印着 ——', next:'t' },
-    t:{ text:'《46 班 自习课守则》\n\n　一、上课一律不许使用翻译笔。\n　二、老师点名，点到你必须答"到"。',
+    t:{ text:'《46 班 自习课守则》\n\n　一、上课一律不许使用翻译笔。\n　二、师长点名，点到你必须答"到"。',
         next:'u' },
-    u:{ text:'　三、如果点到的人不在教室里，不要替他答。\n　四、课间不要在走廊尽头的玻璃前面停下来。',
+    u:{ text:'　三、如果点到的人不在教室里，不要替他答。\n　四、玻璃前面不要停下来 —— 走廊尽头那块。',
         next:'v' },
-    v:{ text:'　五、45 班的门开着的时候，不要往里看。\n　六、数人的时候数两遍就够了。',
+    v:{ text:'　五、门开着的时候，不要往里看。（45 班那扇）\n　六、数人的时候数两遍就够了。',
         next:'w' },
-    w:{ text:'　六（接上）数第三遍，多的那个就开始数你。\n\n底下没有落款。\n塑封纸上有一道很深的折痕，像是被人对折过很多次。',
+    w:{ text:'　七 —— 没有第七条。\n\n　（六条底下另起了一行，没编序号：）\n　数第三遍，多的那个就开始数你。\n\n底下没有落款。\n塑封纸上有一道很深的折痕，像是被人对折过很多次。',
         set:'看过守则', end:true }
   }},
 
@@ -2296,12 +2298,8 @@ var GOALS = [
 
   /* ——— 数苔藓：一块一块来，箭头直接指下一块 ——— */
   { if:'擦完墙',     map:'hill',   t:'原路出去 —— 回校园',              x:10, y:9  },
-  { if:'擦墙5',      map:'hill',   t:'第六块 —— 数',                   x:9,  y:4  },
-  { if:'擦墙4',      map:'hill',   t:'第五块 —— 门',                   x:15, y:4  },
-  { if:'擦墙3',      map:'hill',   t:'第四块 —— 玻',                   x:12, y:4  },
-  { if:'擦墙2',      map:'hill',   t:'第三块 —— 如',                   x:3,  y:4  },
-  { if:'擦墙1',      map:'hill',   t:'第二块 —— 师',                   x:18, y:4  },
-  { if:'看到六块苔', map:'hill',   t:'第一块 —— 上',                   x:6,  y:4  },
+  /* 不一块一块指、也不报字 —— 报了就等于把谜底写在目标行上 */
+  { if:'看到六块苔', map:'hill',   t:'墙根那排苔 —— 按守则的顺序擦',      x:9,  y:4  },
   {                  map:'hill',   t:'墙根那排苔 —— 先蹭一下',            x:2,  y:4  },
   { if:'该去后山了', map:'campus', t:'穿过校园往北 —— 后山那条路走到头', x:9,  y:6  },
 
@@ -2479,7 +2477,15 @@ var CLUES = {
   '擦完墙':       '后山墙根六块苔底下刻着六个字：上、师、如、玻、门、数 —— 正好是守则六条的头一个字。',
 
   '拿回手机':     'lg7 抽屉里压着一张化学竞赛报名表，整张只填了一个名字，被水泡花了。背面他写着：三年前填的，填完就没敢再往下填。',
-  '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。'
+  '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。',
+
+  /* 墙上那六个字。擦开一块记一块 —— 记的是"哪一块刻的什么" */
+  '认得苔1': '墙根那排苔，西头数第 2 块底下刻的是「上」',
+  '认得苔2': '西头第 6 块：「师」',
+  '认得苔3': '西头第 1 块：「如」',
+  '认得苔4': '西头第 4 块：「玻」',
+  '认得苔5': '西头第 5 块：「门」',
+  '认得苔6': '西头第 3 块：「数」'
 };
 
 /* ==================== 查过的事（调查度）====================
@@ -3620,11 +3626,11 @@ function objLive(O){
   if (!O) return false;
   if (O.if && !flagAll(O.if)) return false;
   if (O.gone && FLAGS[objKey(O)]) return false;
-  /* 顺序谜题：只让"轮到的那一块"能按。
-     六块苔是一横排，去下一块的路上必然要经过别的几块 ——
-     要是路过时顺手按了一下也算"擦错"，那面墙就永远擦不完了。
-     没轮到的那几块：按了没反应，也不显示能按 */
-  if (O.seq !== undefined && !FLAGS[objKey(O)] && M.seq !== O.seq - 1) return false;
+  /* 顺序谜题：每一块都能按。
+     按了先认字（永久记住），顺序对不对是 runBeat 那边管的事 ——
+     "挨个擦开看看底下是什么字"本来就是这一关的解法之一，
+     不让按的话，玩家连哪块是什么字都摸不到 */
+
   /* 开过的门就不再是个"能按的东西"了 —— 那一格已经通了 */
   if (O.auto && doorOpen(O.x, O.y)) return false;
   return true;
@@ -3634,6 +3640,9 @@ function objLive(O){
    按了只重念不动手的话，那面墙就永远擦不完了。
    那个小便池也不算：憋着这件事会来第二趟。 */
 function objSpent(O){ return !!(O.once && FLAGS[objKey(O)]); }
+/* 顺序谜题不适用"重看" —— 它每次都得真跑一遍，
+   不然按错一次（字认下来了），那块就被当成"看过了"，顺序再也推不动 */
+function objReplayable(O){ return objSpent(O) && O.seq === undefined; }
 function nearObj(){
   var best = null, bd = 1e9;
   allObjs().forEach(function(O){
@@ -3663,7 +3672,7 @@ function thingNear(){
 function pressObj(O){
   if (!objLive(O)) return;
   var k = objKey(O);
-  if (objSpent(O) && O.talk){
+  if (objReplayable(O) && O.talk){
     M.replay = true;
     if (!openScript(O.talk)) M.replay = false;
     M.replay = false;
@@ -3896,27 +3905,15 @@ var SPD = 108, RUN_MULT = 2.4;
 /* 一段剧情的全部效果。触发区踩上去走它，实物的 E 也走它 ——
    一套管线两处用，省得两边各写一遍，写着写着就不一样了 */
 function runBeat(G, key, byPlayer){
-  /* 顺序谜题：seq 是第几步，得从 1 挨着来。跳着来 = 顺序断了，从头再来。
-     擦完之后就不再管顺序了 —— 那面墙已经是"擦开了"的样子。
-     已经擦过的那块回头再按一下不算错：那只是再看看，不动顺序。
-     真擦错了才把整面墙打回去重来（连"擦过"的记号一起清掉，
-     不然就再也擦不了一遍 —— 那样这个谜题一错就废了）*/
+  /* 顺序谜题：seq 是第几步，得按守则的顺序来。
+     按错不清零 —— 六块苔是一横排，去下一块的路上必然要经过别的几块，
+     路过顺手按一下就整面墙重来，那不叫谜题，叫坑。
+     按错只是"还不到这块"：字照样认下来，顺序不推进。
+     所以这一关考的是"知不知道顺序"，不是"手稳不稳" */
   if (G.seq !== undefined && byPlayer && !flagOn('擦完墙')){
-    if (FLAGS[key]){
-      /* 已经擦过了，回头看看 */
-    } else if (M.seq === G.seq - 1){
-      M.seq = G.seq;
-    } else {
-      if (M.seq > 0){
-        M.seq = 0;
-        for (var si2=1; si2<=6; si2++) delete FLAGS['擦墙' + si2];
-        allObjs().forEach(function(O2){
-          if (O2.seq !== undefined) delete FLAGS[objKey(O2)];
-        });
-        toast('……那边停了。从头再来。');
-      }
-      return;
-    }
+    if (M.seq === G.seq - 1){ M.seq = G.seq; FLAGS['擦墙' + G.seq] = true; }
+    else if (M.seq >= G.seq){ /* 这块已经擦过了 */ }
+    else toast('……还不到这块。', 1.6);
   }
   FLAGS[key] = true;
   if (G.set) setFlag(G.set);
@@ -5687,6 +5684,17 @@ clockEl.style.display = 'none';
           var th = thingNear();
           if (th && M.talk.cool <= 0){ pressAct(); hTickTalk(); }
           var G = goalNow();
+          /* 苔藓那一关的答案是"守则六条的头一个字" —— 探针自己读不出守则，
+             这儿直接按答案走，模拟一个已经把守则读懂的玩家。
+             （顺序：上 师 如 玻 门 数 → 西头第 2/6/1/4/5/3 块） */
+          if (M.map === 'hill' && flagOn('看到六块苔') && !flagOn('擦完墙')){
+            var MOSS_ORDER = [[6,4],[18,4],[3,4],[12,4],[15,4],[9,4]];
+            for (var mo = 0; mo < MOSS_ORDER.length; mo++){
+              var mx2 = MOSS_ORDER[mo][0], my2 = MOSS_ORDER[mo][1], ma = null;
+              allObjs().forEach(function(o2){ if (o2.x === mx2 && o2.y === my2 && !ma) ma = o2; });
+              if (ma && !FLAGS[objKey(ma)]){ G = { t:'擦第' + (mo+1) + '块', x:mx2, y:my2, map:'hill' }; break; }
+            }
+          }
           if (!G){ hLog.push('没目标了（在' + M.map + '）'); break; }
           if (G.map && G.map !== M.map){
             var por = null;
