@@ -350,6 +350,18 @@ function accVariant(g, c, base){
       for (var y=12; y<=13; y++) if (g[y][x]) g[y][x] = c.pal.cloth2;
     });
   }
+  /* 袴：校服下摆那一截换成红的。
+     巫女的白上衣只到腰，再往下是红袴 —— 光靠 pal.pants 只能染到腿，
+     上半身还是一整片白，看着像裹了条床单 */
+  if (c.skirt){
+    var sk = c.pal.skirt || c.pal.pants;
+    var c0 = (base === 'side') ? 3 : 4, c1 = (base === 'side') ? 12 : 11;
+    for (var sy3 = c.skirtFrom || 14; sy3 <= 17; sy3++)
+      for (var sx3 = c0; sx3 <= c1; sx3++)
+        if (g[sy3] && (g[sy3][sx3] === c.pal.cloth || g[sy3][sx3] === c.pal.cloth2))
+          g[sy3][sx3] = sk;
+  }
+
   /* 头上那个大蝴蝶结。写在外面的格子上也没关系 ——
      addOutline 在后面跑，会自己给新格子描边 */
   if (c.acc === 'ribbon'){
@@ -484,11 +496,11 @@ var CHARS = [
      这一版就他一个 acc:'ribbon'，所以人堆里一眼认得出来 */
   { id:'zzx', name:'zzx', tag:'逻辑的',
     bg:'#3a2c33', hairLine:14, sideburn:15, brow:'thin', eyes:'normal',
-    mouth:'small', spr:'short', acc:'ribbon',
+    mouth:'small', spr:'short', acc:'ribbon', skirt:true, skirtFrom:16,
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
     pal:{ skin:'#f4d6bb', skin2:'#dcb591', hair:'#241d1b', cloth:'#f2efe8',
           cloth2:'#d6d0c4', pants:'#b8342c', shoe:'#6d2a24', frame:'#141110',
-          ribbon:'#cf3a2e', ribbon2:'#8e2419',
+          ribbon:'#cf3a2e', ribbon2:'#8e2419', skirt:'#c0392b',
           W:AV.white, O:'#17130f', M:'#a85a4e' } },
 
   /* 三个没名没姓的学生。背景里的人就该是背景 ——

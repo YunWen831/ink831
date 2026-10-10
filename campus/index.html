@@ -2963,9 +2963,14 @@ function die(why, delay){
    难度就三条：比你走快、比你跑慢（所以必须一直按着 Shift），六分钟。
    守则照旧管用：玻璃前面不能停。逃跑的时候你还得记着这条。
    ============================================ */
-var CHASE_SPD   = 130;                 // 追的人：比走路(108)快，比快跑(259)慢一截
+/* 一排一排压过来的速度。你跑得比他们快得多，但你是迎着头撞上去的 ——
+   躲的是那个缝，不是速度 */
+var CHASE_SPD   = 118;
 var CHASE_RATE  = 6 / 90;              // 六分钟游戏时间，压进大约 90 秒
-var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic'];
+var WAVE_EVERY  = 2.6;                 // 隔多久来一排
+var WAVE_AHEAD  = 21;                  // 提前多少格出排（给够看缝的时间）
+var CHASE_FACES = ['deskmate', 'teacher', 'duty', 'dean', 'logic',
+                   'stu1', 'stu2', 'stu3', 'stu1', 'stu2'];
 var chaseEl = document.getElementById('chase');
 
 /* 从 (tx,ty) 往外找一格能站的地方。放追兵的时候用 ——
@@ -2982,73 +2987,59 @@ function walkableNear(tx, ty, maxR){
   }
   return null;
 }
-function chaseHoundCount(){
-  /* 最后一场就是"全校都出来了" —— 人要多。
-     帮了谁只改三两个，不再是六和七的区别 */
-  var cnt = 8;
-  if (flagOn('帮logic'))  cnt -= 2;    // 帮了 logic，他那拨人不来
-  if (flagOn('帮值周生')) cnt += 2;    // 告诉了值周生，他带人来了
-  return Math.max(5, Math.min(11, cnt));
+/* 每一排留多宽的缝。帮了谁只改这个 —— 帮了 logic 他那拨人不来，缝大；
+   告诉了值周生，他带人来了，缝小 */
+function chaseGap(){
+  var gap = 6;
+  if (flagOn('帮logic'))  gap += 2;
+  if (flagOn('帮值周生')) gap -= 2;
+  return Math.max(3, Math.min(9, gap));
 }
+/* 探针要看"一排有多少人" */
+function chaseRowCount(){ return 76 - chaseGap(); }
+
 function startChase(fromRespawn){
   if (M.chase) return;
   if (!fromRespawn) setFlag('被追了');   // 先立旗标再存档：读档回来还得知道自己在被追
   setClock(10*60 + 30);
-  M.chase = { hounds: [], cpY: 0 };
-  /* 他们从科技楼里出来，一条线撒在中轴大道上 ——
-     你从最北头往南冲，一路上全是他们。
-     摆法就两条：一是离门口留出二十几格，不能一出门就撞脸；
-     二是错开摆、别排成一面死墙 —— 有缝能钻才叫难度，
-     没缝可钻那叫不讲理 */
-  var spots = [
-    [35,66],[44,70],[37,76],[46,80],[34,86],[43,90],
-    [36,96],[45,100],[38,106],[42,110],[35,114],[45,118]
-  ];
-  var cnt = chaseHoundCount();
-  /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死，
-     那不叫机制，叫卡关 */
+  /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死 */
   if (flagOn('想上厕所')){ clearFlag('想上厕所'); M.urge = 0; }
-  if (fromRespawn){
-    /* 读档回来别把人扔回追兵脸上 —— 他们从你身后追上来。
-       被追上、读档、又立刻被追上，这么来回三百次，就是"每次都要从头来" */
-    var px = M.p.x/TILE, py = M.p.y/TILE;
-    for (var i=0; i<cnt; i++){
-      var sp = walkableNear(Math.round(px + (i - (cnt-1)/2) * 3), Math.round(py - 9));
-      if (!sp) continue;
-      M.chase.hounds.push({
-        x: sp.x*TILE + TILE/2, y: sp.y*TILE + TILE/2,
-        dir:'down', anim: 0, id: CHASE_FACES[i % CHASE_FACES.length]
-      });
-    }
-  } else {
-    spots.slice(0, cnt).forEach(function(p, i){
-      var sp = walkableNear(p[0], p[1]) || { x:p[0], y:p[1] };
-      M.chase.hounds.push({
-        x: sp.x*TILE + TILE/2, y: sp.y*TILE + TILE/2,
-        dir:'up', anim: 0, id: CHASE_FACES[i % CHASE_FACES.length]
-      });
-    });
-  }
+  M.chase = { hounds: [], cpY: 0, waveT: 1.8, rows: 0 };
   if (!fromRespawn) checkpoint();      // 死在半路就从这儿重来（读档重开时别再覆盖）
-  droneOn(); shake(0.9);               // 低频底噪，一开就让人心慌
+  droneOn(); shake(0.9);
   sfxBell(2);
   toast('整队了。', 2.4);
   if (chaseEl) chaseEl.classList.add('on');
 }
+/* ---- 出一排 ----
+   不是从后面追，是从前面横着压过来：整条大道宽的一排人，
+   排里留一个缝。缝的位置每一排都换，越到后面越窄。 */
+function spawnWave(){
+  var C = M.chase;
+  var rowY = M.p.y + WAVE_AHEAD*TILE;
+  if (rowY > (MAPH - 3)*TILE) return;          // 快到校门了就不再出
+  var gap = chaseGap();
+  /* 缝开在哪儿 —— 别贴着地图边，不然等于没有 */
+  var gapAt = 4 + Math.floor(Math.random() * (72 - gap - 4));
+  for (var x = 2; x <= 77; x++){
+    if (x >= gapAt && x < gapAt + gap) continue;
+    C.hounds.push({
+      x: x*TILE + TILE/2, y: rowY, dir:'up', anim: 0, moving: true,
+      id: CHASE_FACES[(x * 7 + Math.floor(rowY/TILE)) % CHASE_FACES.length]
+    });
+  }
+  C.rows++;
+}
 function chaseTick(dt){
   var C = M.chase, k = 0;
   M.clock += dt * CHASE_RATE;
-  /* 跑一段就悄悄存个点。原来整场追逐只有一个存档点，全在起跑线上 ——
-     死一次就得把九十秒重跑一遍，这就是"每次打完要重头大" */
+  /* 跑一段就悄悄存个点 —— 死一次别把九十秒重跑一遍 */
   var pyNow = Math.floor(M.p.y/TILE);
   if (pyNow >= (C.cpY || 0) + 8){
     C.cpY = pyNow;
-    checkpoint();                      // 不出提示：正跑着呢，别拿字糊屏幕
+    checkpoint();
   }
-  /* 他们在数。数到几了，右上角那个数字一直往上走 ——
-     你跑你的，它数它的，谁也不看谁 */
-  /* 数到十九，就数完了 —— 而下课铃正好在那一刻响。
-     你能早点出去，就等不到他们数完。 */
+  /* 他们在数 —— 数到十九，下课铃正好响 */
   C.count = Math.max(0, (M.clock - 10*60) * 3.17);
   if (clockEl) clockEl.textContent = clockText(M.clock);
   if (chaseEl){
@@ -3058,33 +3049,22 @@ function chaseTick(dt){
     var ctEl = chaseEl.querySelector('.ct');
     if (ctEl) ctEl.textContent = '已经数到 ' + Math.floor(C.count);
   }
-  /* ---- 他们不是在追你，是在数你 ----
-     看得见的那几个，你一动他们就是站着的 —— 站在那儿看着你，不动。
-     你一转开、一走远（出了画面），他们才挪。
-     可你要是停下来，他们全都过来。
-     所以这一场不是"跑得比 AI 快"，是"别停、别回头看太久"。 */
-  var moving = !!M.p.moving;
-  /* 画面框自己算一份，别去读 render 里的相机 —— 那个这时候还是上一帧的 */
-  var vx0 = M.p.x - W/2, vy0 = M.p.y - H/2;
+  /* 出排 */
+  C.waveT -= dt;
+  if (C.waveT <= 0 && M.clock < CLOCK_END - 0.3){
+    C.waveT = WAVE_EVERY;
+    spawnWave();
+  }
+  /* 每一排整体往北推。谁撞上谁完 —— 缝在那儿，得自己找 */
   for (k = 0; k < C.hounds.length; k++){
     var h = C.hounds[k];
-    var dx = M.p.x - h.x, dy = M.p.y - h.y, d = Math.hypot(dx, dy) || 1;
-    h.onScreen = (h.x > vx0 - 40 && h.x < vx0 + W + 40 &&
-                  h.y > vy0 - 40 && h.y < vy0 + H + 40);
-    var live = !(h.onScreen && moving);          // 你看着他的时候，他是站着的
-    h.moving = live;
-    if (live){
-      var vx = dx/d*CHASE_SPD*dt, vy = dy/d*CHASE_SPD*dt;
-      if (canWalk(h.x+vx, h.y)) h.x += vx;
-      if (canWalk(h.x, h.y+vy)) h.y += vy;
-      h.anim += dt;
-      if (Math.abs(vx) > Math.abs(vy)) h.dir = vx > 0 ? 'right' : 'left';
-      else                             h.dir = vy > 0 ? 'down' : 'up';
-    } else {
-      h.anim = 0;
-      h.dir = faceTowards(h.x, h.y, M.p.x, M.p.y);   // 站着，看着你
-    }
-    if (Math.hypot(M.p.x-h.x, M.p.y-h.y) < 17) return die('被数进去了。');
+    h.y -= CHASE_SPD * dt;
+    h.anim += dt;
+    if (Math.hypot(M.p.x - h.x, M.p.y - h.y) < 16) return die('被数进去了。');
+  }
+  /* 走过去很久的排就扔掉（不然一排排攒着，手机要炸） */
+  if (C.hounds.length > 400 || (C.hounds.length && C.hounds[0].y < M.p.y - 24*TILE)){
+    C.hounds = C.hounds.filter(function(z){ return z.y > M.p.y - 24*TILE; });
   }
   if (M.p.y > 122*TILE) return endChase();                    // 出校门了
   if (M.clock >= CLOCK_END) return die('下课铃响了。\n他们数到十九个。\n第十九个是你。', 2.4);
@@ -4338,6 +4318,7 @@ function render(){
   var order = M.npcs.slice();
   order.push({ id:'__me', me:true, x:M.p.x, y:M.p.y });
   if (M.chase) M.chase.hounds.forEach(function(h){
+    if (h.x < camX - 60 || h.x > camX + W + 60 || h.y < camY - 80 || h.y > camY + H + 80) return;
     order.push({ id:h.id, hound:true, x:h.x, y:h.y, dir:h.dir, anim:h.anim, moving:h.moving });
   });
   /* 下一步要找的那个实物，隔着半张图也得看得见 ——
@@ -4867,14 +4848,16 @@ clockEl.style.display = 'none';
       }
       if (mode === 'chase'){
         setFlag('被追了');
-        loadMap('campus', 39, 96);
+        loadMap('campus', 45, 96);
         M.fade = 0;
         M.chase = null;
         startChase();
         out.push('开追 ' + clockText(M.clock) + ' 人数=' + M.chase.hounds.length);
         /* ① 站着不动：该被追上 */
-        var ck = 0; while (ck++ < 240 && M.dying <= 0) update(1/60);
-        out.push('站着不动 ' + (ck/60).toFixed(1) + '秒 → dying=' + (M.dying||0).toFixed(2));
+        /* 现在是一排一排压过来：站在那儿不动，等排走到你身上就完了 */
+        var ck = 0; while (ck++ < 900 && M.dying <= 0) update(1/60);
+        out.push('站着不动 ' + (ck/60).toFixed(1) + '秒 → dying=' + (M.dying||0).toFixed(2) +
+                 ' 出了' + (M.chase ? M.chase.rows : 0) + '排');
         M.dying = 0;
         respawn();
         out.push('复活在 ' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
@@ -4942,9 +4925,9 @@ clockEl.style.display = 'none';
         function houndCountFor(f){
           FLAGS = {}; if (f) setFlag(f);
           M.chase = null; startChase();
-          var n = M.chase.hounds.length; M.chase = null; return n;
+          var n = chaseRowCount(); M.chase = null; return n;
         }
-        out.push('追兵：没选=' + houndCountFor(null) +
+        out.push('一排多少人：没选=' + houndCountFor(null) +
                  ' 帮logic=' + houndCountFor('帮logic') +
                  ' 帮值周生=' + houndCountFor('帮值周生'));
         /* ⑦ 选了"告诉值周生"，他该把那一页撕给你 */
@@ -5637,6 +5620,33 @@ clockEl.style.display = 'none';
           keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
           if (Math.abs(M.p.x - tx) > 2) keys[M.p.x < tx ? 'd' : 'a'] = true;
           if (Math.abs(M.p.y - ty) > 2) keys[M.p.y < ty ? 's' : 'w'] = true;
+          /* 追逐里额外加一层"躲"：有排压到眼前了，就横向让开 ——
+             在左右十二格能站的地方里，挑人最少的那一列。
+             （只在这一层加，路线还是照走，不然楼里会一头撞进墙） */
+          if (M.chase){
+            var pyT = Math.floor(M.p.y/TILE), threat = false, hh, oh;
+            for (hh = 0; hh < M.chase.hounds.length; hh++){
+              oh = M.chase.hounds[hh];
+              if (oh.y > M.p.y - 24 && oh.y < M.p.y + 9*TILE &&
+                  Math.abs(oh.x - M.p.x) < 96) threat = true;
+            }
+            if (threat){
+              var cxNow = Math.floor(M.p.x/TILE);
+              var bestX = M.p.x, bestN = 1e9;
+              for (var cxx = Math.max(3, cxNow - 12); cxx <= Math.min(76, cxNow + 12); cxx++){
+                if (solidAt(cxx, pyT)) continue;
+                var cnt2 = 0, px2 = cxx*TILE + TILE/2;
+                for (var h3 = 0; h3 < M.chase.hounds.length; h3++){
+                  var o3 = M.chase.hounds[h3];
+                  if (o3.y > M.p.y - 24 && o3.y < M.p.y + 11*TILE &&
+                      Math.abs(o3.x - px2) < 46) cnt2++;
+                }
+                if (cnt2 < bestN){ bestN = cnt2; bestX = px2; }
+              }
+              if (bestX - M.p.x < -8){ keys['a'] = true; keys['d'] = false; }
+              else if (bestX - M.p.x > 8){ keys['d'] = true; keys['a'] = false; }
+            }
+          }
           keys['shift'] = !!M.chase; M.run = !!M.chase;
           var bx = M.p.x, by = M.p.y;
           update(1/60);
