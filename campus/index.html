@@ -1140,9 +1140,9 @@ makeMap('hill', {
     { x:9,  y:4, art:'moss', who:'苔 · 数',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
 
     /* 后山这三处支线：同一面墙，三个角色各看各的 */
-    { x:16, y:7, art:'moss', who:'那面墙',     verb:'贴上去听', talk:'sd_hill_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:16, y:7, art:'moss', who:'墙根的缺口', verb:'钻过去',   talk:'sd_hill_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:16, y:7, art:'moss', who:'墙后面',     verb:'举起笔',   talk:'sd_hill_logic', if:['是:logic','可以走动了'], once:true }
+    { x:16, y:7, art:'moss', who:'那面墙',     verb:'贴上去听', talk:'sd_hill_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:7, art:'moss', who:'墙根的缺口', verb:'钻过去',   talk:'sd_hill_shui',  if:['是:shui','可以走动了'] },
+    { x:16, y:7, art:'moss', who:'墙后面',     verb:'举起笔',   talk:'sd_hill_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: []
 }, hillLayout);
@@ -1225,9 +1225,9 @@ makeMap('museum', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:16, ty:110 } ],
   objs: [
-    { x:6,  y:6, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true }
+    { x:6,  y:6, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
+    { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, museumLayout);
@@ -1238,9 +1238,9 @@ makeMap('office', {
   npcs: [ { id:'teacher', tx:16, ty:21, face:'up', talk:'hint_teacher' } ],
   objs: [
     { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
-    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true }
+    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'] },
+    { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, officeLayout);
@@ -1253,9 +1253,9 @@ makeMap('hall2', {
   ],
   npcs: [ { id:'laoli', tx:16, ty:6, face:'down', talk:'hint_laoli' } ],
   objs: [
-    { x:6,  y:6, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:6,  y:6, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:6,  y:6, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'], once:true }
+    { x:6,  y:6, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli', if:['是:laoli','可以走动了'] },
+    { x:6,  y:6, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',  if:['是:shui','可以走动了'] },
+    { x:6,  y:6, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, hall2Layout);
@@ -1271,9 +1271,9 @@ makeMap('art', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:104 } ],
   objs: [
-    { x:16, y:13, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:16, y:13, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'], once:true }
+    { x:16, y:13, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:13, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'] },
+    { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, artLayout);
@@ -1295,9 +1295,9 @@ makeMap('lab', {
     { x:15, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
       talk:'pw_table', if:'擦完墙', once:true },
     { x:5,  y:5,  art:'drawer', who:'试剂柜',           verb:'拉开',
-      talk:'sd_lab_shui',  if:['是:shui','可以走动了'],  once:true },
+      talk:'sd_lab_shui',  if:['是:shui','可以走动了'] },
     { x:25, y:5,  art:'paper',  who:'讲台抽屉',         verb:'拉开',
-      talk:'sd_lab_logic', if:['是:logic','可以走动了'], once:true },
+      talk:'sd_lab_logic', if:['是:logic','可以走动了'] },
     /* 那本记录本 —— 三年前的事，这一处说得最直 */
     { x:26, y:6,  ox:0, oy:-6, art:'paper', who:'实验台上摊着的记录本', verb:'翻开',
       talk:'nw_notebook', if:'可以走动了', once:true },
@@ -1305,7 +1305,7 @@ makeMap('lab', {
     { x:36, y:15, ox:0, oy:-22, art:'paper', who:'铁栅上的封条', verb:'看看',
       talk:'nw_seal', once:true },
     { x:34, y:15, ox:0, oy:-24, art:'board', who:'钉反了的那块牌子', verb:'正过来',
-      talk:'sd_lab_laoli', if:['是:laoli','可以走动了'], once:true }
+      talk:'sd_lab_laoli', if:['是:laoli','可以走动了'] }
   ],
   triggers: [
     { x:36, y:13, w:3, h:1, once:true, talk:'stairs_shut' }
@@ -1942,103 +1942,233 @@ var TALK = {
   /* ---- 校史馆：那届 46 班 ---- */
   sd_museum_laoli: { nodes:{
     s:{ text:'（校史馆里那排毕业照，玻璃底下压着一层灰。）', next:'t' },
-    t:{ text:'（你从最后一排往前数，找到 46 班那一届。）\n\n（十九个人。）\n\n（照片最右边空着一个位置 —— 底下的名牌还在，名字被人刮掉了。）',
-        set:'查·校史馆·牢李', end:true }
+    t:{ text:'（每张底下钉着一块小铜牌：届别、班号。）\n\n（哪一张是 46 班那一届？）', opts:[
+         { t:'二〇二一届 · 44 班', go:'no' },
+         { t:'二〇二二届 · 45 班', go:'no' },
+         { t:'二〇二四届 · 46 班', go:'num' },
+         { t:'二〇二五届 · 47 班', go:'no' } ]},
+    no:{ text:'（不对。铜牌上没写这个。）', next:'t' },
+    num:{ text:'（这一张。）\n\n（你得数一遍 —— 照片上几个人？）', opts:[
+         { t:'十七个', go:'no2' },
+         { t:'十八个', go:'no2' },
+         { t:'十九个', go:'ok' },
+         { t:'二十个', go:'no2' } ]},
+    no2:{ text:'（你再数一遍。）', next:'num' },
+    ok:{ text:'（十九个。）\n\n（可最右边空着一个位子 —— 底下的名牌还钉着，\n　名字被人刮掉了。）',
+         set:'查·校史馆·牢李', end:true }
   }},
   sd_museum_shui: { nodes:{
-    s:{ text:'（玻璃柜里摆着奖状。）', next:'t' },
-    t:{ text:'（有一张是化学竞赛的，二等奖。）\n\n（获奖人那一栏，齐齐地剪掉了。）\n\n（剪得很整齐 —— 是拿尺子比着剪的。）',
-        set:'查·校史馆·水哥', end:true }
+    s:{ text:'（玻璃柜里码着一排奖状，玻璃反光。）', next:'t' },
+    t:{ text:'（获奖人那一栏全都被人剪过 —— 一排看过去全是窟窿。）\n\n（只有一张，剪得最狠。）\n\n（哪一张？）', opts:[
+         { t:'数学竞赛 · 一等奖', go:'no' },
+         { t:'物理竞赛 · 三等奖', go:'no' },
+         { t:'化学竞赛 · 二等奖', go:'ok' },
+         { t:'生物竞赛 · 一等奖', go:'no' } ]},
+    no:{ text:'（这张的窟窿没剪那么深。）', next:'t' },
+    ok:{ text:'（化学竞赛。二等奖。）\n\n（获奖人那一栏是齐着边剪的 ——\n　底下垫着尺子剪的。剪得很慢，剪得很直。）',
+         set:'查·校史馆·水哥', end:true }
   }},
   sd_museum_logic: { nodes:{
     s:{ text:'（借阅登记簿摊在桌上，最后一页没合上。）', next:'t' },
-    t:{ text:'（最后一页上只有一行。）\n\n（同一个名字，同一本书，借了三年。）\n\n（还书日期那一栏，一直是空的。）',
-        set:'查·校史馆·逻辑', end:true }
+    t:{ text:'（最后一页只有一行。）\n\n（借出：十月十二日。\n　还书：空的。）\n\n（登记簿是每学期换一本的 —— 这一行，跨了三本。）', next:'q' },
+    q:{ text:'（他借了多久？）', opts:[
+         { t:'一个学期', go:'no' },
+         { t:'一年', go:'no' },
+         { t:'两年', go:'no' },
+         { t:'三年', go:'ok' } ]},
+    no:{ text:'（登记簿一年换一本。再数。）', next:'q' },
+    ok:{ text:'（三年。）\n\n（同一本书，借了三年。）\n\n（借书卡上每一次的名字，都是同一笔字 ——\n　写得越来越用力。）',
+         set:'查·校史馆·逻辑', end:true }
   }},
 
   /* ---- 行政楼：那天谁在 ---- */
   sd_office_laoli: { nodes:{
-    s:{ text:'（值班表挂在门厅墙上。）', next:'t' },
-    t:{ text:'（三年前那一天，值班老师那一格被涂黑了。）\n\n（用的是黑笔，涂得很用力，纸都起毛了。）\n\n（旁边那几格，值班的都是同一个人。）',
-        set:'查·行政楼·牢李', end:true }
+    s:{ text:'（门厅墙上挂着值班表，一格一格按天排。）', next:'t' },
+    t:{ text:'（十月的这一列 —— 从头上往下看：）\n\n　十日　张\n　十一日　张\n　■■■　■■\n　十三日　张\n　十四日　张', next:'q' },
+    q:{ text:'（中间那一格被涂黑了。）\n\n（涂掉的是几号？）', opts:[
+         { t:'九日', go:'no' },
+         { t:'十二日', go:'ok' },
+         { t:'十五日', go:'no' },
+         { t:'二十日', go:'no' } ]},
+    no:{ text:'（前后都是挨着的。再排一遍。）', next:'q' },
+    ok:{ text:'（十二日。）\n\n（涂黑的那一格，底下还看得见一点笔画 ——\n　是个"张"字。那天值班的还是同一个人。）\n\n（可那一格涂得最狠。）',
+         set:'查·行政楼·牢李', end:true }
   }},
   sd_office_shui: { nodes:{
-    s:{ text:'（学籍卡柜没锁。）', next:'t' },
-    t:{ text:'（你抽到那一张。）\n\n（照片被撕掉了，只剩四个角。）\n\n（备注栏写着两个字：转学。）',
-        set:'查·行政楼·水哥', end:true }
+    s:{ text:'（学籍卡柜没锁，卡是按班号排的。）', next:'t' },
+    t:{ text:'（你得找 46 班那张。）\n\n（柜子里三排：高三年级、高二年级、高一年级。）\n\n（46 班是哪个年级？）', opts:[
+         { t:'高一年级', go:'no' },
+         { t:'高二年级', go:'ok' },
+         { t:'高三年级', go:'no' },
+         { t:'不在这个柜子里', go:'no' } ]},
+    no:{ text:'（班号 4 开头是高二。再看。）', next:'t' },
+    ok:{ text:'（高二那一排，翻到 46 班。）\n\n（卡还在。）\n\n（照片被撕掉了，只剩四个角 ——\n　撕的时候手不抖，是沿着边撕的。）\n\n（备注栏写着两个字：转学。）',
+         set:'查·行政楼·水哥', end:true }
   }},
   sd_office_logic: { nodes:{
-    s:{ text:'（广播稿的存档，按日期夹着。）', next:'t' },
-    t:{ text:'（最后一篇没播。）\n\n（纸上写到一半就停了：）\n\n「下面念一个名字。念到的同学，到教导处来一趟。」\n\n（底下空着。）',
-        set:'查·行政楼·逻辑', end:true }
+    s:{ text:'（广播稿的存档，按日期夹在一个铁夹子上。）', next:'t' },
+    t:{ text:'（每一篇右上角都盖着一个戳：已播。\n\n（只有一篇没有。）\n\n（翻到它 —— 你先得知道它是哪一天的。）', next:'q' },
+    q:{ text:'（那一篇的日期，跟值班表上被涂黑的那一格是同一天。）\n\n（几号？）', opts:[
+         { t:'十日', go:'no' },
+         { t:'十二日', go:'ok' },
+         { t:'十五日', go:'no' },
+         { t:'二十九日', go:'no' } ]},
+    no:{ text:'（跟值班表上那一格对不上。）', next:'q' },
+    ok:{ text:'（十月十二日。）\n\n（那篇稿子写到一半就停了：）\n\n「下面念一个名字。\n　念到的同学，到教导处来一趟。」\n\n（底下空着。戳也没盖。）',
+         set:'查·行政楼·逻辑', end:true }
   }},
 
   /* ---- 艺术楼：几点几分 ---- */
   sd_art_laoli: { nodes:{
     s:{ text:'（院子中间那口钟。）', next:'t' },
-    t:{ text:'（停在七点十分。）\n\n（你伸手拨了一下钟摆。）\n\n（卡着的。怎么拨都不动。）',
-        set:'查·艺术楼·牢李', end:true }
+    t:{ text:'（停在七点十分。）\n\n（你伸手拨了一下钟摆 —— 卡着的。）', next:'q' },
+    q:{ text:'（钟面上有三根针。\n　哪一根停在"十"上？）', opts:[
+         { t:'时针', go:'no' },
+         { t:'分针', go:'ok' },
+         { t:'秒针', go:'no' },
+         { t:'三根都停在十二上', go:'no' } ]},
+    no:{ text:'（七点十分 —— 分钟那一根指着二。再看。）', next:'q' },
+    ok:{ text:'（分针。指着"二"。）\n\n（时针指着七。秒针卡在十分那一下 ——\n　它不是停了，是被人按住的。）\n\n（按的时候，正好七点十分。）',
+         set:'查·艺术楼·牢李', end:true }
   }},
   sd_art_shui: { nodes:{
-    s:{ text:'（你站在院子东边，随便说了一句。）', next:'t' },
-    t:{ text:'（西边回了一声。）\n\n（隔了一拍才回的。）\n\n（你绕过去 —— 那边没人。）',
-        set:'查·艺术楼·水哥', end:true }
+    s:{ text:'（院子是个回字，你站在东边。）', next:'t' },
+    t:{ text:'（你说了一句话。西边回了一声。）\n\n（可回声隔了一拍 —— 正常人反应不过来那么慢。）',
+        next:'q' },
+    q:{ text:'（你又拍了三下手，一下一下，拍得很匀。）\n\n（它回了几下？）', opts:[
+         { t:'三下', go:'no' },
+         { t:'两下', go:'no' },
+         { t:'四下', go:'ok' },
+         { t:'没回', go:'no' } ]},
+    no:{ text:'（你再拍一遍，数着。）', next:'q' },
+    ok:{ text:'（四下。）\n\n（你拍三下，它回四下。）\n\n（你绕到西边去 —— 那边没人。）\n\n（你站在西边再拍一下。\n　东边回了。）',
+         set:'查·艺术楼·水哥', end:true }
   }},
   sd_art_logic: { nodes:{
     s:{ text:'（琴房最后一间，谱架上摊着一页。）', next:'t' },
-    t:{ text:'（同一段被铅笔圈了三遍。）\n\n（旁边写着：第 47 遍。）\n\n（笔迹越写越浅。）',
-        set:'查·艺术楼·逻辑', end:true }
+    t:{ text:'（同一段被铅笔圈了三遍。）\n\n（旁边写着：第 47 遍。）\n\n（每一遍的圈，一笔比一笔浅。）', next:'q' },
+    q:{ text:'（他圈的是第几小节？）', opts:[
+         { t:'最后一小节', go:'no' },
+         { t:'开头那一个小节', go:'no' },
+         { t:'正中间那一小节', go:'ok' },
+         { t:'他没圈小节', go:'no' } ]},
+    no:{ text:'（三个圈都落在同一个地方。看谱子。）', next:'q' },
+    ok:{ text:'（正中间那一小节。）\n\n（那一小节的音符底下写着字，很小：）\n\n「这儿他总弹错。」\n\n（第 47 遍的时候，字已经淡得快看不见了。）',
+         set:'查·艺术楼·逻辑', end:true }
   }},
 
   /* ---- 实验楼：那间屋子在哪 ---- */
   sd_lab_laoli: { nodes:{
     s:{ text:'（门边那块牌子钉反了，字朝着墙里。）', next:'t' },
-    t:{ text:'（你把它正过来。）\n\n（上面写着：化学竞赛辅导室 —— 三楼。）\n\n（可这栋楼只有两层。）',
-        set:'查·实验楼·牢李', end:true }
+    t:{ text:'（你把它正过来。）\n\n（上面写着：化学竞赛辅导室 —— 三楼。）', next:'q' },
+    q:{ text:'（这栋楼有几层？）', opts:[
+         { t:'三层', go:'no' },
+         { t:'两层', go:'ok' },
+         { t:'四层', go:'no' },
+         { t:'数不清', go:'no' } ]},
+    no:{ text:'（你上楼数一遍。到顶了。）', next:'q' },
+    ok:{ text:'（两层。）\n\n（这栋楼只有两层。）\n\n（牌子钉在这儿很多年了，钉子眼都对得上 ——\n　三楼不是后来没的。是本来就没有。）',
+         set:'查·实验楼·牢李', end:true }
   }},
   sd_lab_shui: { nodes:{
     s:{ text:'（试剂柜按周期表排，一格一格贴着手写标签。）', next:'t' },
-    t:{ text:'（有一格是空的。）\n\n（柜底留着一圈印子。）\n\n（标签上写着一个字母：N。）',
-        set:'查·实验楼·水哥', end:true }
+    t:{ text:'（有一格是空的。）\n\n（柜底留着一圈印子，圆的。）\n\n（标签上写着一个字母。）', next:'q' },
+    q:{ text:'（是哪个字母？）', opts:[
+         { t:'H', go:'no' },
+         { t:'O', go:'no' },
+         { t:'N', go:'ok' },
+         { t:'标签早就掉了', go:'no' } ]},
+    no:{ text:'（对着周期表看那一格的位置。）', next:'q' },
+    ok:{ text:'（N。）\n\n（氮。那一格空着，印子是圆的 ——\n　瓶子是被人整个拿走的。）\n\n（拿走的时候，连瓶底的灰都带走了。）',
+         set:'查·实验楼·水哥', end:true }
   }},
   sd_lab_logic: { nodes:{
     s:{ text:'（讲台抽屉里压着半张卷子。）', next:'t' },
-    t:{ text:'（化学的，只做到一半。）\n\n（最后一道题旁边写着一行小字：）\n\n「来不及了。」',
-        set:'查·实验楼·逻辑', end:true }
+    t:{ text:'（化学的，只做到一半。）\n\n（最后一道题旁边写着一行小字。）', next:'q' },
+    q:{ text:'（那行写的是什么？）', opts:[
+         { t:'不会做', go:'no' },
+         { t:'来不及了', go:'ok' },
+         { t:'明天再写', go:'no' },
+         { t:'没写字', go:'no' } ]},
+    no:{ text:'（字很小，写在题目边上。再看。）', next:'q' },
+    ok:{ text:'（「来不及了。」）\n\n（四个字。写得很稳，一点都不潦草。）\n\n（他写完这四个字，把笔搁下了。）',
+         set:'查·实验楼·逻辑', end:true }
   }},
 
   /* ---- 二号教学楼：45 班 ---- */
   sd_two_laoli: { nodes:{
     s:{ text:'（45 班旧址，桌椅都搬空了，墙上还留着座位表。）', next:'t' },
-    t:{ text:'（最后一排靠门那个位子，有名有姓。）\n\n（可那个名字被人用指甲刮过 —— 刮出一道白印。）',
-        set:'查·二号教学楼·牢李', end:true }
+    t:{ text:'（最后一排靠门那个位子，有名有姓。）\n\n（可那个名字被人用指甲刮过 —— 刮出一道白印。）', next:'q' },
+    q:{ text:'（你得先认出那三个字。）\n\n（刮痕底下还剩什么？）', opts:[
+         { t:'姓', go:'no' },
+         { t:'名', go:'no' },
+         { t:'一个字都没剩', go:'ok' },
+         { t:'整个名字都在，只是花了', go:'no' } ]},
+    no:{ text:'（刮得很干净。再凑近看。）', next:'q' },
+    ok:{ text:'（一个字都没剩。）\n\n（只留下一个空的格子 ——\n　格子还在，座位表的线还绕着它。）\n\n（刮的人刮得很仔细，连笔画边上的纸毛都捻掉了。）',
+         set:'查·二号教学楼·牢李', end:true }
   }},
   sd_two_shui: { nodes:{
     s:{ text:'（后墙的学习园地上还贴着几篇作文。）', next:'t' },
-    t:{ text:'（你挨着看过去。）\n\n（五篇，署着五个不同的名字。）\n\n（字迹是同一个人。）',
-        set:'查·二号教学楼·水哥', end:true }
+    t:{ text:'（五篇，署着五个不同的名字。）\n\n（字迹是同一个人。）', next:'q' },
+    q:{ text:'（哪几篇是同一个人写的？）', opts:[
+         { t:'第一篇和第三篇', go:'no' },
+         { t:'中间两篇', go:'no' },
+         { t:'全部五篇', go:'ok' },
+         { t:'看不出来', go:'no' } ]},
+    no:{ text:'（再逐篇对一遍笔迹。）', next:'q' },
+    ok:{ text:'（五篇都是。）\n\n（连老师用红笔写的评语，也是同一笔字 ——\n　只是换了个方向写。）\n\n（他一个人，替五个人交过作文。）',
+         set:'查·二号教学楼·水哥', end:true }
   }},
   sd_two_logic: { nodes:{
     s:{ text:'（你对着窗户玻璃哈了一口气。）', next:'t' },
-    t:{ text:'（雾起来的玻璃上浮出三个字。）\n\n（是反的 —— 从里面写的。）',
-        set:'查·二号教学楼·逻辑', end:true }
+    t:{ text:'（雾起来的玻璃上浮出三个字。）\n\n（是反的 —— 从里面写的。）', next:'q' },
+    q:{ text:'（把三个字翻过来念 —— 是什么？）', opts:[
+         { t:'别回头', go:'no' },
+         { t:'别答应', go:'ok' },
+         { t:'别进来', go:'no' },
+         { t:'救我', go:'no' } ]},
+    no:{ text:'（是反字。把它翻过来。）', next:'q' },
+    ok:{ text:'（别答应。）\n\n（守则第二条底下那一行，也是这三个字。）\n\n（写字的人站在屋里那一面 ——\n　他写的时候，玻璃上还没有雾。）',
+         set:'查·二号教学楼·逻辑', end:true }
   }},
 
   /* ---- 后山：墙后面 ---- */
   sd_hill_laoli: { nodes:{
     s:{ text:'（你贴在墙上听。）', next:'t' },
-    t:{ text:'（念书的声音。很平，一遍一遍。）\n\n（这一遍你听清了 —— 它念的不是课文。）\n\n（它在点名。）',
-        set:'查·后山·牢李', end:true }
+    t:{ text:'（念书的声音。很平，一遍一遍。）\n\n（这一遍你听清了 —— 它念的不是课文。）', next:'q' },
+    q:{ text:'（它在念什么？）', opts:[
+         { t:'课文', go:'no' },
+         { t:'通知', go:'no' },
+         { t:'点名', go:'ok' },
+         { t:'广播操的口令', go:'no' } ]},
+    no:{ text:'（再听一遍。注意它顿在哪儿。）', next:'q' },
+    ok:{ text:'（点名。）\n\n（念一个，顿一下 —— 停的时间刚好够一个人应一声。）\n\n（念到某一个名字的时候，它顿得比别处长。）',
+         set:'查·后山·牢李', end:true }
   }},
   sd_hill_shui: { nodes:{
     s:{ text:'（墙根底下塌了一个缺口，刚好够一个人钻过去。）', next:'t' },
-    t:{ text:'（后面是一间教室。）\n\n（塌了一半。黑板还立着，上头留着半行粉笔字。）\n\n（横格纸，蓝墨水 —— 字迹你认得。）',
-        set:'查·后山·水哥', end:true }
+    t:{ text:'（后面是一间教室。）\n\n（塌了一半。黑板还立着，上头留着半行粉笔字。）', next:'q' },
+    q:{ text:'（那半行写的是什么？）', opts:[
+         { t:'一道数学题', go:'no' },
+         { t:'一道没写完的化学式', go:'ok' },
+         { t:'一个名字', go:'no' },
+         { t:'一片乱画', go:'no' } ]},
+    no:{ text:'（凑近看。那是化学的符号。）', next:'q' },
+    ok:{ text:'（半条化学式。）\n\n（写到最后一个等号，停了。）\n\n（等号后面空着 —— 粉笔搁在等号边上，\n　断了一截。）',
+         set:'查·后山·水哥', end:true }
   }},
   sd_hill_logic: { nodes:{
     s:{ text:'（你举起翻译笔，对着墙。）', next:'t' },
-    t:{ text:'（笔上显示的不是字。）\n\n（是一页纸 —— 同一页，翻来覆去。）\n\n（页码那一栏，从来没变过。）',
-        set:'查·后山·逻辑', end:true }
+    t:{ text:'（笔上显示的不是字。）\n\n（是一页纸 —— 同一页，翻来覆去。）', next:'q' },
+    q:{ text:'（页码那一栏写着几？）', opts:[
+         { t:'第一页', go:'no' },
+         { t:'最后一页', go:'no' },
+         { t:'第 47 页', go:'ok' },
+         { t:'没有页码', go:'no' } ]},
+    no:{ text:'（笔上那行数字一直没变过。再看。）', next:'q' },
+    ok:{ text:'（47。）\n\n（从头翻到尾，页码从来没变过。\n　翻来覆去都是第 47 页。）\n\n（那一页上有一行被反复描过 ——\n　纸都描破了。）',
+         set:'查·后山·逻辑', end:true }
   }},
 
   /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
