@@ -3433,6 +3433,9 @@ function tone(freq, dur, opt){
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g); g.connect(AC.destination);
   o.start(t); o.stop(t + dur);
+  /* 响完得摘掉。原来不摘 —— 走一路、打一场，音频图里堆几千个死节点，
+     手机那边就会越来越烫、最后卡住 */
+  o.onended = function(){ try { o.disconnect(); g.disconnect(); } catch (e){} };
 }
 /* 一段噪声。脚步、开门、风，都是它 */
 function hiss(dur, opt){
@@ -3446,6 +3449,7 @@ function hiss(dur, opt){
   f.frequency.value = opt.freq || 800;
   var g = AC.createGain(); g.gain.value = opt.vol || 0.05;
   s.connect(f); f.connect(g); g.connect(AC.destination); s.start();
+  s.onended = function(){ try { s.disconnect(); f.disconnect(); g.disconnect(); } catch (e){} };
 }
 var lastStep = 0;
 function sfxStep(){                                  // 脚步：别每帧都响
@@ -3486,7 +3490,9 @@ function droneOn(){
   droneOsc.connect(f); f.connect(droneGain); droneGain.connect(AC.destination);
   droneOsc.start();
 }
-function droneOff(){ if (droneOsc){ try { droneOsc.stop(); } catch (e){} droneOsc = null; droneGain = null; } }
+function droneOff(){ if (droneOsc){ try { droneOsc.stop(); droneOsc.disconnect(); } catch (e){}
+  try { if (droneGain) droneGain.disconnect(); } catch (e){}
+  droneOsc = null; droneGain = null; } }
 
 /* ==================== 状态 ==================== */
 function freshTalk(){
@@ -5074,6 +5080,8 @@ function update(dt){
   } else {
     M.p.anim = 0;
   }
+
+  dbgTick(dt);
 
   /* arena 上没 Boss 就是死局 —— 那张图没有出口，存档又不存战斗状态。
      读一次档回来就站在一张空图上动不了。这儿自愈：重开这一场；
@@ -7933,6 +7941,29 @@ clockEl.style.display = 'none';
   }, 700);
 })();
 
+/* ==================== 版本 · 帧数 ====================
+   手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
+   还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
+var BUILD = 'v10';
+var dbgEl = null, dbgT = 0, dbgF = 0;
+function dbgTick(dt){
+  dbgF++;
+  dbgT += dt;
+  if (dbgT < 0.5) return;
+  dbgT = 0;
+  try {
+    if (!dbgEl){
+      dbgEl = document.createElement('div');
+      dbgEl.style.cssText = 'position:fixed;left:6px;bottom:6px;z-index:99;' +
+        'font:600 12px/1.4 ui-monospace,monospace;color:#fff;' +
+        'background:rgba(0,0,0,.72);padding:3px 8px;border-radius:5px;' +
+        'border:1px solid rgba(255,255,255,.28);pointer-events:none;';
+      document.body.appendChild(dbgEl);
+    }
+    dbgEl.textContent = BUILD + ' · ' + dbgF;
+  } catch (e){}
+}
+
 /* ==================== 报错得看得见 ====================
    手机上没控制台。前一版的毛病是：脚本一崩，屏幕上什么都没有，
    玩家只能看到"卡死"两个字。现在崩了就把那行字挂在屏幕上。 */
@@ -7949,7 +7980,7 @@ function showErr(msg, line){
     }
     var t = (msg && msg.message) ? msg.message : String(msg);
     var where = (msg && msg.stack) ? ' | ' + String(msg.stack).split('\n')[1] : '';
-    el.textContent = '出错了（把这一行发给我）：' + t + where +
+    el.textContent = BUILD + ' 出错了（把这一行发给我）：' + t + where +
                      (line ? ' @' + line : '');
   } catch (e){}
 }
