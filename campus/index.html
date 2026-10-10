@@ -1235,7 +1235,8 @@ makeMap('museum', {
 makeMap('office', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:24, ty:100 } ],
-  npcs: [ { id:'teacher', tx:16, ty:21, face:'up', talk:'hint_teacher' } ],
+  /* 别跟学籍卡柜站同一格 —— 同距离时按 E 永远是"跟人说话"，柜子就永远按不到 */
+  npcs: [ { id:'teacher', tx:23, ty:21, face:'up', talk:'hint_teacher' } ],
   objs: [
     { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
     { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
@@ -2220,7 +2221,7 @@ var TALK = {
      三道线索散在三个地方：45 班空教室的黑板、实验楼的周期表、行政楼的抽屉。
      他一个化学老师，拿元素序号当密码，还挺得意。 */
   pw_board: { nodes:{ s:{
-    text:'45 班的门开着。\n\n黑板上还留着半行没擦的字 —— 是 lg7 的字。\n\n　　B · H · N',
+    text:'45 班的门开着。\n\n黑板上还留着半行没擦的字 —— 是 lg7 的字。\n\n　　H₂ · B · N₃\n\n（下标那两个数字只有米粒大 —— 不凑近看就是 H · B · N。）',
     set:'看过黑板式子', end:true }}},
 
   pw_table: { nodes:{ s:{
@@ -2232,15 +2233,16 @@ var TALK = {
 
   pw_drawer: { nodes:{
     s:{ text:'lg7 的办公桌。抽屉锁着。\n\n（你的手机在里面 —— 上周上课那一声笑，他当场就没收了。）', next:'t' },
-    t:{ text:'三位数的密码锁。锁边上贴着一张纸，他的字：\n\n「密码是我写的那条式子 ——\n　但我不按写的顺序排。\n\n　从小到大。」', next:'u' },
-    /* 黑板写的是 B·H·N（=5·1·7）。照着念是错的，得先把三个数排一遍 */
-    u:{ text:'（黑板上的：B · H · N）\n（周期表上的：B … 5　H … 1　N … 7）\n\n（他说从小到大。）', opts:[
-         { t:'5 · 1 · 7', go:'no' },
-         { t:'1 · 5 · 7', go:'ok' },
-         { t:'5 · 7 · 1', go:'no' },
-         { t:'1 · 7 · 5', go:'no' } ]},
+    t:{ text:'三位数的密码锁。锁边上贴着一张纸，他的字：\n\n「密码是我写的那条式子 ——\n　写着的那个式子，有几个原子。\n\n　别去查周期表。那是给化学课用的。」', next:'u' },
+    /* 题眼：黑板上那个式子里挂着下标（H₂、N₃）。周期表是诱饵 ——
+       照着对序号是 1·5·7，那不是原子个数。 */
+    u:{ text:'（黑板上的式子：H₂ · B · N₃）\n\n（H 后头挂着个 2，N 后头挂着个 3。\n　B 后头什么都没有 —— 没有就是 1。）', opts:[
+         { t:'1 · 5 · 7', go:'no' },
+         { t:'2 · 1 · 3', go:'ok' },
+         { t:'3 · 1 · 2', go:'no' },
+         { t:'2 · 3 · 1', go:'no' } ]},
     ok:{ text:'咔。\n\n抽屉开了。', next:'ok2' },
-    no:{ text:'咔、咔、咔。\n\n（不对。）', end:true },
+    no:{ text:'咔、咔、咔。\n\n（不对。凑近看看黑板上那个式子 —— 有的字母后头挂着一个小数字。）', end:true },
     ok2:{ text:'里面躺着你的手机，早没电了。\n\n底下压着一张报名表 —— 化学竞赛的。', next:'ok3' },
     ok3:{ text:'整张表只有一行填了名字。\n墨水被水泡过，洇成一片，看不清了。', next:'ok4' },
     ok4:{ text:'表背面是他写的：\n\n「三年前填的。\n　填完就没敢再往下填。」', set:['拿回手机','可以上去了'], end:true }
@@ -6870,7 +6872,7 @@ clockEl.style.display = 'none';
            有 talk 却按不开（话本名写错、条件卡死）的实物，
            在玩家那儿就是"点了没反应"。顺便查第二遍能不能重看。 */
         Object.keys(MAPS).forEach(function(mid){
-          var mp = MAPS[mid], bad = [], ok = 0, total = 0;
+          var mp = MAPS[mid], bad = [], bad2 = [], ok = 0, total = 0;
           (mp.objs || []).forEach(function(O){
             if (!O.talk) return;
             total++;
@@ -6895,6 +6897,14 @@ clockEl.style.display = 'none';
             if (first && (second || (O.if && !flagOn(O.if)))) ok++;
             else bad.push((O.who || O.art) + (first ? '（第二次打不开）' : '（按了没反应）'));
           });
+          /* 人和东西压在同一格：同距离时按 E 永远先跟人说话，那个东西就永远按不到 */
+          (mp.npcs || []).forEach(function(N1){
+            (mp.objs || []).forEach(function(O1){
+              if (N1.tx === O1.x && N1.ty === O1.y)
+                bad2.push(N1.id + ' 跟「' + (O1.who || O1.art) + '」压在同一格 ' + N1.tx + ',' + N1.ty);
+            });
+          });
+          if (bad2.length) out.push('  ' + mid + ' ← ' + bad2.join(' / '));
           if (total)
             out.push('  ' + mid + ' 按得开的实物 ' + ok + '/' + total +
                      (bad.length ? ' ← ' + bad.join(' / ') : '，全都能按开、都能重看'));
