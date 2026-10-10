@@ -250,7 +250,7 @@
   #bookList h3 { font-size:13px; letter-spacing:.14em; color:#e8a33d;
     margin:20px 0 8px; font-weight:600; }
   #bookList p { font-size:clamp(12px,3.2vw,15px); line-height:1.8; margin:0 0 8px;
-    padding-left:12px; border-left:3px solid #44403c; }
+    padding-left:12px; border-left:3px solid #44403c; white-space:pre-line; }
   #bookList p.dim { color:#78716c; border-left-color:transparent; padding-left:0; }
   #bookList b { color:#f5e6c8; font-weight:600; }
   #bookList .opt { color:#a8a29e; font-size:.9em; }
@@ -1874,6 +1874,17 @@ var TALK = {
         set:'见过奶蛙', end:true }
   }},
 
+  /* 打完那一下：lg7 撞门进来，把它揣走 —— 全校的笑，最后全落他一个人身上 */
+  boss_end: { nodes:{
+    s:{ text:'（它笑到最后一声，瘪下去了。）', next:'t' },
+    t:{ text:'（门被撞开。）\n\n（是 lg7。他跑得直不起腰。）', next:'u' },
+    u:{ text:'（他一句话没说，走到讲台前，把那个东西捧起来。）\n\n（揣进怀里。）', next:'v' },
+    v:{ text:'（然后他笑了。）', sh:0.6, next:'w' },
+    w:{ text:'（笑得站不住，扶着讲台，一路笑到咳嗽。）', sh:0.4, next:'x' },
+    x:{ text:'（可这一回，屋里没有人跟着笑。）\n\n（走廊外面也没有。）\n\n（那一屋子的笑，全进他一个人身上了。）',
+        set:'lg7收了它', resolve:true, end:true }
+  }},
+
   him: {
     start:'s', again:'s',
     nodes:{
@@ -2948,7 +2959,7 @@ var CLUES = {
   '翻译笔':         '楼梯拐角的水桶里躺着一支翻译笔 —— 去年被 lg7 当众扔进去的，没人捞。',
   '知道lg7在抓人':  'lg7 蹲在后山不是守什么，是在堵人：他想抓学生去搞化学竞赛。',
   'lg7提过二楼':    '问他二楼，他说"二楼不归我管"，说的时候眼睛没看你。',
-  '看过守则':       '《46 班自习课守则》六条。头两条正常，从第三条开始就不对了。',
+  '看过守则': '《46 班自习课守则》\n一、上课一律不许使用翻译笔。\n二、师长点名，点到你必须答「到」。\n三、如果点到的人不在教室里，不要替他答。\n四、玻璃前面不要停下来 —— 走廊尽头那块。\n五、门开着的时候，不要往里看。（45 班那扇）\n六、数人的时候数两遍就够了。',
   '数过两遍':       '你数了两遍，都是十九个。守则第六条：数第三遍，多的那个就开始数你。',
   '45班有人':       '45 班门开着，里头黑着，窗帘拉得严严实实。你走过去的时候，听见里面有人翻了翻书。',
 
@@ -3319,6 +3330,7 @@ function loadMap(id, tx, ty, dir){
   M.portalCool = 0.7;
   sfxDoor();
   M.talk = freshTalk();
+  if (typeof hidePress === 'function') hidePress();
   /* 换图时把对话框收掉，别把上一张图的对话带过来 */
   if (typeof dlgEl !== 'undefined') dlgEl.classList.remove('on');
 }
@@ -3669,7 +3681,9 @@ function bossEnd(){
   droneOff();
   sfxBell(3);
   setFlag('干掉奶蛙');
-  showOver(endingFor());
+  /* 打完不是一句话就结算 —— lg7 得进来，把它收走 */
+  M.bossEnding = true;
+  openScript('boss_end');
 }
 function bossTick(dt){
   var B = M.boss;
@@ -3862,8 +3876,12 @@ function endingFor(){
       '（名册上第一行那个名字，第一次有人替它应了。）',
       '（——本来就是十九个。）',
       '（数完了。）',
-      '（讲台上那个东西，在你手底下笑到最后一声。）',
+      '（讲台上那个东西，笑到最后一声就瘪了。）',
       '（它一直靠那多出来的一个活着 —— 名字有人应了，它就断了粮。）',
+      '（lg7 撞门进来，把它捧起来揣进怀里。）',
+      '（然后他笑了。笑得站不住，一路笑到咳嗽。）',
+      '（可屋里没有人跟着笑。走廊外面也没有。）',
+      '（那一屋子的笑，最后全落在他一个人身上。）',
       '（第二天早上六点二十，校门口没人。）',
       '（墙根底下那个饭盒，被人拿走了。）'
     ] };
@@ -4361,7 +4379,7 @@ function openScript(name){
 }
 function closeTalk(){
   var n = M.talk.npc;
-  if (n){
+  if (n && M.talk.script){
     M.talked[n.id] = true;
     setFlag('见过:' + n.id);              // 线索本要用：见过谁
     var node = M.talk.script.nodes[M.talk.nodeId];
@@ -4395,6 +4413,7 @@ function closeTalk(){
   if (M.cpPending){ var cpTag = M.cpPending; M.cpPending = null; checkpoint(cpTag); }
 }
 function gotoNode(id){
+  if (!M.talk.script){ closeTalk(); return; }   // 对话已经没了，别硬读
   var node = M.talk.script.nodes[id];
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
@@ -4422,6 +4441,7 @@ function gotoNode(id){
   renderNode();
 }
 function renderNode(){
+  if (!M.talk.script) return;
   var node = M.talk.script.nodes[M.talk.nodeId];
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
   if (node.press) showPress(node);        // 这一句会让屏幕下方冒出一个按钮
@@ -4463,6 +4483,7 @@ function escapeHTML(s){
 function full2(node){ return node.text; }
 function nodeDone(){ return M.talk.typed >= full.length; }
 function advanceOrChoose(){
+  if (!M.talk.script){ closeTalk(); return; }
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node) { closeTalk(); return; }
   if (!nodeDone()){ M.talk.typed = full.length; drawText(); return; }  // 没出完就先出完
@@ -4499,6 +4520,7 @@ function markSel(){
     optsEl.children[i].classList.toggle('sel', i === M.talk.sel);
 }
 function drawText(){
+  if (!M.talk.script) return;
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node) return;
   var s = full.slice(0, Math.floor(M.talk.typed));
@@ -6042,6 +6064,91 @@ clockEl.style.display = 'none';
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
       }
+      if (mode === 'fuzz'){
+        /* 乱按：方向键乱敲、看见东西就按、对话里选项随机点、时不时翻本子。
+           专门查"正常人瞎玩会不会把游戏玩坏" —— 卡进墙里、卡死走不动、
+           串到别人的线、地图坏掉。 */
+        var asF = (/([?&]as=(\w+))/.exec(q) || [,'','laoli'])[2];
+        var N = parseInt((/[?&]n=(\d+)/.exec(q) || [0,0])[1], 10) || 4000;
+        startWalk(asF);
+        M.fade = 0;
+        var seed = 20261010;
+        function rnd(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+        var bad = [], mapsSeen = {}, nMove = 0, lastP = '', fuzzWiggle = 0, fuzzWiggleDir = 'a';
+        for (var fz = 0; fz < N && M.screen === 'play'; fz++){
+          keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
+          /* 七成往当前目标走（不然它就在出生点附近打转，测不到后面的剧情），
+             三成乱敲 */
+          if (fuzzWiggle > 0){                      // 顶住了就认准一个方向顶一会儿
+            fuzzWiggle--;
+            if (fuzzWiggleDir) keys[fuzzWiggleDir] = true;
+          }
+          else if (rnd() < 0.7){
+            var GF = goalNow();
+            if (GF && GF.map && GF.map !== M.map){
+              /* 目标在别的图上 —— 先奔那个口（真人也是这么走的） */
+              var pf = null;
+              (CUR.portals || []).forEach(function(P){ if (!pf && P.to === GF.map) pf = P; });
+              if (!pf) (CUR.portals || []).forEach(function(P){ if (!pf && P.to === 'campus' && M.map !== 'campus') pf = P; });
+              if (!pf) (CUR.portals || []).forEach(function(P){ if (!pf && !P.back) pf = P; });
+              if (pf) GF = { x: pf.x + Math.floor(pf.w/2), y: pf.y + Math.floor(pf.h/2) };
+            }
+            if (GF){
+              var gxw = GF.x*TILE + TILE/2, gyw = GF.y*TILE + TILE/2;
+              if (Math.abs(M.p.x - gxw) > 6) keys[M.p.x < gxw ? 'd' : 'a'] = true;
+              if (Math.abs(M.p.y - gyw) > 6) keys[M.p.y < gyw ? 's' : 'w'] = true;
+            }
+          } else {
+            var ks = ['a','d','w','s'];
+            keys[ks[Math.floor(rnd()*4)]] = true;
+          }
+          if (rnd() < 0.1) keys['shift'] = true;
+          keys['shift'] = rnd() < 0.4;
+          M.run = rnd() < 0.2;
+          if (rnd() < 0.30){ M.talk.cool = 0; pressAct(); }
+          var gd = 0;
+          while (M.talk.open && gd++ < 40){
+            if (M.press){
+              if (rnd() < 0.5) hitPress();
+              else { var t0 = M.press.t, g5 = 0; while (M.press && g5++ < Math.ceil(t0*60) + 20) update(1/60); }
+              continue;
+            }
+            var nd = M.talk.script.nodes[M.talk.nodeId];
+            if (nd && nd.opts && (M.talk.shown || []).length)
+              M.talk.sel = Math.floor(rnd() * M.talk.shown.length);
+            M.talk.typed = 1e9;
+            advanceOrChoose();
+          }
+          if (rnd() < 0.02){ if (M.book) closeBook(); else openBook(); }
+          if (M.book && rnd() < 0.3) closeBook();
+          update(1/60);
+          mapsSeen[M.map] = 1;
+          var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
+          if (TERRAIN[tileAt(ptx, pty)].solid || inSolidRect(ptx, pty))
+            bad.push('第' + fz + '帧卡进' + TERRAIN[tileAt(ptx, pty)].name + ' @' + M.map + ' ' + ptx + ',' + pty);
+          if (bad.length > 4) break;
+          var pp = M.map + ':' + ptx + ',' + pty;
+          if (pp === lastP) nMove++; else { nMove = 0; lastP = pp; }
+          /* 顶住障碍物（花坛、墙）就随便歪两步 —— 真人也是这么绕的。
+             连着歪 4 次还出不去，那才是真卡死 */
+          if (nMove === 120 || nMove === 300 || nMove === 600 || nMove === 1000 || nMove === 1500){
+            fuzzWiggle = 70;
+            fuzzWiggleDir = ['a','d','w','s'][Math.floor(rnd()*4)];
+          }
+          if (nMove > 2000) { bad.push('真卡死了：' + M.map + ' ' + ptx + ',' + pty + ' 目标=' +
+                                       (goalNow() ? goalNow().t : '无')); break; }
+        }
+        var ms = Object.keys(mapsSeen);
+        out.push('乱按 ' + N + ' 帧：最后=' + M.screen + ' 在哪=' + M.map + ' 站位=' +
+                 Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' 去过 ' + ms.length + ' 张图');
+        out.push('体检: ' + (bad.length ? bad.slice(0,5).join(' / ') : '没卡进墙、没卡死'));
+        out.push('串线: 是:laoli=' + flagOn('是:laoli') + ' 是:shui=' + flagOn('是:shui') +
+                 ' 是:logic=' + flagOn('是:logic'));
+        out.push('目标=' + (goalNow() ? goalNow().t : '（没有）') +
+                 ' · 追逐=' + !!M.chase + ' · BOSS=' + !!M.boss +
+                 ' · 正说=' + (M.talk.open ? '有' : '没有'));
+      }
       if (mode === 'boss'){
         FLAGS = { '是:laoli': true };
         loadMap('resolve', 8, 11);
@@ -6063,8 +6170,9 @@ clockEl.style.display = 'none';
           update(1/60); M.talk.open = false;
           if (M.boss && M.boss.open > 0){ bossHit(); hits++; }
         }
+        var g9 = 0; while (M.talk.open && g9++ < 30){ M.talk.typed = 1e9; advanceOrChoose(); }
         out.push('趁空档按 ' + hits + ' 下 → hp=' + (M.boss ? M.boss.hp : 0) +
-                 ' 屏幕=' + M.screen);
+                 ' 屏幕=' + M.screen + ' lg7收了它=' + flagOn('lg7收了它'));
         out.push('结局=' + ((document.getElementById('overTxt').querySelector('h1') || {}).textContent || '（没结算）'));
       }
       if (mode === 'tiers'){
