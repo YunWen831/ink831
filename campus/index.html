@@ -351,6 +351,7 @@ var TERRAIN = {
   bench:  { c:'#a8763f', c2:'#8f6333', solid:true,  name:'长椅' },
   planter:{ c:'#8f9c6a', c2:'#7c8a58', solid:true,  name:'花坛' },
   statue: { c:'#8d8478', c2:'#7d7568', solid:true,  name:'雕像' },
+  stage:  { c:'#8a6a52', c2:'#7a5c47', solid:false, name:'台' },
   /* 楼里的图，楼板外头是"没有东西" —— 画成深色，读起来就是楼外面 */
   void:   { c:'#151310', c2:'#181613', solid:true,  name:'楼外' }
 };
@@ -704,6 +705,174 @@ function school1Layout(){
 }
 
 var HALL_X = [2, 11, 21, 31], HALL_W = [8, 9, 9, 7];
+/* ================== 每栋楼各自的长相 ==================
+   原来六栋楼共用一个 hallLayout —— 进去全一样，走错楼都看不出来。
+   现在各写各的。共同的约束只有两条：
+     · 北排（row 2..10）和南排（row 17..25）得能站人，因为实物摆在那儿
+     · 正门都在西头 (1,13)，传送口对得上
+   剩下的：房间怎么分、走廊什么形状、中间塞什么，各栋不一样。
+   ==================================================== */
+
+/* 校史馆：南边是一整个通铺大展厅，当中一条展柜 */
+function museumLayout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('classroom', 2, 2, W-4, 9);
+  R('wall', 2, 11, W-4, 1);
+  R('corridor', 2, 12, W-4, 4);
+  R('wall', 2, 16, W-4, 1);
+  R('classroom', 2, 17, W-4, 9);       // 南边一整间，不分隔
+  [10, 20, 30].forEach(function(vx){ R('wall', vx, 2, 1, 9); });
+  [4, 14, 24, 34].forEach(function(dx){ R('door', dx, 11, 2, 1); });
+  R('door', 8, 16, 3, 1);              // 南边大展厅开一道宽门
+  R('garden', 16, 20, 10, 3);          // 展厅当中那条展柜
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '校史馆');
+  NAME(2, 12, 33, 4, '走廊');
+  NAME(16, 19, 10, 5, '大展厅');
+  NAME(2, 2, 8, 9, '展厅（一）');
+  NAME(11, 2, 9, 9, '展厅（二）');
+  NAME(21, 2, 9, 9, '荣誉室');
+  NAME(31, 2, 7, 9, '库房');
+}
+
+/* 行政楼：一条长走廊，两边全是挤挤挨挨的小办公室 */
+function officeLayout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('corridor', 2, 12, W-4, 4);
+  R('classroom', 2, 2, W-4, 9);
+  R('classroom', 2, 17, W-4, 9);
+  var vx;
+  for (vx = 8; vx <= 32; vx += 6){ R('wall', vx, 2, 1, 9); R('wall', vx, 17, 1, 9); }
+  for (vx = 5; vx <= 35; vx += 6){ R('door', vx, 11, 1, 1); R('door', vx, 16, 1, 1); }
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '行政楼');
+  NAME(2, 12, 33, 4, '走廊');
+  NAME(2, 2, 6, 9, '校长室');
+  NAME(9, 2, 5, 9, '教导处');
+  NAME(15, 2, 5, 9, '财务室');
+  NAME(21, 2, 5, 9, '人事室');
+  NAME(27, 2, 5, 9, '档案室');
+  NAME(33, 2, 5, 9, '文印室');
+  NAME(2, 17, 6, 9, '值班室');
+  NAME(9, 17, 5, 9, '会议室');
+  NAME(15, 17, 5, 9, '接待室');
+  NAME(21, 17, 5, 9, '库房');
+  NAME(27, 17, 5, 9, '打字室');
+  NAME(33, 17, 5, 9, '杂物间');
+}
+
+/* 二号教学楼：中间竖着一道天井，两排教室夹着它（跟一号楼一个路子） */
+function hall2Layout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('corridor', 2, 2, 5, H-4);         // 西边竖走廊
+  R('corridor', 2, 12, W-4, 4);        // 横过道
+  R('corridor', 33, 2, 5, H-4);        // 东边竖走廊
+  R('garden', 17, 2, 6, H-4);          // 当中那道天井
+  R('classroom', 7, 2, 10, 10);
+  R('classroom', 7, 17, 10, 9);
+  R('classroom', 23, 2, 10, 10);
+  R('classroom', 23, 17, 10, 9);
+  R('wall', 7, 11, 10, 1); R('wall', 23, 11, 10, 1);
+  R('wall', 7, 16, 10, 1); R('wall', 23, 16, 10, 1);
+  R('door', 11, 11, 2, 1); R('door', 11, 16, 2, 1);
+  R('door', 27, 11, 2, 1); R('door', 27, 16, 2, 1);
+  R('stairs', 17, 2, 6, 1); R('stairs', 17, 26, 6, 1);
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '二号教学楼');
+  NAME(17, 2, 6, 24, '天井');
+  NAME(7, 2, 10, 10, '46 班');
+  NAME(23, 2, 10, 10, '45 班');
+  NAME(7, 17, 10, 9, '43 班');
+  NAME(23, 17, 10, 9, '教师办公室');
+}
+
+/* 第三教学楼：一个"T"字 —— 横走廊加中间一道竖走廊 */
+function hall3Layout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('corridor', 2, 12, W-4, 4);
+  R('corridor', 18, 2, 4, H-4);        // 竖走廊
+  R('classroom', 2, 2, 16, 9);
+  R('classroom', 22, 2, 16, 9);
+  R('classroom', 2, 17, 16, 9);
+  R('classroom', 22, 17, 16, 9);
+  [6, 22, 30].forEach(function(vx){ R('wall', vx, 2, 1, 9); R('wall', vx, 17, 1, 9); });
+  [4, 8, 24, 34].forEach(function(dx){ R('door', dx, 11, 2, 1); R('door', dx, 16, 2, 1); });
+  R('door', 18, 6, 1, 2); R('door', 21, 6, 1, 2);   // 竖走廊两头开两口
+  R('door', 18, 20, 1, 2); R('door', 21, 20, 1, 2);
+  R('stairs', 18, 12, 4, 1);
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '第三教学楼');
+  NAME(18, 2, 4, 24, '竖走廊');
+  NAME(2, 2, 16, 9, '41 班');
+  NAME(22, 2, 9, 9, '42 班');
+  NAME(32, 2, 6, 9, '广播室');
+  NAME(2, 17, 16, 9, '自习室');
+  NAME(22, 17, 9, 9, '教研室');
+  NAME(32, 17, 6, 9, '器材室');
+}
+
+/* 艺术楼：当中一个院子（"回"字），南边一半带个台子 */
+function artLayout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('classroom', 2, 2, W-4, H-4);
+  R('corridor', 2, 12, W-4, 4);
+  /* 北边一半：沿着一圈房间围出一个排练厅 */
+  R('wall', 12, 2, 16, 1);
+  R('wall', 12, 9, 16, 1);
+  R('wall', 12, 2, 1, 8);
+  R('wall', 27, 2, 1, 8);
+  R('corridor', 13, 3, 14, 6);
+  R('door', 18, 9, 2, 1);
+  /* 南边一半：一圈房间围着院子，靠南再搭一个台 */
+  R('wall', 12, 17, 16, 1);
+  R('wall', 12, 25, 16, 1);
+  R('wall', 12, 17, 1, 9);
+  R('wall', 27, 17, 1, 9);
+  R('garden', 13, 18, 14, 6);
+  R('door', 18, 17, 2, 1);
+  R('stage', 13, 24, 14, 2);
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '艺术楼');
+  NAME(2, 12, 33, 4, '走廊');
+  NAME(13, 3, 14, 6, '排练厅');
+  NAME(13, 18, 14, 6, '院子');
+  NAME(13, 24, 14, 2, '台');
+  NAME(2, 2, 9, 9, '音乐教室');
+  NAME(29, 2, 9, 9, '琴房');
+  NAME(2, 17, 9, 9, '美术教室');
+  NAME(29, 17, 9, 9, '画室');
+}
+
+/* 科技楼：南边一整个大开间（机房），里头一圈小隔间 */
+function techLayout(){
+  var W = 40, H = 28;
+  R('wall', 1, 1, W-2, H-2);
+  R('corridor', 2, 12, W-4, 4);
+  R('classroom', 2, 2, W-4, 9);
+  R('floor', 2, 17, W-4, 9);           // 南边是大机房
+  [10, 20, 30].forEach(function(vx){ R('wall', vx, 2, 1, 9); });
+  [4, 14, 24, 34].forEach(function(dx){ R('door', dx, 11, 2, 1); });
+  R('door', 6, 16, 3, 1); R('door', 20, 16, 3, 1); R('door', 32, 16, 3, 1);
+  /* 机房里一圈机柜隔断 */
+  R('bench', 8, 20, 20, 1);
+  R('bench', 8, 24, 20, 1);
+  R('bench', 8, 20, 1, 5);
+  R('bench', 27, 20, 1, 5);
+  R('door', 1, 13, 1, 2);
+  NAME(1, 1, 38, 3, '科技楼');
+  NAME(2, 12, 33, 4, '走廊');
+  NAME(2, 17, 36, 9, '机房大厅');
+  NAME(2, 2, 8, 9, '网控中心');
+  NAME(11, 2, 9, 9, '机房（一）');
+  NAME(21, 2, 9, 9, '机房（二）');
+  NAME(31, 2, 7, 9, '器材室');
+}
+
 function hallLayout(name, N, S){
   return function(){
     var W = 40, H = 28;
@@ -887,14 +1056,6 @@ makeMap('campus', {
       talk:'sh_chat', if:'班级群那张照片', once:true },
     { x:9,  y:8,   art:'lunchbox', who:'墙根那个饭盒', verb:'看看',
       talk:'sh_lunch', if:'擦完墙', once:true },
-    { x:10, y:111, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:10, y:111, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true },
-    { x:14, y:103, art:'drawer',who:'学籍卡柜',       verb:'拉开', talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:14, y:103, art:'paper', who:'广播稿存档',     verb:'翻翻', talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true },
-    { x:65, y:105, art:'window',who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',     if:['是:shui','可以走动了'],  once:true },
-    { x:65, y:105, art:'paper', who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic',    if:['是:logic','可以走动了'], once:true },
-    { x:7,  y:52, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',   if:['是:shui','可以走动了'],  once:true },
-    { x:7,  y:52, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic',  if:['是:logic','可以走动了'], once:true },
     { x:23, y:81,  art:'door',   who:'一号教学楼的正门', verb:'推开',
       talk:'open_bell', bell:3, once:true, cp:'进了教学楼', open:true }
   ],
@@ -1003,8 +1164,7 @@ makeMap('tech', {
        出了楼到校园上才是一排一排压过来 */
     { x:33, y:13, w:2, h:2, once:true, if:'该去科技楼了', talk:'chase_go', chase:true }
   ]
-}, hallLayout('科技楼', ['网控中心','机房（一）','机房（二）','器材室'],
-                        ['办公室','会议室','创客室','库房']));
+}, techLayout);
 
 makeMap('museum', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
@@ -1015,8 +1175,7 @@ makeMap('museum', {
     { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
-}, hallLayout('校史馆', ['展厅（一）','展厅（二）','荣誉室','库房'],
-                        ['办公室','接待室','资料室','值班室']));
+}, museumLayout);
 
 makeMap('office', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
@@ -1029,8 +1188,7 @@ makeMap('office', {
     { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
-}, hallLayout('行政楼', ['校长室','教导处','财务室','档案室'],
-                        ['值班室','会议室','文印室','库房']));
+}, officeLayout);
 
 makeMap('hall2', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
@@ -1045,16 +1203,14 @@ makeMap('hall2', {
     { x:6,  y:6, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'], once:true }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
-}, hallLayout('二号教学楼', ['46 班','45 班','43 班','教师办公室'],
-                            ['厕所','化学实验室','图书角','教研室']));
+}, hall2Layout);
 
 makeMap('hall3', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:57 } ],
   npcs: [ { id:'logic', tx:26, ty:6, face:'down', talk:'hint_logic' } ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
-}, hallLayout('第三教学楼', ['41 班','42 班','广播室','器材室'],
-                            ['自习室','教研室','资料室','库房']));
+}, hall3Layout);
 
 makeMap('art', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
@@ -1065,8 +1221,7 @@ makeMap('art', {
     { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'], once:true }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
-}, hallLayout('艺术楼', ['音乐教室','美术教室','琴房','乐器室'],
-                        ['舞蹈房','排练厅','画室','器材室']));
+}, artLayout);
 
 makeMap('lab', {
   w: 42, h: 30,
