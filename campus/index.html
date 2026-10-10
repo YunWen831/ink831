@@ -760,6 +760,9 @@ function school1Layout(){
   NAME(22, 8, 4, 7, '46班');
   NAME(8,  8, 4, 7, '45班');
   NAME(8, 19, 4, 7, '厕所');
+  /* 这间屋只有那道换图的门能进。里头填成墙 ——
+     万一存档/读档把人放进去了，就是出不来 */
+  R('wall', 8, 19, 4, 7);
   NAME(27, 9, 16, 3, '配楼');
   NAME(28, 10, 7, 4, '47 班');
   NAME(36, 10, 6, 4, '48 班');
@@ -868,6 +871,7 @@ function hall2Layout(){
   NAME(2, 17, 10, 9, '厕所');
   NAME(28, 2, 10, 9, '45 班（旧址）');
   NAME(28, 17, 10, 9, '教师办公室');
+  R('wall', 2, 17, 10, 9);         // 厕所那间：里头填死，只留换图的门
 }
 
 /* 第三教学楼：一个"T"字。横走廊 + 中间一道竖走廊通到南北两头。
@@ -1023,6 +1027,7 @@ function labLayout(){
   NAME(2,  18, 8, 10, '准备室');
   NAME(11, 18, 9, 10, '仪器室');
   NAME(21, 18, 9, 10, '竞赛辅导室');
+  R('wall', 31, 18, 9, 10);        // 最东头那间是厕所：里头填死，只留换图的门
   NAME(31, 18, 9, 10, '厕所');
 }
 
@@ -3065,16 +3070,23 @@ function goalTick(){
     if (M.goalTxt !== ''){ M.goalTxt = ''; goalEl.textContent = ''; }
     arrowEl.classList.remove('on'); return;
   }
-  /* 目标在别的图上：字照写，箭头指到"通向那张图的那个口" */
+  if (G.t !== M.goalTxt){ M.goalTxt = G.t; goalEl.innerHTML = '<b>→</b> ' + escapeHTML(G.t); }
+  /* 目标在别的图上：箭头指到"通向那张图的那个口"。
+     没有直达的，就指回校园的那个口 —— 楼和楼之间都是走校园中转的。
+     两个都找不着（理论上不该发生）就干脆别指：原来这种情况什么也不改，
+     箭头拿着另一张图的坐标在屏幕上乱飞 —— "箭头乱飞"就是这么来的 */
   var GX = G.x, GY = G.y;
   if (G.map && G.map !== M.map){
     var por = null;
     (CUR.portals || []).forEach(function(P){
-      if (P.to === G.map && !P.back && !por) por = P;
+      if (!por && P.to === G.map && !P.back) por = P;
     });
-    if (por){ GX = por.x + Math.floor(por.w/2); GY = por.y + Math.floor(por.h/2); }
+    if (!por && M.map !== 'campus'){
+      (CUR.portals || []).forEach(function(P){ if (!por && P.to === 'campus') por = P; });
+    }
+    if (!por){ arrowEl.classList.remove('on'); return; }
+    GX = por.x + Math.floor(por.w/2); GY = por.y + Math.floor(por.h/2);
   }
-  if (G.t !== M.goalTxt){ M.goalTxt = G.t; goalEl.innerHTML = '<b>→</b> ' + escapeHTML(G.t); }
   var sx = GX*TILE + TILE/2 - camX, sy = GY*TILE + TILE/2 - camY;
   /* 目标在画面里就不指了 —— 一直挂着个箭头反而碍事 */
   if (sx > 30 && sx < W-30 && sy > 30 && sy < H-30){ arrowEl.classList.remove('on'); return; }
@@ -3458,6 +3470,13 @@ function loadMap(id, tx, ty, dir){
   M.p.dir = dir || 'up'; M.p.anim = 0;
   M.near = null;
   M.nearObj = null;
+  /* 厕所那张图的隔间只有两格宽，门又占一格 —— 一进去就把屋里的门全开着。
+     不然推门-进门-门框卡住这一套，在小格子里特别容易出不来 */
+  if (M.map === 'toilet'){
+    for (var ogy = 0; ogy < MAPH; ogy++) for (var ogx = 0; ogx < MAPW; ogx++)
+      if (MAP[ogy][ogx] === 'door' && !isPortalTile(ogx, ogy))
+        DOOR_OPEN[doorKey(M.map, ogx, ogy)] = true;
+  }
   /* 这张图上每一格还关着的门，都做成一个能按的东西。
      手写过话的那几扇（正门那些）自己带话本，这儿跳过它们 */
   CUR.solidMap = null;              // 换图了，实心表重算
@@ -4908,6 +4927,28 @@ function update(dt){
     M.p.anim += dt * (running ? 1.9 : 1);
   } else {
     M.p.anim = 0;
+  }
+
+  /* 兜底：万一站在了走不了的格子上（读档、换图、门在脚下关了），
+     就近把人挪出来。不给这道底，人就是"卡在墙里/卡在小屋里"，只能刷新重开 */
+  if (M.screen === 'play' && !M.dying && !M.talk.open && !M.book){
+    var ptx0 = Math.floor(M.p.x/TILE), pty0 = Math.floor(M.p.y/TILE);
+    if (solidAt(ptx0, pty0) || doorBlocked(ptx0, pty0)){
+      var fxd = false;
+      for (var rr = 1; rr <= 4 && !fxd; rr++){
+        for (var ddy = -rr; ddy <= rr && !fxd; ddy++){
+          for (var ddx = -rr; ddx <= rr && !fxd; ddx++){
+            if (Math.max(Math.abs(ddx), Math.abs(ddy)) !== rr) continue;
+            var wx0 = ptx0+ddx, wy0 = pty0+ddy;
+            if (wx0 < 0 || wy0 < 0 || wx0 >= MAPW || wy0 >= MAPH) continue;
+            if (solidAt(wx0, wy0) || doorBlocked(wx0, wy0)) continue;
+            M.p.x = wx0*TILE + TILE/2; M.p.y = wy0*TILE + TILE/2;
+            M.safeX = wx0; M.safeY = wy0;
+            fxd = true;
+          }
+        }
+      }
+    }
   }
 
   /* 追逐战。被追上或者过了下课铃都会死 —— 死在哪儿就从哪个存档点重来 */
