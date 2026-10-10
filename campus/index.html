@@ -3595,7 +3595,7 @@ SCENES.open_laugh = [
 /* ---- 推门进教室那一下 ---- */
 SCENES.open_class_laugh = [
   { fade: 1, wait: 0.4 },
-  { text: '推开门。\n\n一屋子人都在笑 —— 笑着翻书、笑着写字、笑着回过头来看我。', secs: 4.2, fade: 0, sh: 0.6 },
+  { text: '推开门。\n\n一屋子人都在笑 —— 笑着翻书、笑着写字、笑着回过头来看我。', secs: 4.2, fade: 0, sh: 0.6, laugh: 0.85 },
   { text: '（没有一个停下来。）\n\n（我也想笑。从腮帮子往上顶。）', secs: 3.8, sh: 0.4 },
   { text: '（我咬住牙，把它压下去了。）', secs: 2.8 },
   { fade: 0.1 }
@@ -3663,7 +3663,7 @@ SCENES.line_up = [
   { fade: 1, wait: 0.3 },
   { text: '灯一排一排地灭。', secs: 3.0, fade: 0, sh: 0.4 },
   { text: '走廊里那些人不再乱笑了。', secs: 3.2 },
-  { text: '他们整整齐齐排成一排一排 ——\n\n笑着往前走，笑着数人头。', secs: 4.2, sh: 0.7 },
+  { text: '他们整整齐齐排成一排一排 ——\n\n笑着往前走，笑着数人头。', secs: 4.2, sh: 0.7, laugh: 0.75 },
   { text: '他们不是在抓我。\n\n他们要赶在熄灯前，把我数进去。', secs: 4.0, bell: 2 },
   { fade: 0.2 }
 ];
@@ -3672,7 +3672,7 @@ SCENES.line_up = [
 SCENES.lights_out = [
   { fade: 1, wait: 0.4 },
   { text: '二十二点三十。\n\n全校熄灯。', secs: 3.6, fade: 0 },
-  { text: '黑暗里，笑声还在。', secs: 3.0, sh: 0.6 },
+  { text: '黑暗里，笑声还在。', secs: 3.0, sh: 0.6, laugh: 0.8 },
   { text: '我推开三楼那扇门。', secs: 3.0, bell: 1 },
   { text: '屋里是那天早上七点十分。\n\n黑板上的题没写完，窗户上还有雾。', secs: 4.4, sh: 0.3 },
   { text: '最后一排靠门那个位子上，坐着个人。', secs: 4.0, fade: 0.05 }
@@ -3701,10 +3701,16 @@ function cutNext(){
   if (b.sh) shake(b.sh);
   if (b.bell) sfxBell(b.bell);
   if (b.blip) sfxBlip();
+  if (b.laugh) laughSfx(b.laugh);
   if (b.text) card(b.text, C.t);
   if (b.live) b.live();
 }
 function cutTick(dt){
+  /* 那一声笑到点就掐 —— 它是"一声"，不是一段 */
+  if (laughStopT > 0){
+    laughStopT -= dt;
+    if (laughStopT <= 0 && laughEl){ try { laughEl.pause(); } catch (e){} }
+  }
   var C = M.cut;
   if (!C) return;
   /* 按任意键 / 点一下 = 跳这一拍（按住就一路快进）——
@@ -3746,8 +3752,11 @@ function laughTick(dt){
   if (near > 0) M.laugh = Math.min(1, (M.laugh || 0) + (LAUGH_NEAR * Math.min(near, 4) / 4 + rate) * dt);
   else          M.laugh = Math.max(0, (M.laugh || 0) - LAUGH_FALL * dt);
   laughSet(M.laugh);
+  if (M.laugh >= 0.75 && (M.laughPrev || 0) < 0.75) laughSfx(0.72);
+  M.laughPrev = M.laugh;
   if (M.laugh >= 1){
     M.laugh = 0; laughSet(0);
+    laughSfx(0.95);
     die('你笑出声了。');
   }
 }
@@ -3757,38 +3766,31 @@ function laughSet(v){
   laughAudio(v);
 }
 
-/* ---- 笑声底噪：一段噪声 + 每秒五下的"哈哈"起伏 ---- */
-var laughSrc = null, laughGain = null, laughLFO = null, laughLfoGain = null;
-var laughWant = 0;
-function laughAudio(v){
-  laughWant = v;
-  if (!AC || !SND) return;
-  if (!laughSrc){
-    try {
-      var n = Math.floor(AC.sampleRate * 1.6);
-      var buf = AC.createBuffer(1, n, AC.sampleRate), d = buf.getChannelData(0);
-      var q = 0;
-      for (var i = 0; i < n; i++){ q = 0.985 * q + (Math.random()*2-1) * 0.15; d[i] = q; }
-      laughSrc = AC.createBufferSource(); laughSrc.buffer = buf; laughSrc.loop = true;
-      var bp = AC.createBiquadFilter(); bp.type = 'bandpass';
-      bp.frequency.value = 330; bp.Q.value = 0.55;      // 压低、发闷 —— 620Hz 那条太吵
-      laughGain = AC.createGain(); laughGain.gain.value = 0;
-      laughLFO = AC.createOscillator(); laughLFO.frequency.value = 4.6;
-      laughLfoGain = AC.createGain(); laughLfoGain.gain.value = 0.30;
-      laughLFO.connect(laughLfoGain); laughLfoGain.connect(laughGain.gain);
-      laughSrc.connect(bp); bp.connect(laughGain); laughGain.connect(AC.destination);
-      laughSrc.start(); laughLFO.start();
-    } catch (e){ laughSrc = null; }
-  }
-  if (laughGain){
-    /* 平时一点声都没有 —— 只有快满了（0.75 以上）才开始响，
-       越接近满越响、越急。声音本身当警报使，不当背景音 */
-    var g = (SND ? Math.max(0, laughWant - 0.75) * 0.72 : 0);
-    try { laughGain.gain.setTargetAtTime(g, AC.currentTime, 0.25); } catch (e){}
-    if (laughLFO){
-      try { laughLFO.frequency.setTargetAtTime(4.2 + laughWant * 4.5, AC.currentTime, 0.3); } catch (e){}
+/* ---- 背景噪声：删了 ----
+   原来这里循环着一层"哈哈哈哈"的噪声当底噪，从早响到晚，吵。现在不留了：
+   平时一点声音都没有，只在重要的那几下放那一声真笑（art/laugh.mp4）。
+   快满了也一样 —— 那一声响起来本身就是警报 */
+var laughGain = null;            // 底噪删了，但静音开关还读着它
+function laughAudio(v){ /* 空函数：底噪删了，留着名字别处还在叫它 */ }
+
+/* ---- 那一声"奶龙大笑"（art/laugh.mp4，B 站那个原版） ----
+   只用在重要的几处：开场推门、你笑出声死掉、快憋不住那一下、
+   奶蛙开打、整队、熄灯推门、最后 lg7 一个人笑 */
+var laughEl = null, laughStopT = 0;
+function laughSfx(vol){
+  if (!SND) return;
+  try {
+    if (!laughEl){
+      laughEl = new Audio('../art/laugh.mp4');
+      laughEl.preload = 'auto';
+      laughEl.loop = false;
     }
-  }
+    try { laughEl.pause(); laughEl.currentTime = 0; } catch (e){ try { laughEl.pause(); } catch (e2){} }
+    laughEl.volume = (vol === undefined ? 0.8 : Math.max(0, Math.min(1, vol)));
+    var pr = laughEl.play();
+    if (pr && pr.catch) pr.catch(function(){});
+    laughStopT = 2.6;                 // 只放一小段，是个"笑"，不是配乐
+  } catch (e){}
 }
 
 /* ==================== 状态 ==================== */
@@ -4224,6 +4226,7 @@ function startBoss(){
   M.boss.cx = (O ? O.x : 17) * TILE + TILE/2;
   M.boss.cy = (O ? O.y : 12) * TILE + TILE/2;
   bossHud(true);
+  laughSfx(0.8);
   toast('它撑开了。躲开推过来的圈 —— 它歇下来的时候，跑去按亮着的那张讲桌。', 4.0);
   droneOn();
 }
@@ -4292,6 +4295,7 @@ function bossEnd(){
   setFlag('干掉奶蛙');
   /* 打完不是一句话就结算 —— lg7 得进来，把它收走 */
   M.bossEnding = true;
+  laughSfx(0.9);
   openScript('boss_end');
 }
 function bossTick(dt){
@@ -8381,7 +8385,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v16';
+var BUILD = 'v17';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8433,6 +8437,7 @@ function toggleSnd(){
   SND = !SND;
   if (!SND){
     droneOff();
+    if (laughEl){ try { laughEl.pause(); } catch (e){} }
     if (laughGain){ try { laughGain.gain.setTargetAtTime(0, AC.currentTime, 0.05); } catch (e){} }
   } else if (M.chase) droneOn();
   var b = document.getElementById('btnSnd');
