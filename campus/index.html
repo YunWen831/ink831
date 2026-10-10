@@ -1867,7 +1867,7 @@ var TALK = {
 
   rs_frog: { nodes:{
     s:{ text:'（讲台上搁着个东西。）', next:'t' },
-    t:{ text:'（巴掌大。绿得发白，像块泡久了的橡皮。\n\n（上面有两点，像是眼睛。）',
+    t:{ text:'（巴掌大。黄得发亮，像块泡久了的橡皮。\n\n（上面有两点，像是眼睛 ——\n　底下还咧着一张很宽的嘴。）',
         next:'u' },
     u:{ text:'（你看着它的时候，嘴角自己往上走。）', next:'v' },
     v:{ text:'（—— 停。）\n\n（你咬住腮帮子，把那股劲儿压下去了。）\n\n（它没有动。）\n\n（可你知道它在。）',
@@ -1906,7 +1906,7 @@ var TALK = {
       kill1:{ text:'（走廊里那串名字，往下走了。）\n\n（没有再绕回来。）', sh:0.5, next:'kill2' },
       kill2:{ text:'（然后，讲台上那个东西笑了。）\n\n（很轻。像谁在喉咙里哼。）', next:'kill3' },
       kill3:{ text:'（屋里跟着笑起来。）\n\n（你也在笑。你捂不住嘴。）', sh:0.8, next:'kill4' },
-      kill4:{ text:'（讲台上那个东西撑开了。）\n\n（一下子有脸盆那么大。绿得发白。）', next:'kill5' },
+      kill4:{ text:'（讲台上那个东西撑开了。）\n\n（一下子有脸盆那么大。黄的。咧着嘴。）', next:'kill5' },
       kill5:{ text:'（它笑。）\n\n（笑声是一圈一圈推出来的 —— 你听得见，也看得见。）', next:'kill6' },
       kill6:{ card:'它笑的时候，屋里跟着笑。\n\n你也在笑，捂不住嘴。\n\n笑声一圈一圈推过来 ——\n从圈和圈中间穿过去。\n\n它停下来的那一下，走到讲台前面按一下。', boss:true, end:true }
     }
@@ -4790,11 +4790,12 @@ function drawObj(art, x, y){
       box(-6, -6, 12,  2, '#bcc4cb');
       box(-4, -8,  8,  2, '#7f8790');
       break;
-    case 'frog':                                    // 讲台上那个东西
-      box(-6, -8, 12,  8, '#8fa86a');
-      box(-4,-10,  8,  3, '#a8bd80');
+    case 'frog':                                    // 讲台上那个东西（黄的）
+      box(-6, -8, 12,  8, '#e0c247');
+      box(-4,-10,  8,  3, '#f2dc76');
       box(-4, -6,  2,  2, '#16160f');
       box( 2, -6,  2,  2, '#16160f');
+      box(-5, -3, 10,  1, '#8a7320');               // 那张咧到耳朵的嘴
       break;
     case 'moss':                                    // 墙根那块苔
       box(-6, -3, 12,  3, '#3a5732');
@@ -5014,13 +5015,19 @@ function render(){
     });
     /* 它自己：一团绿，笑的时候鼓一下 */
     var puff = B.phase === 'wave' ? 1 + 0.25 * Math.sin(B.t * 18) : 1;
-    cx.fillStyle = '#8fa86a';
+    cx.fillStyle = '#e0c247';
     cx.beginPath(); cx.arc(B.cx, B.cy, 16 * puff, 0, 7); cx.fill();
-    cx.fillStyle = '#a8bd80';
+    cx.fillStyle = '#f2dc76';
     cx.beginPath(); cx.arc(B.cx - 4, B.cy - 5, 7 * puff, 0, 7); cx.fill();
     cx.fillStyle = '#16160f';
     cx.beginPath(); cx.arc(B.cx - 5, B.cy - 2, 2.4, 0, 7); cx.fill();
     cx.beginPath(); cx.arc(B.cx + 4, B.cy - 2, 2.4, 0, 7); cx.fill();
+    /* 那张咧着的嘴 —— 笑的时候咧得更开 */
+    cx.strokeStyle = '#8a7320';
+    cx.lineWidth = 3;
+    cx.beginPath();
+    cx.arc(B.cx, B.cy + 1, (8 + 3 * puff) * 1.0, 0.12 * Math.PI, 0.88 * Math.PI);
+    cx.stroke();
     /* 能打的那一下：讲台前面亮一圈 */
     if (B.open > 0){
       cx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.35 * Math.sin(B.t * 10)).toFixed(2) + ')';
@@ -5914,6 +5921,7 @@ clockEl.style.display = 'none';
         out.push('开打 hp=' + M.boss.hp + ' 命=' + M.boss.lives);
         var k0 = 0;
         for (k0 = 0; k0 < 900 && M.boss && M.boss.lives === 3; k0++){ update(1/60); M.talk.open = false; }
+        if (/[?&]shot=1/.test(q)) return;   // 截图用：打到一半就别往下跑了
         out.push('站着不动 ' + (k0/60).toFixed(1) + ' 秒 → 命=' + (M.boss ? M.boss.lives : '（战斗没了）') +
                  ' 圈=' + (M.boss ? M.boss.rings.length : 0));
         /* 现在是"它停下来的那一下"能不能打中 */
