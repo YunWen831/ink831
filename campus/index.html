@@ -1177,10 +1177,10 @@ makeMap('hill', {
      seq 是"守则第几条" —— 刻的字是打乱的，得拿守则的次序去对 */
   objs: [
     /* sd_hill_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:14, y:7, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:14, y:7, art:'paper', who:'墙缝里塞着的半张纸', verb:'抽出来',
       talk:'cl_hill_laoli', if:['是:laoli','可以走动了'] },
     /* sd_hill_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:13, y:7, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:13, y:7, art:'paper', who:'墙根下压着的断粉笔', verb:'捡起来',
       talk:'cl_hill_shui', if:['是:shui','可以走动了'] },
     /* sd_hill_logic 的线索 —— 缺口边上那页纸 */
     { x:12, y:7, art:'paper', who:'缺口边上落着的一页纸', verb:'捡起来',
@@ -1301,10 +1301,10 @@ makeMap('museum', {
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:16, ty:110 } ],
   objs: [
     /* sd_museum_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:24, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:24, y:6, art:'paper', who:'荣誉室墙上的获奖名单', verb:'看看',
       talk:'cl_museum_shui', if:['是:shui','可以走动了'] },
-    { x:20, y:18, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
-    { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
+    { x:20, y:18, art:'paper', who:'那排毕业照',     verb:'数人头', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'挑一张', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
     { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
@@ -1317,10 +1317,10 @@ makeMap('office', {
   npcs: [ { id:'teacher', tx:23, ty:21, face:'up', talk:'hint_teacher' } ],
   objs: [
     /* sd_office_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:30, y:21, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:30, y:21, art:'paper', who:'门厅里那排班级牌', verb:'看看',
       talk:'cl_office_shui', if:['是:shui','可以走动了'] },
     { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
-    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'对着看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'] },
     { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'] }
   ],
@@ -1339,15 +1339,15 @@ makeMap('hall2', {
   npcs: [ { id:'laoli', tx:16, ty:6, face:'down', talk:'hint_laoli' } ],
   objs: [
     /* sd_two_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:34, y:4, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:34, y:4, art:'paper', who:'讲台上压着的旧值日表', verb:'看看',
       talk:'cl_two_laoli', if:['是:laoli','可以走动了'] },
     /* sd_two_logic 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:34, y:8, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:34, y:8, art:'paper', who:'窗户上反着的那三个字', verb:'看看',
       talk:'cl_two_logic', if:['是:logic','可以走动了'] },
     /* 45 班那三样原来压在 (6,6) —— 那是西走廊的墙，旁边挂的牌子是「46 班」，
        而 45 班这间屋在东排。走着顺手一按，按出来的是别人班的东西 */
     { x:28, y:4, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli', if:['是:laoli','可以走动了'] },
-    { x:31, y:4, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',  if:['是:shui','可以走动了'] },
+    { x:31, y:4, art:'paper',  who:'学习园地上的作文', verb:'数一数',   talk:'sd_two_shui',  if:['是:shui','可以走动了'] },
     { x:28, y:8, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
@@ -1365,7 +1365,7 @@ makeMap('art', {
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:104 } ],
   objs: [
     /* sd_art_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:6, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:6, y:6, art:'paper', who:'音乐教室黑板上的值日记录', verb:'看看',
       talk:'cl_art_laoli', if:['是:laoli','可以走动了'] },
     /* sd_art_shui 的线索 —— 排练厅后墙那块木牌 */
     { x:16, y:4, art:'paper', who:'排练厅后墙上的木牌', verb:'看看',
@@ -1395,13 +1395,13 @@ makeMap('lab', {
   ],
   objs: [
     /* sd_lab_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:14, y:14, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:14, y:14, art:'paper', who:'楼梯间墙上那块旧牌子', verb:'看看',
       talk:'cl_lab_laoli', if:['是:laoli','可以走动了'] },
     /* sd_lab_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:18, y:5, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:18, y:5, art:'paper', who:'柜子边上那张化学品清单', verb:'看看',
       talk:'cl_lab_shui', if:['是:shui','可以走动了'] },
     /* sd_lab_logic 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:30, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+    { x:30, y:6, art:'paper', who:'讲台上那本公用记录本', verb:'翻翻',
       talk:'cl_lab_logic', if:['是:logic','可以走动了'] },
     { x:15, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
       talk:'pw_table', if:'擦完墙', once:true },
@@ -1436,7 +1436,7 @@ makeMap('resolve', {
     { x:4,  y:11, art:'roster', who:'讲台上那本名册',   verb:'翻开', talk:'rs_roster', once:true },
     { x:14, y:10, art:'paper',  who:'桌上那张卷子',     verb:'看看', talk:'rs_paper',  once:true },
     { x:16, y:6,  art:'window', who:'窗户',             verb:'抹一下', talk:'rs_window', once:true },
-    { x:11, y:3,  ox:0, oy:-8, art:'frog',   who:'讲台上那个东西', verb:'看看', talk:'rs_frog', once:true }
+    { x:11, y:3,  ox:0, oy:-8, art:'frog',   who:'讲台上那个东西', verb:'按一下', talk:'rs_frog', once:true }
   ],
   triggers: [
     { x:6, y:9, w:5, h:4, once:true, talk:'rs_open' }
@@ -1461,7 +1461,7 @@ makeMap('toilet', {
       talk:'pz_mirror', once:true },
     /* 这个不能标 once：憋着这件事会来第二次、第三次，
        标了 once 的话第二次按下去只会把上一遍的字重念一遍，不管用 */
-    { x:6,  y:3, ox:0, oy:-2, art:'urinal', who:'隔间里那个小便池', verb:'……进去一下',
+    { x:6,  y:3, ox:0, oy:-2, art:'urinal', who:'隔间里那个小便池', verb:'进去一下',
       talk:'laoli_pee', if:'想上厕所' },
     { x:5,  y:9, ox:0, oy:-4, art:'sink',   who:'那排洗手池', verb:'看看',
       talk:'ld_toilet', if:'镜子上三个字', once:true },
@@ -1513,7 +1513,7 @@ makeMap('floor2', {
   ],
   /* 门后面那间屋子里的东西，全是能按 E 的 */
   objs: [
-    { x:43, y:2,  ox:0, oy:-2, art:'paper', who:'黑板右下角那块值日表', verb:'看',
+    { x:43, y:2,  ox:0, oy:-2, art:'paper', who:'黑板右下角那块值日表', verb:'对一对日期',
       talk:'f2_roster', once:true },
     { x:42, y:2,  ox:0, oy:-2, art:'board', who:'黑板正中间空着的那块', verb:'对着它按一下笔',
       talk:'f2_pen', once:true, cp:'译出化学笔记' },
