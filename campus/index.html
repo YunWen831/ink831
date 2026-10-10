@@ -3781,10 +3781,13 @@ function laughAudio(v){
     } catch (e){ laughSrc = null; }
   }
   if (laughGain){
-    /* 静音了就立刻归零（原来关了开关，正在响的这条还在响）；
-       另外加一道门槛：笑欲值低的时候干脆不发声，别一直嗡着 */
-    var g = (SND ? Math.max(0, laughWant - 0.22) * 0.13 : 0);
-    try { laughGain.gain.setTargetAtTime(g, AC.currentTime, 0.45); } catch (e){}
+    /* 平时一点声都没有 —— 只有快满了（0.75 以上）才开始响，
+       越接近满越响、越急。声音本身当警报使，不当背景音 */
+    var g = (SND ? Math.max(0, laughWant - 0.75) * 0.72 : 0);
+    try { laughGain.gain.setTargetAtTime(g, AC.currentTime, 0.25); } catch (e){}
+    if (laughLFO){
+      try { laughLFO.frequency.setTargetAtTime(4.2 + laughWant * 4.5, AC.currentTime, 0.3); } catch (e){}
+    }
   }
 }
 
@@ -8378,7 +8381,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v15';
+var BUILD = 'v16';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
