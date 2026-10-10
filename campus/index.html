@@ -475,6 +475,7 @@ function makeMap(id, def, build){
   /* deco：摆在场景里、让人数的东西（一排人、一排相框……）。
      n 是重复几个，dx/dy 是每个之间隔多远。跟剧情无关，纯布景。 */
   def.deco = def.deco || [];
+  def.deco2 = def.deco2 || [];
   def.objs.forEach(function(O, i){ O._i = i; });   // 认下自己是第几个，旗标拿它当钥匙
   MAPS[id] = def;
   B = null;
@@ -1174,6 +1175,10 @@ makeMap('hill', {
 }, hillLayout);
 
 makeMap('school1', {
+  /* 东墙那张长名单：一行一个名字，得自己数（19 行） */
+  deco: [ { x:26, y:8, n:19, dy:1, art:'paper', scale:1 } ],
+  /* 走廊那面墙一溜窗户（4 扇） */
+  deco2: [ { x:19, y:22, n:4, dy:1, art:'window', scale:1 } ],
   w: 46, h: 34, base: 'void', spawn: [21, 16],
   portals: [
     { x:26, y:16, w:1, h:2, to:'campus', tx:24, ty:81 },   // 正门（东头）
@@ -1196,6 +1201,13 @@ makeMap('school1', {
       talk:'rule_sheet', if:'纸条', once:true, cp:'看过守则' },
     { x:23, y:14,  art:'roster', who:'讲台上摊着的点名册', verb:'翻翻',
       talk:'scare_count', if:'看过守则', once:true, cp:'数过两遍' },
+    /* 牢李：墙上那张长名单 */
+    { x:25, y:8, art:'roster', who:'东墙上那张长名单', verb:'数一数',
+      talk:'lg_hooks', if:'是:laoli', once:true },
+    /* logic：走廊那排窗户 */
+    { x:20, y:22, art:'window', who:'走廊上那排窗户', verb:'数一数',
+      talk:'lg_windows', if:'是:logic', once:true },
+
     /* 45 班屋里那张桌子 */
     { x:10, y:12, art:'desk', who:'最后一排靠门那张桌子', verb:'看看',
       talk:'lg45_desk', if:'看过守则', once:true },
@@ -1780,7 +1792,7 @@ var TALK = {
   lg_floorplan: { nodes:{
     s:{ text:'走廊墙上挂着一张平面图，玻璃罩着。', next:'t' },
     t:{ text:'（一号教学楼。每层 —— ）\n\n（图上画得清清楚楚：三间。）', next:'u' },
-    u:{ text:'可你刚才从走廊那头走过来，数出来是四扇窗。', set:'看过平面图', end:true }
+    u:{ text:'可你刚从走廊那头走过来 —— 那边的窗户，比三多。', set:'看过平面图', end:true }
   }},
   lg_plates: { nodes:{
     s:{ text:'走廊里那排门牌。', next:'t' },
@@ -2628,6 +2640,25 @@ var TALK = {
   /* 值日表：日期对得上，星期对不上 —— 这是全篇最关键的一处"对不上" */
   /* 一楼 45 班原来就是个空壳。现在里面留着最后一排靠门那张桌子：
      两个名字刻在一起 —— 一个是 zzx 的，一个是名册第一行那个。 */
+  /* 牢李中段加的一处：教室东墙上贴着一张长名单 —— 一行一个名字。
+     得真的走过去往下数，数完把数字打进来。 */
+  lg_hooks: { nodes:{
+    s:{ text:'教室东墙上贴着一张长名单，从头贴到尾，一行一个名字。', next:'t' },
+    t:{ text:'你从上往下，一行一行数过去。\n\n数完，把这个数打进来。',
+        ask:{ key:'19', len:2, to:'ok', ask:'名单上一共几行？' } },
+    ok:{ text:'十九行。\n\n最后一行底下还留着半行空白 —— \n像是本来还要再写一个，笔停了。',
+         set:'数过名单', end:true }
+  }},
+
+  /* logic 中段加的一处：走廊那排窗户 —— 数出来是四扇，可图纸上只有三间 */
+  lg_windows: { nodes:{
+    s:{ text:'走廊那面墙，一溜窗户。', next:'t' },
+    t:{ text:'你从这头走到那头，一扇一扇数过去。\n\n数完，把这个数打进来。',
+        ask:{ key:'4', len:1, to:'ok', ask:'那排窗户一共几扇？' } },
+    ok:{ text:'四扇。\n\n可图纸上写着每层三间 —— \n那第四扇窗户，是开在哪儿的。',
+         set:'数过窗户', end:true }
+  }},
+
   lg45_desk: { nodes:{
     s:{ text:'45 班搬空了，桌椅早拉走了。\n\n只有最后一排靠门那张桌子还在。', next:'t' },
     t:{ text:'桌面上用圆规刻着两个字。刻得很深 —— 像是刻了很多遍。', next:'u' },
@@ -5334,7 +5365,7 @@ function render(){
   });
 
   /* ---- 场景装饰：能数出来的东西（相框上的人、奖状、课本……） ---- */
-  (CUR.deco || []).forEach(function(D){
+  (CUR.deco || []).concat(CUR.deco2 || []).forEach(function(D){
     var n = D.n || 1, i2;
     for (i2 = 0; i2 < n; i2++){
       var dx2 = D.x + (D.dx || 0) * i2, dy2 = D.y + (D.dy || 0) * i2;
