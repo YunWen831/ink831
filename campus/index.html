@@ -3848,8 +3848,10 @@ function startChase(fromRespawn){
   /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死 */
   if (flagOn('想上厕所')){ clearFlag('想上厕所'); M.urge = 0; }
   /* 在科技楼里开追的时候不出排（楼里放不下）——
-     waveT 给大一点，出了楼 houndsBehind 会把它压回 1.4 */
-  M.chase = { hounds: [], cpY: 0, waveT: 99, rows: 0 };
+     waveT 给大一点，出了楼 houndsBehind 会把它压回 1.4。
+     可复活回来的时候人已经在校门外了、又没换图，这一条就永远压不回来，
+     整场空着 —— 所以看现在在哪张图，直接定该不该出排 */
+  M.chase = { hounds: [], cpY: 0, waveT: (M.map === 'campus' ? 1.4 : 99), rows: 0 };
   if (!fromRespawn) checkpoint();      // 死在半路就从这儿重来（读档重开时别再覆盖）
   droneOn(); shake(0.9);
   sfxBell(2);
@@ -5194,7 +5196,12 @@ function update(dt){
         /* 朝向你走出去的那个方向 —— 从厕所出来就是朝外，不是顶着门 */
         if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty, M.p.dir);
         else loadMap(P.to, P.tx, P.ty, M.p.dir);
-        if (chaseJump) houndsBehind();
+        if (chaseJump){
+          houndsBehind();
+          /* 冲出科技楼、踩上校园这一下，把存档点挪到这儿 ——
+             死在追逐里就该从"人排刚开始"复活，不用再跑一遍楼里那段 */
+          checkpoint();
+        }
         break;
       }
     }
@@ -7741,6 +7748,35 @@ clockEl.style.display = 'none';
         } catch (e){ perr = e && e.message ? e.message : String(e); }
         out.push('跑画面 ' + pf + ' 帧：' + (perr ? '崩了 → ' + perr : '没崩 ✓'));
       }
+      if (mode === 'cheal'){
+        /* 死在追逐里：复活到哪儿、人排还出不出得来 */
+        startWalk('laoli'); M.fade = 0;
+        loadMap('tech', 3, 13); M.fade = 0; M.portalCool = 0;
+        setFlag(['被追了']); startChase();          // 走真实那条：会自己存一个档
+        out.push('① 在科技楼里开追 存档点=' + (CP ? CP.map : '-') +
+                 ' 出排倒计时=' + M.chase.waveT.toFixed(1));
+        /* 冲出楼：踩科技楼西头那道门（1,13） */
+        M.p.x = 1*TILE + TILE/2; M.p.y = 13*TILE + TILE/2;
+        M.portalCool = 0; M.talk.cool = 0;
+        for (var c1 = 0; c1 < 120; c1++){ update(1/60); M.talk.open = false; if (M.map === 'campus') break; }
+        out.push('② 跑出楼 → 图=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' 存档点=' + (CP ? CP.map + ' ' + Math.round(CP.x/TILE) + ',' + Math.round(CP.y/TILE) : '-') +
+                 ' 出排倒计时=' + (M.chase ? M.chase.waveT.toFixed(1) : '-'));
+        /* 死一次 */
+        die('测试');
+        for (var c2 = 0; c2 < 200; c2++) update(1/60);
+        out.push('③ 死一次复活 → 图=' + M.map +
+                 ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' 被追=' + !!M.chase + ' 出排倒计时=' + (M.chase ? M.chase.waveT.toFixed(1) : '-'));
+        /* 复活后头 1.7 秒里人排就该出来了（第一排要走 5 秒多才到人跟前，
+           所以这段里不会死 —— 死一次会重建追逐、把计数清零） */
+        for (var c3 = 0; c3 < 100; c3++){ update(1/60); M.talk.open = false; }
+        out.push('④ 复活后 1.7 秒 → 排数=' + (M.chase ? M.chase.rows : '-') +
+                 ' 人=' + (M.chase ? M.chase.hounds.length : '-') +
+                 ' 屏幕=' + M.screen + ' 计时=' + (M.chase ? M.chase.waveT.toFixed(2) : '-') +
+                 ' 时钟=' + clockText(M.clock) + ' 结束=' + clockText(CLOCK_END) +
+                 ' 死=' + (M.dying || 0).toFixed(2));
+      }
       if (mode === 'bossdie'){
         /* 玩家会干的事：进去、不动、不按。三条命被收完之后
            "重开这一场"那一套会不会把主循环弄死。 */
@@ -7988,7 +8024,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v11';
+var BUILD = 'v12';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
