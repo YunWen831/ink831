@@ -255,6 +255,21 @@
   #bookList b { color:#f5e6c8; font-weight:600; }
   #bookList .opt { color:#a8a29e; font-size:.9em; }
 
+  /* 数字键盘 */
+  #pad { position:absolute; z-index:9; left:50%; transform:translateX(-50%);
+    bottom:calc(20px + env(safe-area-inset-bottom,0px)); display:none;
+    background:rgba(8,7,6,.94); border:3px solid #57534e; border-radius:10px;
+    padding:12px 14px; text-align:center; }
+  #pad.on { display:block; }
+  #pad .ask { font-size:clamp(12px,3.2vw,15px); color:#e8d4a8; margin-bottom:6px; }
+  #pad .buf { font-size:clamp(22px,6vw,30px); letter-spacing:.42em; color:#e8a33d;
+    min-height:1.2em; font-variant-numeric:tabular-nums; margin-bottom:8px; }
+  #pad .keys { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  #pad button { font-family:inherit; font-size:clamp(15px,4vw,18px);
+    width:clamp(46px,13vw,58px); height:clamp(40px,11vw,48px); border-radius:8px;
+    border:2px solid #57534e; background:#1f1c19; color:#f5f5f4; cursor:pointer; }
+  #pad button:active { background:#c2703a; border-color:#c2703a; }
+
   #probe { position:absolute; left:0; top:0; z-index:99; font-size:1px; opacity:.01;
     pointer-events:none; }
 </style>
@@ -292,6 +307,8 @@
 <button id="btnBook" type="button">本</button>
 <button id="btnFast" type="button">疾</button>
 <div id="toast"></div>
+<!-- 数字键盘：谜题要你"数完输进来"，不是四选一瞎猜 -->
+<div id="pad"><div class="ask"></div><div class="buf"></div><div class="keys"></div></div>
 <div id="chase"><div class="big"></div><div class="sm">离下课铃</div><div class="ct"></div></div>
 <div id="boss"><div class="nm"></div><div class="hp"></div><div class="lf"></div></div>
 
@@ -455,6 +472,9 @@ function makeMap(id, def, build){
      楼拆成独立图之后，校园上要留住楼的外观 —— 画法一点不改，
      只是把里头判成实心。通往楼里的传送口不受影响 */
   def.solid = def.solid || [];
+  /* deco：摆在场景里、让人数的东西（一排人、一排相框……）。
+     n 是重复几个，dx/dy 是每个之间隔多远。跟剧情无关，纯布景。 */
+  def.deco = def.deco || [];
   def.objs.forEach(function(O, i){ O._i = i; });   // 认下自己是第几个，旗标拿它当钥匙
   MAPS[id] = def;
   B = null;
@@ -1223,9 +1243,12 @@ makeMap('tech', {
 
 makeMap('museum', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
+  /* 大展厅北墙上钉着那排毕业照 —— 一排人，得自己数。
+     最右边那个位子空着（少一个），所以摆的是 19 个。 */
+  deco: [ { x: 11, y: 19, n: 19, dx: 1, who: 'stu1', scale: 1 } ],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:16, ty:110 } ],
   objs: [
-    { x:6,  y:6, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
+    { x:20, y:21, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
     { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'] }
   ],
@@ -1953,22 +1976,13 @@ var TALK = {
 
   /* ---- 校史馆：那届 46 班 ---- */
   sd_museum_laoli: { nodes:{
-    s:{ text:'（校史馆里那排毕业照，玻璃底下压着一层灰。）', next:'t' },
-    t:{ text:'（每张底下钉着一块小铜牌：届别、班号。）\n\n（哪一张是 46 班那一届？）', opts:[
-         { t:'二〇二一届 · 44 班', go:'no' },
-         { t:'二〇二二届 · 45 班', go:'no' },
-         { t:'二〇二四届 · 46 班', go:'num' },
-         { t:'二〇二五届 · 47 班', go:'no' } ]},
-    no:{ text:'（不对。铜牌上没写这个。）', next:'t' },
-    num:{ text:'（这一张。）\n\n（你得数一遍 —— 照片上几个人？）', opts:[
-         { t:'十七个', go:'no2' },
-         { t:'十八个', go:'no2' },
-         { t:'十九个', go:'ok' },
-         { t:'二十个', go:'no2' } ]},
-    no2:{ text:'（你再数一遍。）', next:'num' },
-    ok:{ text:'（十九个。）\n\n（可最右边空着一个位子 —— 底下的名牌还钉着，\n　名字被人刮掉了。）',
-         set:'查·校史馆·牢李', end:true }
-  }},
+    s:{ text:'（大展厅北墙上钉着一长排毕业照 —— 一届一张，人挨着人。）'
+        , next:'t' },
+    t:{ text:'（铜牌都快磨平了。你一排一排找过去：）\n\n　44 班　45 班　**46 班**　47 班', next:'u' },
+    u:{ text:'（46 班那张钉在当中。你得数一遍 —— 照片上几个人？）',
+        ask:{ key:'19', len:2, to:'ok', ask:'照片上一共几个人？' } },
+    ok:{ text:'（十九个。）\n\n（可最右边那个位子是空的 —— 底下的名牌还钉着，\n　名字被人刮掉了。）', set:'查·校史馆·牢李', end:true }
+  } },
   sd_museum_shui: { nodes:{
     s:{ text:'（玻璃柜里码着一排奖状，玻璃反光。）', next:'t' },
     t:{ text:'（获奖人那一栏全都被人剪过 —— 一排看过去全是窟窿。）\n\n（只有一张，剪得最狠。）\n\n（哪一张？）', opts:[
@@ -1981,31 +1995,19 @@ var TALK = {
          set:'查·校史馆·水哥', end:true }
   }},
   sd_museum_logic: { nodes:{
-    s:{ text:'（借阅登记簿摊在桌上，最后一页没合上。）', next:'t' },
-    t:{ text:'（最后一页只有一行。）\n\n（借出：十月十二日。\n　还书：空的。）\n\n（登记簿是每学期换一本的 —— 这一行，跨了三本。）', next:'q' },
-    q:{ text:'（他借了多久？）', opts:[
-         { t:'一个学期', go:'no' },
-         { t:'一年', go:'no' },
-         { t:'两年', go:'no' },
-         { t:'三年', go:'ok' } ]},
-    no:{ text:'（登记簿一年换一本。再数。）', next:'q' },
-    ok:{ text:'（三年。）\n\n（同一本书，借了三年。）\n\n（借书卡上每一次的名字，都是同一笔字 ——\n　写得越来越用力。）',
-         set:'查·校史馆·逻辑', end:true }
-  }},
+    s:{ text:'（借阅登记簿摊在桌上，最后一页没合上。）', next:'q' },
+    q:{ text:'（借出：十月十二日。\n　还书：空的。）\n（登记簿一学年换一本 —— 这一行，跨了三本。）',
+        ask:{ key:'3', len:1, to:'ok', ask:'他借了几年？' } },
+    ok:{ text:'（三年。）\n（同一本书，借了三年。）\n（借书卡上每一次都是同一笔字 —— 越写越用力。）', set:'查·校史馆·逻辑', end:true }
+  } },
 
   /* ---- 行政楼：那天谁在 ---- */
   sd_office_laoli: { nodes:{
-    s:{ text:'（门厅墙上挂着值班表，一格一格按天排。）', next:'t' },
-    t:{ text:'（十月的这一列 —— 从头上往下看：）\n\n　十日　张\n　十一日　张\n　■■■　■■\n　十三日　张\n　十四日　张', next:'q' },
-    q:{ text:'（中间那一格被涂黑了。）\n\n（涂掉的是几号？）', opts:[
-         { t:'九日', go:'no' },
-         { t:'十二日', go:'ok' },
-         { t:'十五日', go:'no' },
-         { t:'二十日', go:'no' } ]},
-    no:{ text:'（前后都是挨着的。再排一遍。）', next:'q' },
-    ok:{ text:'（十二日。）\n\n（涂黑的那一格，底下还看得见一点笔画 ——\n　是个"张"字。那天值班的还是同一个人。）\n\n（可那一格涂得最狠。）',
-         set:'查·行政楼·牢李', end:true }
-  }},
+    s:{ text:'（门厅墙上挂着值班表，一格一格按天排。）', next:'q' },
+    q:{ text:'（十月的这一列，从头往下看：\n　十日　张\n　十一日　张\n　■■■　■■\n　十三日　张\n　十四日　张',
+        ask:{ key:'12', len:2, to:'ok', ask:'被涂黑的是几号？' } },
+    ok:{ text:'（十二日。）\n（涂黑那一格底下还看得见一点笔画 —— 是个"张"字。）\n（那天值班的还是同一个人。可那一格涂得最狠。）', set:'查·行政楼·牢李', end:true }
+  } },
   sd_office_shui: { nodes:{
     s:{ text:'（学籍卡柜没锁，卡是按班号排的。）', next:'t' },
     t:{ text:'（你得找 46 班那张。）\n\n（柜子里三排：高三年级、高二年级、高一年级。）\n\n（46 班是哪个年级？）', opts:[
@@ -2018,17 +2020,11 @@ var TALK = {
          set:'查·行政楼·水哥', end:true }
   }},
   sd_office_logic: { nodes:{
-    s:{ text:'（广播稿的存档，按日期夹在一个铁夹子上。）', next:'t' },
-    t:{ text:'（每一篇右上角都盖着一个戳：已播。\n\n（只有一篇没有。）\n\n（翻到它 —— 你先得知道它是哪一天的。）', next:'q' },
-    q:{ text:'（那一篇的日期，跟值班表上被涂黑的那一格是同一天。）\n\n（几号？）', opts:[
-         { t:'十日', go:'no' },
-         { t:'十二日', go:'ok' },
-         { t:'十五日', go:'no' },
-         { t:'二十九日', go:'no' } ]},
-    no:{ text:'（跟值班表上那一格对不上。）', next:'q' },
-    ok:{ text:'（十月十二日。）\n\n（那篇稿子写到一半就停了：）\n\n「下面念一个名字。\n　念到的同学，到教导处来一趟。」\n\n（底下空着。戳也没盖。）',
-         set:'查·行政楼·逻辑', end:true }
-  }},
+    s:{ text:'（广播稿的存档按日期夹着，每篇右上角都盖着"已播"—— 只有一篇没有。）', next:'q' },
+    q:{ text:'（那一篇的日期，跟值班表上被涂黑的那一格是同一天。）',
+        ask:{ key:'12', len:2, to:'ok', ask:'没盖"已播"的那篇是几号？' } },
+    ok:{ text:'（十月十二日。）\n（那篇稿子写到一半就停了：）\n「下面念一个名字。\n　念到的同学，到教导处来一趟。」\n（底下空着。戳也没盖。）', set:'查·行政楼·逻辑', end:true }
+  } },
 
   /* ---- 艺术楼：几点几分 ---- */
   sd_art_laoli: { nodes:{
@@ -2057,17 +2053,11 @@ var TALK = {
          set:'查·艺术楼·水哥', end:true }
   }},
   sd_art_logic: { nodes:{
-    s:{ text:'（琴房最后一间，谱架上摊着一页。）', next:'t' },
-    t:{ text:'（同一段被铅笔圈了三遍。）\n\n（旁边写着：第 47 遍。）\n\n（每一遍的圈，一笔比一笔浅。）', next:'q' },
-    q:{ text:'（他圈的是第几小节？）', opts:[
-         { t:'最后一小节', go:'no' },
-         { t:'开头那一个小节', go:'no' },
-         { t:'正中间那一小节', go:'ok' },
-         { t:'他没圈小节', go:'no' } ]},
-    no:{ text:'（三个圈都落在同一个地方。看谱子。）', next:'q' },
-    ok:{ text:'（正中间那一小节。）\n\n（那一小节的音符底下写着字，很小：）\n\n「这儿他总弹错。」\n\n（第 47 遍的时候，字已经淡得快看不见了。）',
-         set:'查·艺术楼·逻辑', end:true }
-  }},
+    s:{ text:'（琴房最后一间，谱架上摊着一页。铅笔在页边写着一行小字。）', next:'q' },
+    q:{ text:'（同一段被铅笔圈了三遍。）\n（旁边写着：第 ?? 遍。）',
+        ask:{ key:'47', len:2, to:'ok', ask:'他写的第几遍？' } },
+    ok:{ text:'（第 47 遍。）\n（那一小节的音符底下写着字，很小：）\n「这儿他总弹错。」\n（第 47 遍的时候，字已经淡得快看不见了。）', set:'查·艺术楼·逻辑', end:true }
+  } },
 
   /* ---- 实验楼：那间屋子在哪 ---- */
   sd_lab_laoli: { nodes:{
@@ -2121,17 +2111,11 @@ var TALK = {
          set:'查·二号教学楼·牢李', end:true }
   }},
   sd_two_shui: { nodes:{
-    s:{ text:'（后墙的学习园地上还贴着几篇作文。）', next:'t' },
-    t:{ text:'（五篇，署着五个不同的名字。）\n\n（字迹是同一个人。）', next:'q' },
-    q:{ text:'（哪几篇是同一个人写的？）', opts:[
-         { t:'第一篇和第三篇', go:'no' },
-         { t:'中间两篇', go:'no' },
-         { t:'全部五篇', go:'ok' },
-         { t:'看不出来', go:'no' } ]},
-    no:{ text:'（再逐篇对一遍笔迹。）', next:'q' },
-    ok:{ text:'（五篇都是。）\n\n（连老师用红笔写的评语，也是同一笔字 ——\n　只是换了个方向写。）\n\n（他一个人，替五个人交过作文。）',
-         set:'查·二号教学楼·水哥', end:true }
-  }},
+    s:{ text:'（后墙的学习园地上贴着几篇作文。）', next:'q' },
+    q:{ text:'（五篇，署着五个不同的名字。字迹是同一个人。）',
+        ask:{ key:'5', len:1, to:'ok', ask:'有几篇是同一个人写的？' } },
+    ok:{ text:'（五篇都是。）\n（连老师用红笔写的评语，也是同一笔字 —— 只是换了个方向写。）\n（他一个人，替五个人交过作文。）', set:'查·二号教学楼·水哥', end:true }
+  } },
   sd_two_logic: { nodes:{
     s:{ text:'（你对着窗户玻璃哈了一口气。）', next:'t' },
     t:{ text:'（雾起来的玻璃上浮出三个字。）\n\n（是反的 —— 从里面写的。）', next:'q' },
@@ -2171,17 +2155,11 @@ var TALK = {
          set:'查·后山·水哥', end:true }
   }},
   sd_hill_logic: { nodes:{
-    s:{ text:'（你举起翻译笔，对着墙。）', next:'t' },
-    t:{ text:'（笔上显示的不是字。）\n\n（是一页纸 —— 同一页，翻来覆去。）', next:'q' },
-    q:{ text:'（页码那一栏写着几？）', opts:[
-         { t:'第一页', go:'no' },
-         { t:'最后一页', go:'no' },
-         { t:'第 47 页', go:'ok' },
-         { t:'没有页码', go:'no' } ]},
-    no:{ text:'（笔上那行数字一直没变过。再看。）', next:'q' },
-    ok:{ text:'（47。）\n\n（从头翻到尾，页码从来没变过。\n　翻来覆去都是第 47 页。）\n\n（那一页上有一行被反复描过 ——\n　纸都描破了。）',
-         set:'查·后山·逻辑', end:true }
-  }},
+    s:{ text:'（你举起翻译笔，对着墙。）', next:'q' },
+    q:{ text:'（笔上显示的不是字，是一页纸 —— 同一页，翻来覆去。）',
+        ask:{ key:'47', len:2, to:'ok', ask:'页码那一栏写着几？' } },
+    ok:{ text:'（47。）\n（从头翻到尾，页码从来没变过。）\n（那一页上有一行被反复描过 —— 纸都描破了。）', set:'查·后山·逻辑', end:true }
+  } },
 
   /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
      可守则第四条写着"不要在走廊尽头的玻璃前面停下来"。
@@ -2228,7 +2206,8 @@ var TALK = {
     text:'实验楼墙上挂着一张元素周期表，边角卷了。',
     next:'t' },
     /* 给一整张表，不直接把三个答案列出来 —— 得自己在里头找 */
-    t:{ text:'（最前面那十个还看得清：）\n\n　　H　1　　He　2\n　　Li　3　　Be　4\n　　B　5　　C　6\n　　N　7　　O　8\n　　F　9　　Ne　10',
+    /* 按真正的周期表排：第一周期两个，第二周期八个，符号在上、序号在下 */
+    t:{ text:'（墙上那张是全表，只有最上头两行还看得清 —— 排法跟课本上一模一样：）\n\n　　　　　　　　　　　　　　　　　H　　　　　　　　　　　　　　　　　He\n　　　　　　　　　　　　　　　　　1　　　　　　　　　　　　　　　　　2\n\n　　Li　　Be　　　　　　　B　　 C　　 N　　 O　　 F　　　　　Ne\n　　3　　 4　　　　　　　5　　 6　　 7　　 8　　 9　　　　　10',
         set:'查过周期表', end:true }}},
 
   pw_drawer: { nodes:{
@@ -2765,6 +2744,11 @@ var GOALS = [
   /* ——— 追逐：从二楼下来，跑出教学楼 ——— */
   { if:'该去科技楼了', map:'tech',   t:'走廊最里头',                     x:33, y:14 },
   { if:'该去科技楼了', map:'floor2', t:'下楼',                         x:2,  y:12  },
+  /* ——— 最后一章（辅导室）———
+     这张图原来一条目标都没有，于是左上角显示的是**别的图最后匹配上的那条**，
+     人站在三年前的教室里，引导还写着"走廊最里头"。 */
+  { if:'替他答了', map:'resolve', t:'讲台前面 —— 从圈缝里过去',        x:11, y:4   },
+  {                  map:'resolve', t:'跟最后一排那个位子上的人说话',   x:13, y:5   },
 
   /* ——— 二楼：念名字的时候别推东头那扇门，得先退回来等它过去 ——— */
   { if:'译出化学笔记', map:'floor2', t:'楼下已经在整队了 —— 下楼',      x:3,  y:12  },
@@ -2860,6 +2844,10 @@ function goalNow(){
     if (bp) return bp;
   }
   if (!M.chase && M.map === 'toilet') return toiletGoal();
+  /* 打起来了：别再说"跟他说话"了，说怎么打 */
+  if (M.boss) return { t:'它笑的时候躲开圈 —— 它歇下来那一下按讲台',
+                       x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE),
+                       map: 'resolve' };
   /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
      静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
      读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
@@ -4340,6 +4328,47 @@ function pressAct(){
   if (t.npc) openTalk(t.npc); else pressObj(t.obj);
 }
 
+/* ==================== 数字键盘 ====================
+   节点上写 ask:{ key:'19', len:2, to:'ok', ask:'照片上一共几个人？' } ——
+   念到这一句，屏幕下方冒出一个键盘，你得把数出来的数字打进去。
+   打对了走 to，打错了清空重来。
+   ============================================ */
+var padEl = document.getElementById('pad');
+function showPad(node){
+  var A = node.ask;
+  M.pad = { len: A.len || 3, buf: '', key: String(A.key), to: A.to, ask: A.ask || '' };
+  padEl.querySelector('.ask').textContent = A.ask || '';
+  drawPad();
+  padEl.classList.add('on');
+}
+function drawPad(){
+  var P = M.pad; if (!P) return;
+  padEl.querySelector('.buf').textContent = P.buf.split('').join(' ');
+  var ks = padEl.querySelector('.keys');
+  if (ks.childNodes.length) return;                 // 建一次就够
+  ['1','2','3','4','5','6','7','8','9','退','0','定'].forEach(function(k){
+    var b2 = document.createElement('button');
+    b2.type = 'button'; b2.textContent = k;
+    b2.addEventListener('click', function(e){ e.stopPropagation(); padKey(k); });
+    ks.appendChild(b2);
+  });
+}
+function padKey(k){
+  var P = M.pad; if (!P) return;
+  if (k === '退'){ P.buf = P.buf.slice(0, -1); }
+  else if (k === '定'){
+    if (P.buf === P.key){ hidePad(); sfxPick(); gotoNode(P.to); }
+    else { P.buf = ''; toast('（不对。再数一遍。）', 1.6); }
+  }
+  else if (P.buf.length < P.len){ P.buf += k; sfxBlip(); }
+  drawPad();
+}
+function hidePad(){
+  M.pad = null;
+  if (padEl) padEl.classList.remove('on');
+}
+padEl.addEventListener('click', function(e){ e.stopPropagation(); });
+
 /* ==================== 对话流程 ==================== */
 function entryOf(n){
   var s = TALK[n.talk];
@@ -4391,7 +4420,7 @@ function closeTalk(){
   M.talk.npc = null; M.talk.nodeId = null;
   M.talk.cool = 0.2;                      // 关掉之后 0.2 秒内不许再开，防手抖
   dlgEl.classList.remove('on');
-  hidePress();
+  hidePress(); hidePad();
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
@@ -4436,6 +4465,7 @@ function gotoNode(id){
     if (node.killMsg) M.deathMsg = node.killMsg;
     if (node.relieve) relieveUrge();                      // 牢李上完了
     if (node.resolve) M.resolveAfter = true;               // 这声"到"答完就收尾
+    if (node.boss) startBoss();                           // 这一句念完就开打
   }
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
@@ -4447,6 +4477,7 @@ function renderNode(){
   var node = M.talk.script.nodes[M.talk.nodeId];
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
   if (node.press) showPress(node);        // 这一句会让屏幕下方冒出一个按钮
+  if (node.ask) showPad(node);            // 这一句会冒出数字键盘
   if (node.sh) shake(node.sh);            // 这一句该让画面抖一下
   if (node.stare) M.stare = node.stare;   // 这几秒里，所有人都会看着你
   if (node.card){ card(full2(node), 3.4); return; }
@@ -4535,7 +4566,7 @@ function drawText(){
 document.addEventListener('click', function(e){
   if (!M.talk.open) return;
   var t = e.target;
-  if (t && t.closest && t.closest('#dlgOpts,#press,#act,#run,#btnBook,#btnFast')) return;
+  if (t && t.closest && t.closest('#dlgOpts,#press,#pad,#act,#run,#btnBook,#btnFast')) return;
   advanceOrChoose();
 });
 
@@ -5228,6 +5259,18 @@ function render(){
     cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 5);
   });
 
+  /* ---- 场景装饰：能数出来的东西（相框上的人、奖状、课本……） ---- */
+  (CUR.deco || []).forEach(function(D){
+    var n = D.n || 1, i2;
+    for (i2 = 0; i2 < n; i2++){
+      var dx2 = D.x + (D.dx || 0) * i2, dy2 = D.y + (D.dy || 0) * i2;
+      var px2 = dx2*TILE + TILE/2, py2 = dy2*TILE + TILE/2;
+      if (px2 < camX - 60 || px2 > camX + W + 60 || py2 < camY - 90 || py2 > camY + H + 60) continue;
+      if (D.art) drawObj(D.art, px2, py2);
+      if (D.who) drawSprite(D.who, px2, py2, 'down', 0, false, D.scale || 1);
+    }
+  });
+
   /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
   GHOSTS.forEach(function(g){
     if (g.map !== M.map) return;
@@ -5474,8 +5517,10 @@ clockEl.style.display = 'none';
           });
           if (typeof nd.end === 'string' && !s.nodes[nd.end])
             bad.push(k+'.'+nid+' → end '+nd.end+' 不存在');
-          if (!nd.next && !nd.opts && !nd.end && !nd.press)
+          if (!nd.next && !nd.opts && !nd.end && !nd.press && !nd.ask)
             bad.push(k+'.'+nid+' 是死胡同');
+          /* 数字键盘那条：to 指得到吗 */
+          if (nd.ask && !s.nodes[nd.ask.to]) bad.push(k+'.'+nid+' → ask.to '+nd.ask.to+' 不存在');
           /* 突现按钮那两个出口也得指得着 */
           if (nd.press){
             if (!s.nodes[nd.press.press]) bad.push(k+'.'+nid+' → 按钮按下去的 '+nd.press.press+' 不存在');
@@ -5629,6 +5674,9 @@ clockEl.style.display = 'none';
           M.portalCool = 0; M.talk.cool = 0;
           for (var kk=0; kk<8; kk++) update(1/60);
           if (doPress) pressAct();
+          /* ?adv=N —— 把对话往下推 N 句（截图数字键盘那种要用） */
+          var advN = parseInt((/[?&]adv=(\d+)/.exec(q) || [0,0])[1], 10) || 0;
+          for (var av = 0; av < advN && M.talk.open; av++){ M.talk.typed = 1e9; advanceOrChoose(); }
           if (M.talk.open){ M.talk.typed = 6; drawText(); }
           out.push('摆到「' + (SO.who||SO.art) + '」跟前，够得着=' +
                    (M.nearObj === SO));
@@ -6065,6 +6113,47 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'tier3'){
+        /* 整条最后一章走一遍：全查清 → 门口戏 → 辅导室 → 替答「到」→ BOSS */
+        M.me = null; CHARS.forEach(function(c){ if (c.id === 'laoli') M.me = c; });
+        FLAGS = { '是:laoli': true };
+        sideMine().forEach(function(z){ setFlag(sideFlag(z)); });
+        out.push('调查度=' + invCount() + ' 档=' + invTier());
+        loadMap('campus', 39, 122);
+        M.fade = 0; M.talk.open = false; M.dying = 0; M.screen = 'play';
+        M.showOverAfter = true;
+        closeTalk();
+        out.push('门口戏完 → 图=' + M.map + ' 引导=' + (goalNow() ? goalNow().t : '（没有）'));
+        FLAGS['@resolve:0'] = true;                 // 开场那段旁白先吃掉
+        var him = null; M.npcs.forEach(function(n){ if (n.id === 'him') him = n; });
+        if (!him){ out.push('!!找不到「他」'); }
+        else {
+          M.p.x = him.x; M.p.y = him.y + 30; M.talk.cool = 0; M.talk.open = false;
+          openTalk(him);
+          var g = 0;
+          while (M.talk.open && g++ < 80){
+            var nd = M.talk.script.nodes[M.talk.nodeId];
+            if (nd && nd.opts && (M.talk.shown || []).length){
+              var pos = 0;
+              (M.talk.shown || []).forEach(function(ix, k2){
+                if (nd.opts[ix].t.indexOf('替他答') >= 0) pos = k2;
+              });
+              M.talk.sel = pos;
+            }
+            M.talk.typed = 1e9;
+            advanceOrChoose();
+          }
+          out.push('谈完 → 图=' + M.map + ' BOSS=' + !!M.boss +
+                   ' 替他答了=' + flagOn('替他答了') + ' 正说=' + M.talk.open +
+                   ' 屏幕=' + M.screen);
+          out.push('引导=' + (goalNow() ? goalNow().t : '（没有）'));
+          out.push('#boss 挂上了没=' + document.getElementById('boss').classList.contains('on'));
+          var k3 = 0;
+          for (k3 = 0; k3 < 300 && M.boss; k3++){ update(1/60); M.talk.open = false; }
+          out.push('跑 5 秒后：BOSS=' + !!M.boss + ' 命=' + (M.boss ? M.boss.lives : '-') +
+                   ' 圈=' + (M.boss ? M.boss.rings.length : '-'));
+        }
       }
       if (mode === 'fuzz'){
         /* 乱按：方向键乱敲、看见东西就按、对话里选项随机点、时不时翻本子。
