@@ -764,7 +764,26 @@ makeMap('campus', {
     { x:32, y:117, ox:0, oy:-14, art:'window', who:'保安室的窗', verb:'看看',
       talk:'open_arrive', once:true, cp:'到校' },                       // 六点五十，校门口
     { x:23, y:81,  art:'door',   who:'一号教学楼的正门', verb:'推开',
-      talk:'open_bell', bell:3, once:true, cp:'进了教学楼' },
+      talk:'open_bell', bell:3, once:true, cp:'进了教学楼', step:[-1,0] },
+
+    /* ---- 每栋楼的正门都能推开 ----
+       原来只有一号教学楼那扇按下去有反应，别处的门走到跟前按"说话"
+       什么都不发生 —— 门就长得像画在地上的一块色，谁都觉得是摆设。
+       现在每一扇按一下都真开：推开、你人迈进去。 */
+    { x:23, y:57,  art:'door', who:'二号教学楼的正门', verb:'推开',
+      talk:'door_2', once:true, step:[-1,0] },
+    { x:56, y:57,  art:'door', who:'第三教学楼的正门', verb:'推开',
+      talk:'door_3', once:true, step:[1,0] },
+    { x:56, y:81,  art:'door', who:'实验楼的正门',     verb:'推开',
+      talk:'door_lab', once:true, step:[1,0] },
+    { x:56, y:104, art:'door', who:'艺术楼的正门',     verb:'推开',
+      talk:'door_art', once:true, step:[1,0] },
+    { x:23, y:100, art:'door', who:'行政楼的正门',     verb:'推开',
+      talk:'door_office', once:true, step:[-1,0] },
+    { x:15, y:110, art:'door', who:'校史馆的门',       verb:'推开',
+      talk:'door_museum', once:true, step:[-1,0] },
+    { x:39, y:43,  art:'door', who:'科技楼的正门',     verb:'推开',
+      talk:'door_tech', once:true, step:[0,-1] },
     { x:21, y:76,  art:'desk',   who:'你那个位子', verb:'坐下',
       talk:'open_class', once:true, cp:'落座' },
     { x:10, y:77,  art:'bucket', who:'楼梯拐角那只水桶', verb:'看看',
@@ -942,9 +961,10 @@ makeMap('floor2', {
       talk:'f2_name', if:'拿过名单', once:true },
     { x:43, y:20, art:'desk',  who:'靠窗那张桌子', verb:'坐下',
       talk:'lg_chair', if:'是:logic', once:true },
-    /* 那扇门在 col 38、走廊东头，不在屋里 */
-    { x:39, y:12, art:'door',  who:'楼上那间 45 班的门', verb:'看看',
-      talk:'ld_45room', if:'是:laoli', once:true }
+    /* 那扇门在 col 38、走廊东头 —— 就是那个 door 格子本身，不是它旁边一格。
+       这段旁白里你是真走进去的（"你走到他桌子边上"），所以按一下要迈进去 */
+    { x:38, y:12, art:'door',  who:'楼上那间 45 班的门', verb:'推开',
+      talk:'ld_45room', if:'是:laoli', once:true, step:[1,0] }
   ]
 }, floor2Layout);
 function tileAt(tx, ty){
@@ -1478,6 +1498,38 @@ var TALK = {
     s:{ text:'（你位子的抽屉里多了一张纸。）', next:'t' },
     t:{ text:'（是 logic 的字。他写得很快。）', next:'u' },
     u:{ text:'「你要是非上去不可 ——\n\n　走廊里念名字的时候，别停在门口。\n　他数到门口那间就不数了。」', set:'logic留的纸条', end:true }
+  }},
+
+  /* ---- 各栋楼那扇正门 ----
+     都短，一两个节点就完 —— 门是天天要走的地方，每次都念一大段
+     会烦死人。开完就进门，这才是"门"该有的反应 */
+  door_2: { nodes:{
+    s:{ text:'（二号教学楼。铁门，推上去凉。）', next:'t' },
+    t:{ text:'（门轴响了一声。）\n\n（里头很静 —— 现在是上课。）', end:true }
+  }},
+  door_3: { nodes:{
+    s:{ text:'（第三教学楼。玻璃门，把手上有一层灰。）', next:'t' },
+    t:{ text:'（你推门进去。\n　走廊两侧的教室，全都关着。）', end:true }
+  }},
+  door_lab: { nodes:{
+    s:{ text:'（实验楼。门边钉着一块牌子：化学竞赛辅导室在三楼。）', next:'t' },
+    t:{ text:'（牌子钉反了。）\n\n（字是朝墙里那一面写的。）', end:true }
+  }},
+  door_art: { nodes:{
+    s:{ text:'（艺术楼。大门敞着一半，里头是个院子。）', next:'t' },
+    t:{ text:'（院子中间那口钟，停在七点十分。）\n\n（你没听过它响。）', end:true }
+  }},
+  door_office: { nodes:{
+    s:{ text:'（行政楼。门厅里亮着一盏灯，没人。）', next:'t' },
+    t:{ text:'（值班表挂在墙上。\n　今天的日期下面，空着一格。）', end:true }
+  }},
+  door_museum: { nodes:{
+    s:{ text:'（校史馆。门锁着，锁是新的。）', next:'t' },
+    t:{ text:'（你推了一下 —— ）\n\n（开了。）', end:true }
+  }},
+  door_tech: { nodes:{
+    s:{ text:'（科技楼。全校最里头那一栋。）', next:'t' },
+    t:{ text:'（门很重。推开的时候，走廊里的风是凉的。）', end:true }
   }},
 
   /* 追逐里能用上的两个机关 —— 你要的"把 6 分钟减下去" */
@@ -2956,6 +3008,8 @@ function objLive(O){
      要是路过时顺手按了一下也算"擦错"，那面墙就永远擦不完了。
      没轮到的那几块：按了没反应，也不显示能按 */
   if (O.seq !== undefined && !FLAGS[objKey(O)] && M.seq !== O.seq - 1) return false;
+  /* 逃命的时候不停下来开门 —— 门会把往前冲的人往回推一格 */
+  if (M.chase && O.step) return false;
   return true;
 }
 /* 已经动过一次了？那再按就只重念一遍，不再改剧情。
@@ -3239,6 +3293,12 @@ function runBeat(G, key, byPlayer){
   FLAGS[key] = true;
   if (G.set) setFlag(G.set);
   if (G.clock !== undefined) setClock(G.clock);      // 时间由剧情推
+  /* 推开门就迈进去。有的门按下去只有一行字、人还杵在外头，
+     玩家当然会觉得这扇门是摆设 —— 迈这一步，门才算真开了 */
+  if (G.step){
+    var sx2 = M.p.x + G.step[0]*TILE, sy2 = M.p.y + G.step[1]*TILE;
+    if (canWalk(sx2, sy2)){ M.p.x = sx2; M.p.y = sy2; M.portalCool = 0.4; }
+  }
   /* 走错路就绕回原地 —— 中式恐怖里最好使的不是怪物，是"又回到这儿" */
   if (G.warp){
     M.p.x = G.warp[0]*TILE + TILE/2;
@@ -4923,6 +4983,69 @@ clockEl.style.display = 'none';
                    Object.keys(seen).map(function(k){ return k + '×' + seen[k]; }).join(' / '));
         });
       }
+      if (mode === 'doors'){
+        /* 每一栋楼的门口：从外头按着方向键走进去，看人真能进楼吗。
+           门画在那儿、格子也是通的，可人要是卡在门槛上，那就是摆设 */
+        var DOORS = [
+          ['一号教学楼', 26, 81, 'a'], ['二号教学楼', 26, 57, 'a'],
+          ['第三教学楼', 53, 57, 'd'], ['实验楼',     53, 81, 'd'],
+          ['艺术楼',     53, 104,'d'], ['行政楼',     26, 100,'a'],
+          ['校史馆',     18, 110,'a'], ['科技楼',     39, 46, 'w']
+        ];
+        var FLAGS_KEEP = FLAGS;
+        /* 第二关：站到门口按一下"说话"，门该开、人该迈进去。
+           只按出一行字、人还杵在外头，那就是摆设 */
+        var TALKOF = { '一号教学楼':'open_bell', '二号教学楼':'door_2', '第三教学楼':'door_3',
+                       '实验楼':'door_lab', '艺术楼':'door_art', '行政楼':'door_office',
+                       '校史馆':'door_museum', '科技楼':'door_tech' };
+        Object.keys(TALKOF).forEach(function(nm){
+          FLAGS = {}; setFlag('是:laoli');
+          loadMap('campus', 39, 122);
+          M.fade = 0; M.talk.open = false; M.dying = 0; M.portalCool = 0; M.talk.cool = 0;
+          var O = objByTalk(TALKOF[nm]);
+          if (!O){ out.push(nm + '：找不到那扇门的实物'); return; }
+          M.p.x = O.x*TILE + TILE/2; M.p.y = O.y*TILE + TILE/2;
+          var x0 = O.x, y0 = O.y;
+          update(1/60);
+          M.talk.cool = 0;
+          pressAct();
+          var said = !!M.talk.open;
+          var gg = 0; while (M.talk.open && gg++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+          var x1 = Math.floor(M.p.x/TILE), y1 = Math.floor(M.p.y/TILE);
+          var inside = (x1 !== x0 || y1 !== y0);
+          out.push(nm + ' 按门 → 说上话=' + said + ' ' + x0 + ',' + y0 + ' → ' + x1 + ',' + y1 +
+                   '(' + tileAt(x1, y1) + ')' + (inside ? ' 进去了' : ' ← 没动，还是摆设'));
+        });
+        FLAGS = FLAGS_KEEP;
+        DOORS.forEach(function(D){
+          FLAGS = {}; setFlag('是:laoli');
+          loadMap('campus', 39, 122);
+          M.fade = 0; M.talk.open = false; M.dying = 0; M.portalCool = 0;
+          keys['a'] = keys['d'] = keys['w'] = keys['s'] = false;
+          M.p.x = D[1]*TILE + TILE/2; M.p.y = D[2]*TILE + TILE/2;
+          var x0 = Math.floor(M.p.x/TILE), y0 = Math.floor(M.p.y/TILE);
+          keys[D[3]] = true;
+          var kept = '';
+          for (var ei=0; ei<200; ei++){
+            update(1/60);
+            if (M.talk.open){                       // 半路弹出对话就推完，别杵着
+              kept = M.talk.script.nodes[M.talk.nodeId].text.slice(0,6);
+              M.talk.typed = 1e9;
+              var gg = 0; while (M.talk.open && gg++ < 20){ M.talk.typed = 1e9; advanceOrChoose(); }
+            }
+            M.portalCool = 0;
+            if (M.map !== 'campus') break;
+          }
+          keys[D[3]] = false;
+          var x1 = Math.floor(M.p.x/TILE), y1 = Math.floor(M.p.y/TILE);
+          var moved = Math.abs(x1-x0) + Math.abs(y1-y0);
+          var t = (M.map === 'campus') ? tileAt(x1, y1) : M.map;
+          out.push(D[0] + ' 门口 ' + x0 + ',' + y0 + ' → ' + x1 + ',' + y1 +
+                   '(' + t + ') 走了' + moved + '格' + (kept ? ' 弹出「' + kept + '…」' : ''));
+        });
+        FLAGS = FLAGS_KEEP;
+        loadMap('campus', 39, 122);
+      }
       if (mode === 'tile'){
         /* 定点体检：这一格能不能站、压着哪几个触发区、站上去会不会响。
            ?probe=tile&x=13&y=74&set=可以上去了 */
@@ -5048,6 +5171,13 @@ clockEl.style.display = 'none';
               else if (TERRAIN[dt].solid) bad.push('出口'+i+' 落点在' + TERRAIN[dt].name + '上');
             }
           });
+          /* 门是不是摆设：地图上每一格 door，从出生点走得到吗？
+             走不到的门 = 画在那儿但谁也进不去的摆设 */
+          var unReach = [];
+          for (var yq=0; yq<mp.h; yq++) for (var xq=0; xq<mp.w; xq++){
+            if (mp.map[yq][xq] === 'door' && !seen[xq+','+yq]) unReach.push(xq+','+yq);
+          }
+          if (unReach.length) bad.push('走不到的门: ' + unReach.join(' '));
           out.push(mid + (bad.length ? ' ← ' + bad.join(' / ') : ' 干净'));
         });
         var gbad = [];
