@@ -169,6 +169,10 @@
   #boss .nm { font-size:clamp(11px,3vw,14px); letter-spacing:.3em; opacity:.75; }
   #boss .hp { font-size:clamp(18px,5vw,24px); color:#e05a4a; letter-spacing:.2em; }
   #boss .lf { font-size:clamp(11px,3vw,14px); color:#e8a33d; letter-spacing:.25em; }
+  /* 血条底下那行"现在该干嘛" */
+  #boss .say { margin-top:3px; font-size:clamp(11px,3vw,14px); color:#e6dcc8;
+    letter-spacing:.06em; }
+  #boss .say.go { color:#fff; font-weight:700; }
 
   /* ---------- 画面层 ----------
      以前所有东西都塞进底下那个黑框里，那是最偷懒的做法。
@@ -1423,6 +1427,31 @@ makeMap('lab', {
   ]
 }, labLayout);
 
+/* ================== 奶蛙那场：一间撑开了的辅导室 ==================
+   原来是挤在辅导室那张小图上打的 —— 18×14，圈还没推出来就撞到墙，
+   玩家也没地方躲。这场单独开一张大图：当中一个讲台，那个东西搁在上面，
+   一圈一圈的"笑"从它那儿推出来，人从圈和圈中间穿过去。 */
+function arenaLayout(){
+  var W = 26, H = 18;
+  R('wall', 1, 1, W-2, H-2);                 // cols 1..24, rows 1..16
+  R('floor', 2, 2, W-4, H-4);                // 屋里
+  R('stage', 11, 8, 4, 3);                   // 当中那个讲台 cols 11..14, rows 8..10
+  NAME(1, 1, 24, 2, '化学竞赛辅导室');
+  NAME(10, 7, 6, 5, '讲台');
+}
+makeMap('arena', {
+  w: 26, h: 18,
+  base: 'void',
+  spawn: [13, 15],
+  objs: [
+    /* 圈就是从这儿发出来的 —— 它停下来的那一下，走到这儿按一下 */
+    { x:13, y:9, art:'frog', who:'讲台上那个东西', verb:'按一下', talk:'rs_frog' }
+  ],
+  /* 靠边那两排课桌：退到墙根去了，只是摆着看，不挡路 */
+  deco: [ { x:3, y:3,  n:5, dx:2, art:'desk', scale:1 },
+          { x:3, y:15, n:5, dx:2, art:'desk', scale:1 } ]
+}, arenaLayout);
+
 makeMap('resolve', {
   w: 18, h: 14,
   base: 'void',
@@ -2033,9 +2062,9 @@ var TALK = {
       kill1:{ text:'走廊里那串名字，往下走了。\n\n没有再绕回来。', sh:0.5, next:'kill2' },
       kill2:{ text:'然后，讲台上那个东西笑了。\n\n很轻。像谁在喉咙里哼。', next:'kill3' },
       kill3:{ text:'屋里跟着笑起来。\n\n我也在笑。我捂不住嘴。', sh:0.8, next:'kill4' },
-      kill4:{ text:'讲台上那个东西撑开了。\n\n一下子有脸盆那么大。黄的，咧着嘴。', next:'kill5' },
+      kill4:{ text:'讲台上那个东西撑开了。\n\n整间屋子跟着往外涨 —— 墙退开，桌子退到边上，中间空出一大块。', next:'kill5' },
       kill5:{ text:'它笑。\n\n笑声是一圈一圈推出来的 —— 我听得见，也看得见。', next:'kill6' },
-      kill6:{ card:'它笑的时候，屋里跟着笑。\n\n我也在笑，捂不住嘴。\n\n笑声一圈一圈推过来 ——\n从圈和圈中间穿过去。\n\n它停下来的那一下，走到讲台前面按一下。', boss:true, end:true }
+      kill6:{ card:'它笑一声，推出一圈。圈从它那儿往外推。\n\n（它有三次笑不到底。你有三条命。）\n\n一、圈推过来，从圈和圈中间穿过去。\n二、它推完会歇一下。\n三、它歇的那一下，走到讲台前面按它。', boss:true, end:true }
     }
   },
 
@@ -3009,9 +3038,11 @@ function goalNow(){
   }
   if (!M.chase && M.map === 'toilet') return toiletGoal();
   /* 打起来了：别再说"跟他说话"了，说怎么打 */
-  if (M.boss) return { t:'它笑的时候躲开圈 —— 它歇下来那一下按讲台',
-                       x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE),
-                       map: 'resolve' };
+  if (M.boss) return (M.boss.open > 0)
+    ? { t:'它歇了 —— 走过去按讲台上那个东西',
+        x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' }
+    : { t:'躲开推过来的圈 —— 从圈和圈中间穿过去',
+        x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' };
   /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
      静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
      读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
@@ -3825,13 +3856,16 @@ function spawnWave(){
    三条命、它三格血。命数掉光不读档 —— 从头再来一遍。
    ============================================ */
 function startBoss(){
-  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 0,
-             cd: 0, inv: 0, open: 0, cx: 0, cy: 0, dead: false, hurt: 0 };
+  /* 这场打完之前那张小图装不下 —— 换到大图上来打 */
+  if (M.map !== 'arena'){ loadMap('arena', 13, 15); M.fade = 0.4; M.portalCool = 0.8; }
+  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.3,
+             cd: 0, inv: 1.3, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
+             wave: 0, hudSig: '' };
   var O = objByTalkHere('rs_frog');
-  M.boss.cx = (O ? O.x : 11) * TILE + TILE/2;
-  M.boss.cy = (O ? O.y : 3) * TILE + TILE/2;
+  M.boss.cx = (O ? O.x : 13) * TILE + TILE/2;
+  M.boss.cy = (O ? O.y : 9) * TILE + TILE/2;
   bossHud(true);
-  toast('它笑了。', 2.0);
+  toast('它撑开了。躲开推过来的圈 —— 它歇下来的时候，走过去按它。', 3.4);
   droneOn();
 }
 function bossHud(on){
@@ -3840,15 +3874,26 @@ function bossHud(on){
   el.classList.toggle('on', !!on);
   if (on) bossHudDraw();
 }
-function bossHudDraw(){
+function bossHudDraw(force){
   var el = document.getElementById('boss');
   if (!el || !M.boss) return;
+  var B = M.boss;
+  /* 血条旁边那句"现在该干嘛" —— 原来只有三个点和三根杠，
+     玩家不知道该躲还是该打。这一行每秒只重画一次，别每帧写 DOM */
+  var sig = (B.open > 0 ? 'o' : 'w') + Math.ceil(B.open * 2) + ',' + B.hp + ',' + B.lives;
+  if (!force && sig === B.hudSig) return;
+  B.hudSig = sig;
   var h = '';
-  for (var i = 0; i < 3; i++) h += (i < M.boss.hp) ? '●' : '○';
+  for (var i = 0; i < 3; i++) h += (i < B.hp) ? '●' : '○';
   var l = '';
-  for (var j = 0; j < 3; j++) l += (j < M.boss.lives) ? '▮' : '▯';
-  el.innerHTML = '<div class="nm">奶蛙</div><div class="hp">' + h +
-                 '</div><div class="lf">' + l + '</div>';
+  for (var j = 0; j < 3; j++) l += (j < B.lives) ? '▮' : '▯';
+  var say = (B.open > 0)
+    ? '它歇了 —— 现在走过去按它（' + B.open.toFixed(1) + ' 秒）'
+    : '躲开推过来的圈，从圈和圈中间穿过去';
+  el.innerHTML = '<div class="nm">奶蛙</div>' +
+                 '<div class="hp">' + h + '</div>' +
+                 '<div class="lf">' + l + '</div>' +
+                 '<div class="say' + (B.open > 0 ? ' go' : '') + '">' + say + '</div>';
 }
 function bossHit(){
   var B = M.boss;
@@ -3882,25 +3927,29 @@ function bossTick(dt){
   B.t += dt;
   if (B.inv > 0) B.inv -= dt;
   if (B.hurt > 0) B.hurt -= dt;
-  /* 一轮：先推两圈，再歇一下（那一下才是能打的时候） */
+  /* 一轮：先推几圈，再歇一段 —— 歇的那一段才是能打的时候。
+     歇多久是按"从最远那头跑回讲台"算的：地图大了，圈子推得慢了，
+     给的时间也得跟着长，不然跑不回去 */
   if (B.phase === 'wave'){
     B.since -= dt;
     if (B.since <= 0){
-      B.rings.push({ r: 8 });
-      B.since = 0.78;
+      B.rings.push({ r: 10 });
+      B.wave++;
+      B.since = 0.9;
       B.open = 0;
       sfxBlip();
-      if (B.rings.length >= (4 - B.hp) + 1){ B.phase = 'open'; B.cd = 1.5; }
+      /* 血越少，推的圈越多 —— 但都在三次到五次之间 */
+      if (B.wave >= 3 + (3 - B.hp)){ B.phase = 'open'; B.cd = 5.5; }
     }
   } else {
     B.cd -= dt;
     B.open = Math.max(0, B.cd);
-    if (B.cd <= 0){ B.phase = 'wave'; B.since = 0.5; B.open = 0; }
+    if (B.cd <= 0){ B.phase = 'wave'; B.wave = 0; B.since = 0.7; B.open = 0; }
   }
-  /* 圈往外推 */
+  /* 圈往外推（速率 × 最远距离 = 一张图刚好扫完，没有安全角落） */
   var i;
-  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 96 * dt;
-  B.rings = B.rings.filter(function(R){ return R.r < 520; });
+  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 130 * dt;
+  B.rings = B.rings.filter(function(R){ return R.r < 620; });
   /* 撞上就掉一条命 */
   var px = M.p.x - B.cx, py = M.p.y - B.cy, d = Math.hypot(px, py);
   if (B.inv <= 0){
@@ -4626,6 +4675,12 @@ function closeTalk(){
   M.talk.cool = 0.2;                      // 关掉之后 0.2 秒内不许再开，防手抖
   dlgEl.classList.remove('on');
   hidePress(); hidePad();
+  /* 这一段念完就该开打了 —— 换图得等对话框收掉，不然会把这段卡掉 */
+  if (M.bossPending){
+    M.bossPending = false;
+    startBoss();
+    return;
+  }
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
@@ -4670,7 +4725,7 @@ function gotoNode(id){
     if (node.killMsg) M.deathMsg = node.killMsg;
     if (node.relieve) relieveUrge();                      // 牢李上完了
     if (node.resolve) M.resolveAfter = true;               // 这声"到"答完就收尾
-    if (node.boss) startBoss();                           // 这一句念完就开打
+    if (node.boss) M.bossPending = true;                   // 念完这段再换图开打
   }
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
@@ -5417,6 +5472,8 @@ function render(){
       drawSprite(M.me.id, M.p.x, M.p.y, M.p.dir, M.p.anim, M.p.moving, 2);
     } else if (o.obj){
       var O = o.O;
+      /* 打起来的时候，那个实物不画 —— 大的那只已经画在讲台上了 */
+      if (M.boss && O.talk === 'rs_frog') return;
       var isGoal = !!(goalPos && Math.abs(goalPos.x - O.x) <= 2 && Math.abs(goalPos.y - O.y) <= 2);
       /* 动过的压暗（当下要找的那个除外）。顺序谜题那六块苔也算 ——
          不压暗的话，擦过的和没擦过的在屏幕上一模一样 */
@@ -5496,24 +5553,36 @@ function render(){
     });
     /* 它自己：一团绿，笑的时候鼓一下 */
     var puff = B.phase === 'wave' ? 1 + 0.25 * Math.sin(B.t * 18) : 1;
+    /* 大图里得看得见 —— 原来半径 16，在一间大屋子当中像颗豆子 */
     cx.fillStyle = '#e0c247';
-    cx.beginPath(); cx.arc(B.cx, B.cy, 16 * puff, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(B.cx, B.cy, 26 * puff, 0, 7); cx.fill();
     cx.fillStyle = '#f2dc76';
-    cx.beginPath(); cx.arc(B.cx - 4, B.cy - 5, 7 * puff, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(B.cx - 7, B.cy - 8, 11 * puff, 0, 7); cx.fill();
     cx.fillStyle = '#16160f';
-    cx.beginPath(); cx.arc(B.cx - 5, B.cy - 2, 2.4, 0, 7); cx.fill();
-    cx.beginPath(); cx.arc(B.cx + 4, B.cy - 2, 2.4, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(B.cx - 8, B.cy - 4, 3.4, 0, 7); cx.fill();
+    cx.beginPath(); cx.arc(B.cx + 7, B.cy - 4, 3.4, 0, 7); cx.fill();
     /* 那张咧着的嘴 —— 笑的时候咧得更开 */
     cx.strokeStyle = '#8a7320';
-    cx.lineWidth = 3;
+    cx.lineWidth = 4;
     cx.beginPath();
-    cx.arc(B.cx, B.cy + 1, (8 + 3 * puff) * 1.0, 0.12 * Math.PI, 0.88 * Math.PI);
+    cx.arc(B.cx, B.cy + 2, (13 + 4 * puff), 0.12 * Math.PI, 0.88 * Math.PI);
     cx.stroke();
-    /* 能打的那一下：讲台前面亮一圈 */
+    /* 能打的那一下：讲台亮一大圈，四个箭头从四边指过去 */
     if (B.open > 0){
-      cx.strokeStyle = 'rgba(255,255,255,' + (0.35 + 0.35 * Math.sin(B.t * 10)).toFixed(2) + ')';
-      cx.lineWidth = 3;
-      cx.beginPath(); cx.ellipse(B.cx, B.cy + 30, 26, 12, 0, 0, 7); cx.stroke();
+      var pu = 0.45 + 0.4 * Math.sin(B.t * 9);
+      cx.strokeStyle = 'rgba(255,255,255,' + pu.toFixed(2) + ')';
+      cx.lineWidth = 4;
+      cx.beginPath(); cx.ellipse(B.cx, B.cy + 26, 40 + 6 * Math.sin(B.t * 9), 20, 0, 0, 7); cx.stroke();
+      cx.fillStyle = 'rgba(255,255,255,' + pu.toFixed(2) + ')';
+      for (var a4 = 0; a4 < 4; a4++){
+        var ang = a4 * Math.PI / 2, rr = 52 + 5 * Math.sin(B.t * 9 + a4);
+        var ax2 = B.cx + Math.cos(ang) * rr, ay2 = B.cy + Math.sin(ang) * rr * 0.62;
+        cx.save();
+        cx.translate(ax2, ay2);
+        cx.rotate(ang + Math.PI);
+        cx.beginPath(); cx.moveTo(0, -7); cx.lineTo(6, 5); cx.lineTo(-6, 5); cx.closePath(); cx.fill();
+        cx.restore();
+      }
     }
   }
 
@@ -5657,7 +5726,8 @@ document.getElementById('btnStart').addEventListener('click', function(){
   setTimeout(buildPick, 120);
 });
 /* 有存档才显示"接着上次"，顺带写一句停在哪了 */
-var MAPNAME = { campus:'校园', floor2:'一号教学楼二楼', toilet:'厕所', hill:'后山' };
+var MAPNAME = { campus:'校园', floor2:'一号教学楼二楼', toilet:'厕所', hill:'后山',
+                arena:'化学竞赛辅导室', resolve:'化学竞赛辅导室' };
 var btnCont = document.getElementById('btnCont'), contTip = document.getElementById('contTip');
 if (!hasSave()) btnCont.style.display = 'none';
 else {
@@ -6532,7 +6602,7 @@ clockEl.style.display = 'none';
         }
         var g9 = 0; while (M.talk.open && g9++ < 30){ M.talk.typed = 1e9; advanceOrChoose(); }
         out.push('趁空档按 ' + hits + ' 下 → hp=' + (M.boss ? M.boss.hp : 0) +
-                 ' 屏幕=' + M.screen + ' lg7收了它=' + flagOn('lg7收了它'));
+                 ' 屏幕=' + M.screen + ' 干掉奶蛙=' + flagOn('干掉奶蛙'));
         out.push('结局=' + ((document.getElementById('overTxt').querySelector('h1') || {}).textContent || '（没结算）'));
       }
       if (mode === 'tiers'){
