@@ -452,7 +452,18 @@ var CHARS = [
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
     pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#241a14', cloth:'#9b8fc7',
           cloth2:'#8479ad', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
-          W:AV.white, O:'#17130f', M:'#9c6a5c' } }
+          W:AV.white, O:'#17130f', M:'#9c6a5c' } },
+
+  /* 「他」—— 名册第一行那个名字。配色是灰的：像一张洗淡了的旧照片。
+     脸上一根眉毛都没有，眼睛是两条缝，嘴只有一点点 ——
+     什么表情都读不出来，比笑或者哭都吓人 */
+  { id:'him', name:'他', tag:'照片里那个',
+    bg:'#2b2c30', hairLine:15, sideburn:16, brow:'none', eyes:'squint',
+    mouth:'small', spr:'short',
+    collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
+    pal:{ skin:'#cfc4b8', skin2:'#b3a89c', hair:'#1a1817', cloth:'#b6b1a7',
+          cloth2:'#98938a', pants:'#4b4a48', shoe:'#2e2d2c', frame:'#121110',
+          W:'#e8e4dd', O:'#15130f', M:'#8d7f74' } }
 ];
 
 /* ==================== 生成 + 光栅化 ====================

@@ -681,6 +681,18 @@ function floor2Layout(){
   NAME(39, 2, 7, 22, '45班');           // 楼上也有一间 45 班
 }
 
+/* ================== 五号图：化学竞赛辅导室 ==================
+   全查清之后才能进来的那一章 —— 三年前那天早上七点十分，原样停着。
+   这张图里没有出口：它是最后一场戏，演完就结算。
+   ==================================================== */
+function resolveLayout(){
+  var W = 18, H = 14;
+  R('wall', 1, 1, W-2, H-2);
+  R('classroom', 2, 2, W-4, H-4);
+  NAME(1, 1, 16, 3, '化学竞赛辅导室');
+  NAME(1, 8, 10, 1, '黑板');
+}
+
 /* ================== 三号图：男厕所 ==================
    原来厕所只是教学楼里的一间屋，跟教室长一个样 —— 进去一点"换了地方"
    的感觉都没有。现在单独一张图：一格一格的门、一排池子、一面镜子。
@@ -825,7 +837,31 @@ makeMap('campus', {
     { x:13, y:85,  art:'phone',  who:'架在桌角的手机', verb:'坐下',
       talk:'lg_game', if:'该上二楼了', once:true },
     { x:20, y:76,  art:'paper',  who:'抽屉里多出来的一张纸', verb:'拿出来',
-      talk:'logic_note', if:'帮logic', once:true, oy:-6 }
+      talk:'logic_note', if:'帮logic', once:true, oy:-6 },
+
+    /* ---- 六栋楼的支线 ----
+       同一格挂三条，各认自己的角色 —— 所以谁走谁那条，不会串味。
+       第二个条件是"可以走动了"：出教室之前，你还没理由跑去查这些 */
+    { x:10, y:111, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:10, y:111, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:10, y:111, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'], once:true },
+
+    { x:14, y:103, art:'board', who:'门厅的值班表',   verb:'看看', talk:'sd_office_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:14, y:103, art:'drawer',who:'学籍卡柜',       verb:'拉开', talk:'sd_office_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:14, y:103, art:'paper', who:'广播稿存档',     verb:'翻翻', talk:'sd_office_logic', if:['是:logic','可以走动了'], once:true },
+
+    { x:65, y:105, art:'paper', who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli',    if:['是:laoli','可以走动了'], once:true },
+    { x:65, y:105, art:'window',who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',     if:['是:shui','可以走动了'],  once:true },
+    { x:65, y:105, art:'paper', who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic',    if:['是:logic','可以走动了'], once:true },
+
+    { x:60, y:78, art:'board',  who:'钉反了的那块牌子', verb:'正过来', talk:'sd_lab_laoli',  if:['是:laoli','可以走动了'], once:true },
+    { x:60, y:78, art:'drawer', who:'试剂柜',           verb:'拉开',   talk:'sd_lab_shui',   if:['是:shui','可以走动了'],  once:true },
+    { x:60, y:78, art:'paper',  who:'讲台抽屉',         verb:'拉开',   talk:'sd_lab_logic',  if:['是:logic','可以走动了'], once:true },
+
+    { x:7,  y:52, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli',  if:['是:laoli','可以走动了'], once:true },
+    { x:7,  y:52, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',   if:['是:shui','可以走动了'],  once:true },
+    { x:7,  y:52, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic',  if:['是:logic','可以走动了'], once:true },
+
   ],
   triggers: [
     /* 拿到纸条之后才开始吓人 —— 按顺序读就是"越走越不对" */
@@ -899,10 +935,34 @@ makeMap('hill', {
     { x:3,  y:4, art:'moss', who:'第三块苔',   verb:'擦开', seq:3, if:'看到六块苔', talk:'wipe_3' },  // 如
     { x:12, y:4, art:'moss', who:'第四块苔',   verb:'擦开', seq:4, if:'看到六块苔', talk:'wipe_4' },  // 玻
     { x:15, y:4, art:'moss', who:'第五块苔',   verb:'擦开', seq:5, if:'看到六块苔', talk:'wipe_5' },  // 门
-    { x:9,  y:4, art:'moss', who:'第六块苔',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' }   // 数
+    { x:9,  y:4, art:'moss', who:'第六块苔',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
+
+    /* 后山这三处支线：同一面墙，三个角色各看各的 */
+    { x:16, y:7, art:'moss', who:'那面墙',     verb:'贴上去听', talk:'sd_hill_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:16, y:7, art:'moss', who:'墙根的缺口', verb:'钻过去',   talk:'sd_hill_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:16, y:7, art:'moss', who:'墙后面',     verb:'举起笔',   talk:'sd_hill_logic', if:['是:logic','可以走动了'], once:true }
   ],
   triggers: []
 }, hillLayout);
+
+makeMap('resolve', {
+  w: 18, h: 14,
+  base: 'void',
+  spawn: [8, 11],
+  npcs: [
+    /* 最后一排靠门那个位子 —— 名册第一行那个名字 */
+    { id:'him', tx:13, ty:4, face:'down', talk:'him' }
+  ],
+  objs: [
+    { x:8,  y:3,  ox:0, oy:-20, art:'board',  who:'黑板上那半道题', verb:'看看', talk:'rs_board',  once:true },
+    { x:4,  y:11, art:'roster', who:'讲台上那本名册',   verb:'翻开', talk:'rs_roster', once:true },
+    { x:14, y:10, art:'paper',  who:'桌上那张卷子',     verb:'看看', talk:'rs_paper',  once:true },
+    { x:16, y:6,  art:'window', who:'窗户',             verb:'抹一下', talk:'rs_window', once:true }
+  ],
+  triggers: [
+    { x:6, y:9, w:5, h:4, once:true, talk:'rs_open' }
+  ]
+}, resolveLayout);
 
 makeMap('toilet', {
   w: 18, h: 14,
@@ -1314,6 +1374,170 @@ var TALK = {
   }},
   toilet_d4: { nodes:{
     s:{ text:'（四间里都站着水。）\n\n（水面是平的。）\n\n（你在这儿站了这么久，一滴都没晃。）\n\n（最里头那间，门关着。）\n\n（你没听见有人进去。）', end:true }
+  }},
+
+  /* ==================== 最后一章：辅导室 ====================
+     只有全查清（invTier()===3）才进得来。进来之后就是一场收尾：
+     你需要的东西都在屋里，怎么收，最后那一下是你的选择。
+     ==================================================== */
+  rs_open: { nodes:{
+    s:{ text:'（门开了。）\n\n（里头是早上七点十分。）', next:'t' },
+    t:{ text:'（窗户上还挂着那天的雾气。黑板上写着半道题，粉笔搁在旁边 —— 没写完。）', next:'u' },
+    u:{ text:'（最后一排靠门那个位子上坐着人。\n\n（趴着，在睡。）\n\n（你走过去。他抬起头 —— 就是名册第一行那个名字。）',
+        set:'进了辅导室', end:true }
+  }},
+  rs_board: { nodes:{
+    s:{ text:'（那半道题。）', next:'t' },
+    t:{ text:'（写到一半就停了。）\n\n（粉笔搁在最后那个数字旁边，断了一截。）', end:true }
+  }},
+  rs_roster: { nodes:{
+    s:{ text:'（讲台上一本名册，摊开着。）', next:'t' },
+    t:{ text:'（46 班。第一行 —— ）\n\n（那个名字。钢笔写的，蓝墨水。）\n\n（一整页上，只有这一行是钢笔。别的都是圆珠笔。）',
+        set:'看过名册第一行', end:true }
+  }},
+  rs_paper: { nodes:{
+    s:{ text:'（桌上摊着一张卷子。）', next:'t' },
+    t:{ text:'（化学的。最后一道题空着。）\n\n（旁边写着一行小字：）\n\n「六点五十出门。七点十分到。来得及。」', end:true }
+  }},
+  rs_window: { nodes:{
+    s:{ text:'（窗户上雾着。）', next:'t' },
+    t:{ text:'（你抹了一下。）\n\n（雾底下有指印 —— 从外面按上来的。）\n\n（五个。很小。）', end:true }
+  }},
+
+  him: {
+    start:'s', again:'s',
+    nodes:{
+      s:{ text:'你来了。', next:'t' },
+      t:{ text:'（他看了看墙上那口钟。）\n\n（七点十分。）\n\n"还早。"', next:'u' },
+      u:{ text:'"你再等一会儿 —— "\n\n"—— 他们马上就点到我。"', opts:[
+           { t:'（把名册第一行念给他听）',           go:'name' },
+           { t:'（问他那天早上到底怎么了）',         go:'what' },
+           { t:'（告诉他，墙根底下那个饭盒还在）',   go:'box' },
+           { t:'（站起来，替他答一声「到」）',       go:'ans' } ]},
+
+      name:{ text:'（你把那一行念了出来。）\n\n（他愣了一下。）\n\n"……你还认得这个字啊。"', next:'name2' },
+      name2:{ text:'（他把桌上那张卷子往你这边推了推。）\n\n"我写到这儿，下课铃就响了。"', end:'u' },
+
+      what:{ text:'"那天早上我六点五十出门。"\n\n"路上没堵。我到得比谁都早。"', next:'what2' },
+      what2:{ text:'"后来 —— "\n\n（他停住了。）\n\n"后来我就不记得了。"', end:'u' },
+
+      box:{ text:'（他看了你一会儿。）\n\n"……他还放在那儿？"', next:'box2' },
+      box2:{ text:'"三年了。"\n\n"我跟他说过别等。"', end:'u' },
+
+      /* 收口：这一声「到」是替他答的。答完这一章就完了 */
+      ans:{ text:'（你站起来。）', next:'ans2' },
+      ans2:{ text:'（走廊里那串念名字的声音，正好过到这儿。）', next:'ans3' },
+      ans3:{ text:'「——」', next:'ans4' },
+      ans4:{ text:'「到。」\n\n（不是他的声音。）\n\n（是你的。）', set:'替他答了', resolve:true, end:true }
+    }
+  },
+
+  /* ==================== 六栋楼，每栋一处 ====================
+     可做可不做。查清几处，决定你最后能拿到哪一档结局。
+     三个角色各看各的：同一栋楼，牢李看的是"人"，水哥看的是"物"，
+     logic 看的是"记录"。拼起来是同一件事。
+     ==================================================== */
+
+  /* ---- 校史馆：那届 46 班 ---- */
+  sd_museum_laoli: { nodes:{
+    s:{ text:'（校史馆里那排毕业照，玻璃底下压着一层灰。）', next:'t' },
+    t:{ text:'（你从最后一排往前数，找到 46 班那一届。）\n\n（十九个人。）\n\n（照片最右边空着一个位置 —— 底下的名牌还在，名字被人刮掉了。）',
+        set:'查·校史馆·牢李', end:true }
+  }},
+  sd_museum_shui: { nodes:{
+    s:{ text:'（玻璃柜里摆着奖状。）', next:'t' },
+    t:{ text:'（有一张是化学竞赛的，二等奖。）\n\n（获奖人那一栏，齐齐地剪掉了。）\n\n（剪得很整齐 —— 是拿尺子比着剪的。）',
+        set:'查·校史馆·水哥', end:true }
+  }},
+  sd_museum_logic: { nodes:{
+    s:{ text:'（借阅登记簿摊在桌上，最后一页没合上。）', next:'t' },
+    t:{ text:'（最后一页上只有一行。）\n\n（同一个名字，同一本书，借了三年。）\n\n（还书日期那一栏，一直是空的。）',
+        set:'查·校史馆·逻辑', end:true }
+  }},
+
+  /* ---- 行政楼：那天谁在 ---- */
+  sd_office_laoli: { nodes:{
+    s:{ text:'（值班表挂在门厅墙上。）', next:'t' },
+    t:{ text:'（三年前那一天，值班老师那一格被涂黑了。）\n\n（用的是黑笔，涂得很用力，纸都起毛了。）\n\n（旁边那几格，值班的都是同一个人。）',
+        set:'查·行政楼·牢李', end:true }
+  }},
+  sd_office_shui: { nodes:{
+    s:{ text:'（学籍卡柜没锁。）', next:'t' },
+    t:{ text:'（你抽到那一张。）\n\n（照片被撕掉了，只剩四个角。）\n\n（备注栏写着两个字：转学。）',
+        set:'查·行政楼·水哥', end:true }
+  }},
+  sd_office_logic: { nodes:{
+    s:{ text:'（广播稿的存档，按日期夹着。）', next:'t' },
+    t:{ text:'（最后一篇没播。）\n\n（纸上写到一半就停了：）\n\n「下面念一个名字。念到的同学，到教导处来一趟。」\n\n（底下空着。）',
+        set:'查·行政楼·逻辑', end:true }
+  }},
+
+  /* ---- 艺术楼：几点几分 ---- */
+  sd_art_laoli: { nodes:{
+    s:{ text:'（院子中间那口钟。）', next:'t' },
+    t:{ text:'（停在七点十分。）\n\n（你伸手拨了一下钟摆。）\n\n（卡着的。怎么拨都不动。）',
+        set:'查·艺术楼·牢李', end:true }
+  }},
+  sd_art_shui: { nodes:{
+    s:{ text:'（你站在院子东边，随便说了一句。）', next:'t' },
+    t:{ text:'（西边回了一声。）\n\n（隔了一拍才回的。）\n\n（你绕过去 —— 那边没人。）',
+        set:'查·艺术楼·水哥', end:true }
+  }},
+  sd_art_logic: { nodes:{
+    s:{ text:'（琴房最后一间，谱架上摊着一页。）', next:'t' },
+    t:{ text:'（同一段被铅笔圈了三遍。）\n\n（旁边写着：第 47 遍。）\n\n（笔迹越写越浅。）',
+        set:'查·艺术楼·逻辑', end:true }
+  }},
+
+  /* ---- 实验楼：那间屋子在哪 ---- */
+  sd_lab_laoli: { nodes:{
+    s:{ text:'（门边那块牌子钉反了，字朝着墙里。）', next:'t' },
+    t:{ text:'（你把它正过来。）\n\n（上面写着：化学竞赛辅导室 —— 三楼。）\n\n（可这栋楼只有两层。）',
+        set:'查·实验楼·牢李', end:true }
+  }},
+  sd_lab_shui: { nodes:{
+    s:{ text:'（试剂柜按周期表排，一格一格贴着手写标签。）', next:'t' },
+    t:{ text:'（有一格是空的。）\n\n（柜底留着一圈印子。）\n\n（标签上写着一个字母：N。）',
+        set:'查·实验楼·水哥', end:true }
+  }},
+  sd_lab_logic: { nodes:{
+    s:{ text:'（讲台抽屉里压着半张卷子。）', next:'t' },
+    t:{ text:'（化学的，只做到一半。）\n\n（最后一道题旁边写着一行小字：）\n\n「来不及了。」',
+        set:'查·实验楼·逻辑', end:true }
+  }},
+
+  /* ---- 二号教学楼：45 班 ---- */
+  sd_two_laoli: { nodes:{
+    s:{ text:'（45 班旧址，桌椅都搬空了，墙上还留着座位表。）', next:'t' },
+    t:{ text:'（最后一排靠门那个位子，有名有姓。）\n\n（可那个名字被人用指甲刮过 —— 刮出一道白印。）',
+        set:'查·二号教学楼·牢李', end:true }
+  }},
+  sd_two_shui: { nodes:{
+    s:{ text:'（后墙的学习园地上还贴着几篇作文。）', next:'t' },
+    t:{ text:'（你挨着看过去。）\n\n（五篇，署着五个不同的名字。）\n\n（字迹是同一个人。）',
+        set:'查·二号教学楼·水哥', end:true }
+  }},
+  sd_two_logic: { nodes:{
+    s:{ text:'（你对着窗户玻璃哈了一口气。）', next:'t' },
+    t:{ text:'（雾起来的玻璃上浮出三个字。）\n\n（是反的 —— 从里面写的。）',
+        set:'查·二号教学楼·逻辑', end:true }
+  }},
+
+  /* ---- 后山：墙后面 ---- */
+  sd_hill_laoli: { nodes:{
+    s:{ text:'（你贴在墙上听。）', next:'t' },
+    t:{ text:'（念书的声音。很平，一遍一遍。）\n\n（这一遍你听清了 —— 它念的不是课文。）\n\n（它在点名。）',
+        set:'查·后山·牢李', end:true }
+  }},
+  sd_hill_shui: { nodes:{
+    s:{ text:'（墙根底下塌了一个缺口，刚好够一个人钻过去。）', next:'t' },
+    t:{ text:'（后面是一间教室。）\n\n（塌了一半。黑板还立着，上头留着半行粉笔字。）\n\n（横格纸，蓝墨水 —— 字迹你认得。）',
+        set:'查·后山·水哥', end:true }
+  }},
+  sd_hill_logic: { nodes:{
+    s:{ text:'（你举起翻译笔，对着墙。）', next:'t' },
+    t:{ text:'（笔上显示的不是字。）\n\n（是一页纸 —— 同一页，翻来覆去。）\n\n（页码那一栏，从来没变过。）',
+        set:'查·后山·逻辑', end:true }
   }},
 
   /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
@@ -2014,14 +2238,13 @@ function goalTick(){
      只在数字变了的时候碰 DOM —— 每帧都写一遍，手机就白热了 */
   if (progEl){
     var P = progressNow();
-    var sig = P.ch + ':' + P.d + ':' + P.n;
+    var sig = P.ch + ':' + P.d + ':' + P.n + ':' + invCount();
     if (sig !== M.progSig){
       M.progSig = sig;
       progEl.classList.add('on');
       progEl.querySelector('i').style.setProperty('--w', (P.n ? P.d/P.n*100 : 0) + '%');
       progEl.querySelector('span').textContent =
-        '第 ' + P.ch + ' 段 · ' + P.d + '/' + P.n +
-        (P.d < P.n ? '（还差 ' + (P.n-P.d) + '）' : '　都做完了');
+        '第 ' + P.ch + ' 段 ' + P.d + '/' + P.n + '　·　调查 ' + invCount() + '/6';
     }
   }
   var G = goalNow();
@@ -2077,6 +2300,57 @@ var CLUES = {
   '拿回手机':     'lg7 抽屉里压着一张化学竞赛报名表，整张只填了一个名字，被水泡花了。背面他写着：三年前填的，填完就没敢再往下填。',
   '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。'
 };
+
+/* ==================== 查过的事（调查度）====================
+   六栋楼，每栋一处。可做可不做 —— 但查清几处，决定你最后能拿到哪一档：
+
+     查 0～1 处　只是逃出去了。什么都不知道
+     查 2～4 处　逃出去，而且知道事情经过
+     查 5～6 处　能进去把这件事了掉（新的一章）
+
+   三个角色各有各的一套：同一栋楼，牢李看照片、水哥看奖状、logic 看登记簿。
+   所以这六条按 who 分开列，各数各的。
+   ==================================================== */
+var SIDES = [
+  { b:'校史馆',  who:'laoli', t:'墙上那排毕业照，数人头' },
+  { b:'校史馆',  who:'shui',  t:'玻璃柜里那张奖状' },
+  { b:'校史馆',  who:'logic', t:'借阅登记簿最后一页' },
+
+  { b:'行政楼',  who:'laoli', t:'值班表上被涂掉的那一格' },
+  { b:'行政楼',  who:'shui',  t:'学籍卡里那张被撕掉的照片' },
+  { b:'行政楼',  who:'logic', t:'广播稿存档，最后一篇' },
+
+  { b:'艺术楼',  who:'laoli', t:'停在七点十分的钟' },
+  { b:'艺术楼',  who:'shui',  t:'院子里的回声' },
+  { b:'艺术楼',  who:'logic', t:'琴房谱架上那一页' },
+
+  { b:'实验楼',  who:'laoli', t:'钉反了的那块牌子' },
+  { b:'实验楼',  who:'shui',  t:'试剂柜里空着的那一格' },
+  { b:'实验楼',  who:'logic', t:'讲台抽屉里那半张卷子' },
+
+  { b:'二号教学楼', who:'laoli', t:'45 班旧址的座位表' },
+  { b:'二号教学楼', who:'shui',  t:'后墙学习园地里的作文' },
+  { b:'二号教学楼', who:'logic', t:'窗户玻璃上的字' },
+
+  { b:'后山',    who:'laoli', t:'贴在墙上听' },
+  { b:'后山',    who:'shui',  t:'墙上那个缺口' },
+  { b:'后山',    who:'logic', t:'用翻译笔对着墙' }
+];
+function sideFlag(s){ return '查·' + s.b + '·' + ({ laoli:'牢李', shui:'水哥', logic:'逻辑' }[s.who] || s.who); }
+function sideMine(){
+  var me = M.me ? M.me.id : 'laoli';
+  return SIDES.filter(function(s){ return s.who === me; });
+}
+function invCount(){
+  var n = 0;
+  SIDES.forEach(function(s){ if (flagOn(sideFlag(s))) n++; });
+  return n;
+}
+/* 三档。阈值写在这儿，想改只改这一行 */
+function invTier(){
+  var n = invCount();
+  return n <= 1 ? 1 : (n <= 4 ? 2 : 3);
+}
 
 /* ==================== 这一趟要做的事 ====================
    任务点散在整张地图上 —— 东一头西一头，玩家走着走着就不知道自己
@@ -2695,6 +2969,13 @@ function chaseTick(dt){
   if (M.p.y > 122*TILE) return endChase();                    // 出校门了
   if (M.clock >= CLOCK_END) return die('下课铃响了。\n你没走出去。', 2.0);
 }
+/* 全查清了：校门口那场之后不走，回楼里，进那一章 */
+function enterResolve(){
+  loadMap('resolve', 8, 11);
+  M.fade = 1.0;
+  M.portalCool = 0.6;
+  clockEl.style.display = '';
+}
 function endChase(){
   M.chase = null;
   setFlag('冲出校门');
@@ -2740,6 +3021,22 @@ function wallTail(told, notes){
     '（没听清。）'
   ];
 }
+/* 你查清了几处，结尾就不是同一个结尾 ——
+   这不是加分项，是你到底知不知道自己在逃什么 */
+function invTail(){
+  var n = invCount();
+  if (n <= 1) return [
+    '（你不知道那行字是谁。）',
+    '（你也没问过。）',
+    '（校门口那个人还站在原地。）'
+  ];
+  return [
+    '（你知道名册第一行那个名字是谁。）',
+    '（你知道那天早上七点十分，整栋楼里只有他一个人。）',
+    '（你知道墙根底下那个饭盒为什么三年都没人动。）',
+    '（可你还是走了。）'
+  ];
+}
 function endingFor(){
   var me    = M.me ? M.me.id : 'laoli';
   var notes = flagOn('译出化学笔记');
@@ -2747,6 +3044,19 @@ function endingFor(){
   var told  = flagOn('告诉lg7');
   var helpL = flagOn('帮logic');
   var helpD = flagOn('帮值周生');
+
+  /* ---------- 全查清 + 替他答了：这是唯一一个"了掉了"的结局 ---------- */
+  if (flagOn('替他答了')){
+    return { title:'有人替他答了', lines:[
+      '「到。」',
+      '（你说完这一声，走廊里那串念名字的声音，往下走了。）',
+      '（没有再绕回来。）',
+      '（名册上第一行那个名字，第一次有人替它应了。）',
+      '（——本来就是十九个。）',
+      '（第二天早上六点二十，校门口没人。）',
+      '（墙根底下那个饭盒，被人拿走了。）'
+    ] };
+  }
 
   /* ---------- logic：她不在名单上，所以她回得去 ---------- */
   if (me === 'logic'){
@@ -2844,7 +3154,7 @@ function endingFor(){
             : named          ? '名单上没那个名字'
             : notes          ? '你没有交出去'
                              : '什么都差一点';
-  return { title: title, lines: head.concat(wallTail(told, notes)) };
+  return { title: title, lines: head.concat(wallTail(told, notes)).concat(invTail()) };
 }
 function showOver(e){
   M.screen = 'over';
@@ -3027,6 +3337,17 @@ function buildBook(){
            (done ? '' : (T.opt ? '　<span class="opt">（支线）</span>' : '')) + '</p>';
   }).join('') || '<p class="dim">这一趟没别的了。</p>';
 
+  /* 查过的事：六栋楼各一处，查清几处决定你最后能拿到哪一档
+     —— 0～1 只是逃出去，2～4 知道经过，5～6 能进去把事了掉 */
+  var mine = sideMine(), got = invCount();
+  h += '<h3>查过的事　' + got + '/6　（' +
+       ['', '还只是逃出去', '能知道经过', '能了掉这件事'][invTier()] + '）</h3>';
+  h += mine.map(function(s){
+    var done = flagOn(sideFlag(s));
+    return '<p>' + (done ? '✓' : '○') + '　<b>' + escapeHTML(s.b) + '</b>　' +
+           escapeHTML(s.t) + (done ? '' : '　<span class="opt">（还没去）</span>') + '</p>';
+  }).join('');
+
   var clues = Object.keys(CLUES).filter(function(k){ return flagOn(k); });
   h += '<h3>线索</h3>';
   h += clues.length
@@ -3097,9 +3418,18 @@ function objKey(O){ return '@obj:' + M.map + ':' + (O._i === undefined ? O.x + '
    注意：动过一次（once）的东西不算"不能动" —— 看过的线索还得能再看。
    原来这里把 once 的直接判死，于是"触发一次就再也看不了"，
    漏看一行就得重开一局，非常难受。 */
+/* 条件可以写数组：全都得成立（"是:laoli" 且 "可以走动了" 那种） */
+function flagAll(f){
+  if (!f) return true;
+  if (typeof f === 'object' && f.length){
+    for (var i=0;i<f.length;i++) if (!flagOn(f[i])) return false;
+    return true;
+  }
+  return flagOn(f);
+}
 function objLive(O){
   if (!O) return false;
-  if (O.if && !flagOn(O.if)) return false;
+  if (O.if && !flagAll(O.if)) return false;
   if (O.gone && FLAGS[objKey(O)]) return false;
   /* 顺序谜题：只让"轮到的那一块"能按。
      六块苔是一横排，去下一块的路上必然要经过别的几块 ——
@@ -3218,7 +3548,14 @@ function closeTalk(){
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
   /* 有些触发区是"读完这段话就死"（守则里那些不能碰的） */
-  if (M.showOverAfter){ M.showOverAfter = false; showOver(endingFor()); return; }
+  if (M.resolveAfter){ M.resolveAfter = false; showOver(endingFor()); return; }
+  /* 校门口那场戏完了 —— 全查清的人不进结算，转身回楼里 */
+  if (M.showOverAfter){
+    M.showOverAfter = false;
+    if (invTier() >= 3){ enterResolve(); return; }
+    showOver(endingFor());
+    return;
+  }
   if (M.endAfter){ M.endAfter = false; endChase(); return; }
   if (M.killAfter){
     M.killAfter = false;
@@ -3250,6 +3587,7 @@ function gotoNode(id){
     if (node.kill) M.killAfter = true;
     if (node.killMsg) M.deathMsg = node.killMsg;
     if (node.relieve) relieveUrge();                      // 牢李上完了
+    if (node.resolve) M.resolveAfter = true;               // 这声"到"答完就收尾
   }
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
@@ -3888,7 +4226,7 @@ function render(){
   /* 场景里的实物也进来一起排序 —— 人站在它前面就该挡住它。
      每扇还关着的门也算一个（门自己已经画在格子上了，这儿只排位置） */
   allObjs().forEach(function(O){
-    if (O.if && !flagOn(O.if)) return;
+    if (O.if && !flagAll(O.if)) return;
     if (O.gone && FLAGS[objKey(O)]) return;
     if (O.auto && doorOpen(O.x, O.y)) return;
     order.push({ obj:true, O:O, x:O.x*TILE + TILE/2, y:O.y*TILE + TILE });
@@ -4833,6 +5171,50 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'tiers'){
+        /* 调查度 → 三档 → 结局。这条链是这一版新加的主干，得钉死 */
+        M.me = null;
+        CHARS.forEach(function(c){ if (c.id === 'laoli') M.me = c; });
+        var mine2 = sideMine();
+        out.push('牢李那 6 处: ' + mine2.map(function(z){ return z.b; }).join('/'));
+        var rows2 = [];
+        for (var k2 = 0; k2 <= 6; k2++){
+          FLAGS = { '是:laoli': true };
+          for (var q2 = 0; q2 < k2; q2++) setFlag(sideFlag(mine2[q2]));
+          rows2.push(k2 + '处→第' + invTier() + '档');
+        }
+        out.push('闸门: ' + rows2.join('  '));
+        out.push('第1档尾巴=' + invTail().length + '句；第3档尾巴=' +
+                 (function(){ FLAGS = {}; mine2.forEach(function(z){ setFlag(sideFlag(z)); });
+                              return invTail().length; })() + '句');
+        /* 全查清：校门口那场完了该转身回楼里，而不是结算 */
+        FLAGS = { '是:laoli': true };
+        mine2.forEach(function(z){ setFlag(sideFlag(z)); });
+        loadMap('campus', 39, 122);
+        M.fade = 0; M.talk.open = false; M.dying = 0;
+        M.showOverAfter = true;
+        M.screen = 'play';
+        closeTalk();
+        out.push('全查清·门口戏完 → 屏幕=' + M.screen + ' 在哪=' + M.map + '（该是 resolve）');
+        M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+        for (var fq2 = 0; fq2 < 140 && !M.talk.open; fq2++) update(1/60);
+        out.push('辅导室开场戏=' + M.talk.open +
+                 (M.talk.open ? '（' + (M.talk.who || '旁白') + '）' : ' ← 没开！'));
+        M.talk.open = false;
+        var him2 = null; M.npcs.forEach(function(n3){ if (n3.id === 'him') him2 = n3; });
+        out.push('「他」在不在=' + !!him2 + (him2 ? ' @' + him2.tx + ',' + him2.ty : ''));
+        FLAGS['替他答了'] = true;
+        out.push('答完那一声 → 结局标题=' + endingFor().title);
+        /* 只查了两处：门口戏完了该结算，不该进辅导室 */
+        FLAGS = { '是:laoli': true };
+        setFlag(sideFlag(mine2[0])); setFlag(sideFlag(mine2[1]));
+        loadMap('campus', 39, 122);
+        M.fade = 0; M.talk.open = false; M.dying = 0; M.screen = 'play';
+        M.showOverAfter = true;
+        closeTalk();
+        out.push('只查2处 → 屏幕=' + M.screen + '（该 over） 标题=' +
+                 (document.getElementById('overTxt').querySelector('h1') || {}).textContent);
       }
       if (mode === 'cp'){
         /* 存档点得等这段话说完了再踩 —— 不然话里立的旗标存不进去，
