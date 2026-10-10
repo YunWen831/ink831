@@ -3876,8 +3876,12 @@ function spawnWave(){
    三条命、它三格血。命数掉光不读档 —— 从头再来一遍。
    ============================================ */
 function startBoss(){
-  /* 这场打完之前那张图装不下 —— 换到大图上来打 */
-  if (M.map !== 'arena'){ loadMap('arena', 17, 17); M.fade = 0.4; M.portalCool = 0.8; }
+  /* 这场打完之前那张图装不下 —— 换到大图上来打。
+     先记下"从哪儿进来的"：万一战斗起不来，得把人送回去 */
+  if (M.map !== 'arena'){
+    M.arenaBack = { map: M.map, x: M.p.x, y: M.p.y };
+    loadMap('arena', 17, 17); M.fade = 0.4; M.portalCool = 0.8;
+  }
   M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
              cd: 0, inv: 1.4, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
              wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 6.5,
@@ -4016,8 +4020,7 @@ function bossTick(dt){
         bossHudDraw();
         if (B.lives <= 0){
           toast('（笑到跪下去了。……从头再来。）', 2.2);
-          M.boss = null;
-          setTimeout(function(){ if (M.screen === 'play') startBoss(); }, 900);
+          M.boss = null;                 // 重开交给上面那道自愈，别两处一起起
           return;
         }
         toast('（你也在笑。笑到扶不住墙。）', 1.5);
@@ -5068,6 +5071,30 @@ function update(dt){
     M.p.anim += dt * (running ? 1.9 : 1);
   } else {
     M.p.anim = 0;
+  }
+
+  /* arena 上没 Boss 就是死局 —— 那张图没有出口，存档又不存战斗状态。
+     读一次档回来就站在一张空图上动不了。这儿自愈：重开这一场；
+     连试三次还起不来，就把人送回进来时那张图 */
+  if (M.map === 'arena' && M.screen === 'play' && !M.boss && !M.bossEnding && !M.talk.open){
+    M.bossCool = (M.bossCool || 0) - dt;
+    if (M.bossCool <= 0){
+      M.bossTry = (M.bossTry || 0) + 1;
+      if (M.bossTry <= 3){
+        M.bossCool = 0.8;
+        startBoss();
+        toast('（这一场重新起了。）', 1.6);
+      } else {
+        var bk = M.arenaBack || { map: 'resolve', x: 8, y: 11 };
+        M.bossTry = 0;
+        if (MAPS[bk.map]) loadMap(bk.map, Math.round(bk.x/TILE), Math.round(bk.y/TILE));
+        else loadMap('resolve', 8, 11);
+        toast('（这一场起不来，先送你回辅导室。）', 2.4);
+      }
+    }
+  } else {
+    if (M.boss) M.bossTry = 0;      // 打起来了就清零
+    M.bossCool = 0;
   }
 
   /* 兜底：万一站在了走不了的格子上（读档、换图、门在脚下关了），
@@ -7627,6 +7654,19 @@ clockEl.style.display = 'none';
           });
         });
       }
+      if (mode === 'heal'){
+        /* 复现那个死局：存档时人在 arena → 读档回来 M.boss 是空的
+           → 那张图又没有出口 → 站着不能动。看自愈救不救得出来 */
+        startWalk('laoli'); M.fade = 0;
+        loadMap('arena', 17, 17);
+        M.boss = null; M.bossTry = 0; M.bossCool = 0;
+        out.push('① 站上 arena，boss=' + !!M.boss);
+        for (var h1 = 0; h1 < 200; h1++) update(1/60);
+        out.push('② 3.3 秒后 boss=' + !!M.boss + ' 在哪=' + M.map);
+        M.boss = null; M.bossTry = 9; M.bossCool = 0;   // 逼它认定"起不来"
+        for (var h2 = 0; h2 < 200; h2++) update(1/60);
+        out.push('③ 起不来时 在哪=' + M.map + '（该回 resolve）');
+      }
       if (mode === 'text'){
         /* 全篇文本清单：一句话一条，换行打成 
  两个字 */
@@ -7836,6 +7876,25 @@ clockEl.style.display = 'none';
     }
   }, 700);
 })();
+
+/* ==================== 报错得看得见 ====================
+   手机上没控制台。前一版的毛病是：脚本一崩，屏幕上什么都没有，
+   玩家只能看到"卡死"两个字。现在崩了就把那行字挂在屏幕上。 */
+window.addEventListener('error', function(ev){
+  try {
+    var el = document.getElementById('errbar');
+    if (!el){
+      el = document.createElement('div');
+      el.id = 'errbar';
+      el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:999;' +
+        'background:#7f1d1d;color:#fff;font:12px/1.5 system-ui,monospace;' +
+        'padding:8px 12px;white-space:pre-wrap;word-break:break-all;';
+      document.body.appendChild(el);
+    }
+    el.textContent = '出错了（把这一行告诉我）：' + (ev.message || ev.type) +
+                     ' @' + (ev.lineno || '?') + ':' + (ev.colno || '?');
+  } catch (e){}
+});
 
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
