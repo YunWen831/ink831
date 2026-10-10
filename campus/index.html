@@ -3841,6 +3841,21 @@ function chaseGap(){
 /* 探针要看"一排有多少人" */
 function chaseRowCount(){ return 76 - chaseGap(); }
 
+/* 奶蛙那场三条命用完了 —— 退到"人排"那一段开头。
+   不走存档点：那一段里存档点可能停在别处（比如校门口），
+   钉死在"科技楼门口 + 被追 + 人排 1.4 秒后开始"这一格上 */
+function restartFromChase(){
+  M.bossEnding = false;
+  M.fade = 0.9;
+  M.chase = null;                        // 先清掉，startChase 才肯重开
+  loadMap('campus', 39, 44);             // 科技楼门口 —— 人排就是从这儿往南压过来的
+  setFlag('被追了');
+  setClock(10 * 60 + 30);
+  startChase(true);                      // 人已经在校门外了，waveT 会自己给成 1.4
+  toast('（它又笑了。得从科技楼那儿再跑一趟。）', 3.0);
+  sfxBell(2);
+}
+
 function startChase(fromRespawn){
   if (M.chase) return;
   if (!fromRespawn) setFlag('被追了');   // 先立旗标再存档：读档回来还得知道自己在被追
@@ -4055,8 +4070,12 @@ function bossTick(dt){
         flashRed(); shake(0.5);
         bossHudDraw();
         if (B.lives <= 0){
-          toast('（笑到跪下去了。……从头再来。）', 2.2);
-          M.boss = null;                 // 重开交给上面那道自愈，别两处一起起
+          /* 三条命用完：不在这间屋里重开，退到"人排"那一段开头 ——
+             从科技楼门口重新跑一趟校园，跑到校门口 */
+          bossHud(false);
+          droneOff();
+          M.boss = null;
+          restartFromChase();
           return;
         }
         toast('（你也在笑。笑到扶不住墙。）', 1.5);
@@ -7748,6 +7767,29 @@ clockEl.style.display = 'none';
         } catch (e){ perr = e && e.message ? e.message : String(e); }
         out.push('跑画面 ' + pf + ' 帧：' + (perr ? '崩了 → ' + perr : '没崩 ✓'));
       }
+      if (mode === 'blose'){
+        /* 奶蛙那场三条命用完 → 该退到"人排"那一段开头（科技楼门口），
+           而且人排要马上开始出 */
+        startWalk('laoli'); M.fade = 0;
+        setFlag(['擦完墙', '替他答了']);
+        startBoss();
+        out.push('① 开打 在哪=' + M.map + ' 命=' + M.boss.lives +
+                 ' 引导=' + (goalNow() ? goalNow().t : '-'));
+        M.boss.lives = 1; M.boss.inv = 0;              // 逼它收完
+        for (var b1 = 0; b1 < 60 * 10 && M.boss; b1++){
+          update(1/60); M.talk.open = false;
+          if (M.boss && M.boss.lives > 1) M.boss.lives = 1;
+          if (M.boss) M.boss.inv = 0;
+        }
+        out.push('② 命用完了 → 在哪=' + M.map +
+                 ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                 ' 被追=' + !!M.chase + ' boss=' + !!M.boss +
+                 ' HUD=' + document.getElementById('boss').classList.contains('on'));
+        for (var b2 = 0; b2 < 100; b2++){ update(1/60); M.talk.open = false; }
+        out.push('③ 再过 1.7 秒 → 排数=' + (M.chase ? M.chase.rows : '-') +
+                 ' 人=' + (M.chase ? M.chase.hounds.length : '-') +
+                 ' 引导=' + (goalNow() ? goalNow().t : '-'));
+      }
       if (mode === 'cheal'){
         /* 死在追逐里：复活到哪儿、人排还出不出得来 */
         startWalk('laoli'); M.fade = 0;
@@ -8024,7 +8066,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v12';
+var BUILD = 'v13';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
