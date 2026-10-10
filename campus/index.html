@@ -1122,12 +1122,12 @@ makeMap('hill', {
   objs: [
     { x:2,  y:3, ox:0, oy:-6, art:'moss', who:'墙根那排苔', verb:'蹭一下',
       talk:'wipe_intro', once:true, cp:'后山' },
-    { x:6,  y:4, art:'moss', who:'第一块苔',   verb:'擦开', seq:1, if:'看到六块苔', talk:'wipe_1' },  // 上
-    { x:18, y:4, art:'moss', who:'第二块苔',   verb:'擦开', seq:2, if:'看到六块苔', talk:'wipe_2' },  // 师
-    { x:3,  y:4, art:'moss', who:'第三块苔',   verb:'擦开', seq:3, if:'看到六块苔', talk:'wipe_3' },  // 如
-    { x:12, y:4, art:'moss', who:'第四块苔',   verb:'擦开', seq:4, if:'看到六块苔', talk:'wipe_4' },  // 玻
-    { x:15, y:4, art:'moss', who:'第五块苔',   verb:'擦开', seq:5, if:'看到六块苔', talk:'wipe_5' },  // 门
-    { x:9,  y:4, art:'moss', who:'第六块苔',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
+    { x:6,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:1, if:'看到六块苔', talk:'wipe_1' },  // 上
+    { x:18, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:2, if:'看到六块苔', talk:'wipe_2' },  // 师
+    { x:3,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:3, if:'看到六块苔', talk:'wipe_3' },  // 如
+    { x:12, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:4, if:'看到六块苔', talk:'wipe_4' },  // 玻
+    { x:15, y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:5, if:'看到六块苔', talk:'wipe_5' },  // 门
+    { x:9,  y:4, art:'moss', who:'一块苔',   verb:'擦开', seq:6, if:'看到六块苔', talk:'wipe_6' },  // 数
 
     /* 后山这三处支线：同一面墙，三个角色各看各的 */
     { x:16, y:7, art:'moss', who:'那面墙',     verb:'贴上去听', talk:'sd_hill_laoli', if:['是:laoli','可以走动了'], once:true },
@@ -1446,7 +1446,7 @@ function openDoorway(x, y){
     q.push([c[0]+1, c[1]]); q.push([c[0]-1, c[1]]);
     q.push([c[0], c[1]+1]); q.push([c[0], c[1]-1]);
   }
-  if (CUR) CUR.allObjs = null;          // 开过的门不该再挂在"能按的东西"里
+  if (CUR){ CUR.allObjs = null; CUR.solidMap = null; }   // 门开了：能按的东西、实心表都得重算
 }
 /* 这张图上所有能按的东西：写死的 + 每扇还关着的门。
    缓存一份 —— 每帧现拼一次数组，手机白热 */
@@ -1463,11 +1463,27 @@ function inSolidRect(tx, ty){
   }
   return false;
 }
+/* 一张图几十上百×上百格，"走不走得过去"每帧要问上百次。
+   现算太亏（要查矩形、查传送口、查门），所以落图的时候先算成一张表。
+   门开了 / 换图 → 把表清掉重算。手机上这一条省得最多。 */
+function buildSolidMap(){
+  if (!CUR || CUR.solidMap) return;
+  var G2 = [];
+  for (var y = 0; y < MAPH; y++){
+    var row = new Array(MAPW);
+    for (var x = 0; x < MAPW; x++){
+      var t = MAP[y][x];
+      row[x] = (isPortalTile(x, y) ? false
+                : (!!TERRAIN[t].solid || inSolidRect(x, y) || doorBlocked(x, y))) ? 1 : 0;
+    }
+    G2.push(row);
+  }
+  CUR.solidMap = G2;
+}
 function solidAt(tx, ty){
-  /* 传送口一律能站 —— 不然踩不上去，换图就废了 */
-  if (isPortalTile(tx, ty)) return false;
-  if (inSolidRect(tx, ty)) return true;
-  return !!TERRAIN[tileAt(tx,ty)].solid || doorBlocked(tx, ty);
+  if (tx < 0 || ty < 0 || tx >= MAPW || ty >= MAPH) return true;
+  buildSolidMap();
+  return CUR.solidMap[ty][tx] === 1;
 }
 
 /* ==================== NPC ====================
@@ -1872,7 +1888,24 @@ var TALK = {
       ans:{ text:'（你站起来。）', next:'ans2' },
       ans2:{ text:'（走廊里那串念名字的声音，正好过到这儿。）', next:'ans3' },
       ans3:{ text:'「——」', next:'ans4' },
-      ans4:{ text:'「到。」\n\n（不是他的声音。）\n\n（是你的。）', set:'替他答了', resolve:true, end:true }
+      ans4:{ text:'「到。」\n\n（不是他的声音。）\n\n（是你的。）', set:'替他答了', next:'kill1' },
+
+      /* ---- 最后一下：真把它弄掉 ----
+         替他答完"到"，点名就数完了 —— 它没东西吃了。
+         可它还在这儿，还在笑。剩下一件事是手动的。 */
+      kill1:{ text:'（走廊里那串名字，往下走了。）\n\n（没有再绕回来。）', sh:0.5, next:'kill2' },
+      kill2:{ text:'（然后，讲台上那个东西笑了。）\n\n（很轻。像谁在喉咙里哼。）', next:'kill3' },
+      kill3:{ text:'（屋里跟着笑起来。）\n\n（你也在笑。你捂不住嘴。）', sh:0.8, next:'kill4' },
+      kill4:{ text:'（你一步一步走过去。）\n\n（手按在讲台上。它就在你手底下 —— 还是热的。）', opts:[
+               { t:'（按住它）',       go:'kill5' },
+               { t:'（转身走掉）',     go:'walk' } ]},
+      kill5:{ text:'（它还在笑。）\n\n（你两只手一起按下去。）', next:'kill6' },
+      kill6:{ text:'（笑了很久。）', next:'kill7' },
+      kill7:{ text:'（—— 不笑了。）', sh:0.9, next:'kill8' },
+      kill8:{ text:'（你松开手。）\n\n（讲台上只剩一滩水。）\n\n（窗外的下课铃响了。）',
+              set:'干掉奶蛙', resolve:true, end:true },
+      walk:{ text:'（你退到门口。）\n\n（屋里还在笑。一间一间地传出去。）', next:'walk2' },
+      walk2:{ text:'（你把门带上了。）\n\n（走廊里，那一声还在。）', set:'没管它', resolve:true, end:true }
     }
   },
 
@@ -2043,21 +2076,25 @@ var TALK = {
      三道线索散在三个地方：45 班空教室的黑板、实验楼的周期表、行政楼的抽屉。
      他一个化学老师，拿元素序号当密码，还挺得意。 */
   pw_board: { nodes:{ s:{
-    text:'45 班的门开着。\n\n黑板上还留着半行没擦的字 —— 是 lg7 的字。\n\n　　H · B · N',
+    text:'45 班的门开着。\n\n黑板上还留着半行没擦的字 —— 是 lg7 的字。\n\n　　B · H · N',
     set:'看过黑板式子', end:true }}},
 
   pw_table: { nodes:{ s:{
-    text:'实验楼墙上挂着一张元素周期表，边角卷了。\n\n　　H …… 1\n　　B …… 5\n　　N …… 7',
-    set:'查过周期表', end:true }}},
+    text:'实验楼墙上挂着一张元素周期表，边角卷了。',
+    next:'t' },
+    /* 给一整张表，不直接把三个答案列出来 —— 得自己在里头找 */
+    t:{ text:'（最前面那十个还看得清：）\n\n　　H　1　　He　2\n　　Li　3　　Be　4\n　　B　5　　C　6\n　　N　7　　O　8\n　　F　9　　Ne　10',
+        set:'查过周期表', end:true }}},
 
   pw_drawer: { nodes:{
     s:{ text:'lg7 的办公桌。抽屉锁着。\n\n（你的手机在里面 —— 上周上课那一声笑，他当场就没收了。）', next:'t' },
-    t:{ text:'三位数的密码锁。锁边上贴着一张纸，他的字：\n\n「密码是我上课写的那条式子。」', next:'u' },
-    u:{ text:'（黑板上的：H · B · N）\n（周期表上的：1、5、7）', opts:[
-         { t:'1 · 5 · 7', go:'ok' },
+    t:{ text:'三位数的密码锁。锁边上贴着一张纸，他的字：\n\n「密码是我写的那条式子 ——\n　但我不按写的顺序排。\n\n　从小到大。」', next:'u' },
+    /* 黑板写的是 B·H·N（=5·1·7）。照着念是错的，得先把三个数排一遍 */
+    u:{ text:'（黑板上的：B · H · N）\n（周期表上的：B … 5　H … 1　N … 7）\n\n（他说从小到大。）', opts:[
          { t:'5 · 1 · 7', go:'no' },
-         { t:'1 · 7 · 5', go:'no' },
-         { t:'7 · 5 · 1', go:'no' } ]},
+         { t:'1 · 5 · 7', go:'ok' },
+         { t:'5 · 7 · 1', go:'no' },
+         { t:'1 · 7 · 5', go:'no' } ]},
     ok:{ text:'咔。\n\n抽屉开了。', next:'ok2' },
     no:{ text:'咔、咔、咔。\n\n（不对。）', end:true },
     ok2:{ text:'里面躺着你的手机，早没电了。\n\n底下压着一张报名表 —— 化学竞赛的。', next:'ok3' },
@@ -2796,12 +2833,12 @@ var CLUES = {
   '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。',
 
   /* 墙上那六个字。擦开一块记一块 —— 记的是"哪一块刻的什么" */
-  '认得苔1': '墙根那排苔，西头数第 2 块底下刻的是「上」',
-  '认得苔2': '西头第 6 块：「师」',
-  '认得苔3': '西头第 1 块：「如」',
-  '认得苔4': '西头第 4 块：「玻」',
-  '认得苔5': '西头第 5 块：「门」',
-  '认得苔6': '西头第 3 块：「数」'
+  '认得苔1': '墙根那排苔，有一块底下刻的是「上」',
+  '认得苔2': '墙根那排苔，有一块底下刻的是「师」',
+  '认得苔3': '墙根那排苔，有一块底下刻的是「如」',
+  '认得苔4': '墙根那排苔，有一块底下刻的是「玻」',
+  '认得苔5': '墙根那排苔，有一块底下刻的是「门」',
+  '认得苔6': '墙根那排苔，有一块底下刻的是「数」'
 };
 
 /* ==================== 查过的事（调查度）====================
@@ -3133,6 +3170,7 @@ function loadMap(id, tx, ty, dir){
   M.nearObj = null;
   /* 这张图上每一格还关着的门，都做成一个能按的东西。
      手写过话的那几扇（正门那些）自己带话本，这儿跳过它们 */
+  CUR.solidMap = null;              // 换图了，实心表重算
   CUR.doorObjs = [];
   for (var dgy = 0; dgy < MAPH; dgy++) for (var dgx = 0; dgx < MAPW; dgx++){
     if (MAP[dgy][dgx] !== 'door') continue;
@@ -3578,19 +3616,31 @@ function endingFor(){
   var helpL = flagOn('帮logic');
   var helpD = flagOn('帮值周生');
 
-  /* ---------- 全查清 + 替他答了：这是唯一一个"了掉了"的结局 ---------- */
-  if (flagOn('替他答了')){
-    return { title:'有人替他答了', lines:[
+  /* ---------- 全查清 + 真把它按住了：唯一一个"了掉了"的结局 ---------- */
+  if (flagOn('干掉奶蛙')){
+    return { title:'数完了', lines:[
       '「到。」',
       '（你说完这一声，走廊里那串念名字的声音，往下走了。）',
       '（没有再绕回来。）',
       '（名册上第一行那个名字，第一次有人替它应了。）',
       '（——本来就是十九个。）',
       '（数完了。）',
-      '（讲台上那个东西，第二天不在了。）',
-      '（它不是被谁带走的。是没东西喂它了。）',
+      '（讲台上那个东西，在你手底下笑到最后一声。）',
+      '（它一直靠那多出来的一个活着 —— 名字有人应了，它就断了粮。）',
       '（第二天早上六点二十，校门口没人。）',
       '（墙根底下那个饭盒，被人拿走了。）'
+    ] };
+  }
+  /* 全查清了，可最后没伸手 —— 它还在那儿 */
+  if (flagOn('替他答了')){
+    return { title:'你没伸手', lines:[
+      '「到。」',
+      '（走廊里那串名字往下走了。名册上那一行，第一次有人替它应。）',
+      '（可讲台上那个东西还在笑。）',
+      '（你退到门口，把门带上了。）',
+      '（第二天，三楼那间教室里的笑没停。）',
+      '（后来那栋楼又封了一次。）',
+      '（封条上换了个日期。）'
     ] };
   }
 
@@ -4863,6 +4913,7 @@ function render(){
   CROWD.forEach(function(c){
     if (c.map !== M.map) return;
     var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
+    if (cxp < camX - 60 || cxp > camX + W + 60 || cyp < camY - 90 || cyp > camY + H + 60) return;
     var cdir = 'down';
     /* 被追的时候，全校的人一起转过来看着你 —— 他们在数你 */
     if (M.stare > 0 || M.chase) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
@@ -4882,6 +4933,7 @@ function render(){
     if (g.map !== M.map) return;
     if (g.if && !flagOn(g.if)) return;
     var gx = g.x*TILE + TILE/2, gy = g.y*TILE + TILE/2;
+    if (gx < camX - 80 || gx > camX + W + 80 || gy < camY - 100 || gy > camY + H + 80) return;
     var d = Math.hypot(gx - M.p.x, gy - M.p.y);
     if (d < TILE*2.2) return;               // 走近了，没了
     cx.globalAlpha = Math.min(1, (d - TILE*2.2) / (TILE*1.5)) * 0.85;
@@ -5748,6 +5800,8 @@ clockEl.style.display = 'none';
         out.push('「他」在不在=' + !!him2 + (him2 ? ' @' + him2.tx + ',' + him2.ty : ''));
         FLAGS['替他答了'] = true;
         out.push('答完那一声 → 结局标题=' + endingFor().title);
+        FLAGS['干掉奶蛙'] = true;
+        out.push('按住了它 → 结局标题=' + endingFor().title + '（' + endingFor().lines.length + '句）');
         /* 只查了两处：门口戏完了该结算，不该进辅导室 */
         FLAGS = { '是:laoli': true };
         setFlag(sideFlag(mine2[0])); setFlag(sideFlag(mine2[1]));
