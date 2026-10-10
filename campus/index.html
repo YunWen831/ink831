@@ -925,7 +925,17 @@ makeMap('toilet', {
     { x:6,  y:3, ox:0, oy:-2, art:'urinal', who:'隔间里那个小便池', verb:'……进去一下',
       talk:'laoli_pee', if:'想上厕所' },
     { x:5,  y:9, ox:0, oy:-4, art:'sink',   who:'那排洗手池', verb:'看看',
-      talk:'ld_toilet', if:'镜子上三个字', once:true }
+      talk:'ld_toilet', if:'镜子上三个字', once:true },
+
+    /* ---- 第 2 趟起，这间屋开始不一样 ----
+       每多来一趟，就多一样"上次没有"的东西。变化是从你熟的地方长出来的，
+       不重新布景，只在原有的东西上加一笔 */
+    { x:13, y:6, art:'paper', who:'最里头那间门底下', verb:'看看',
+      talk:'toilet_d2', if:'厕所第2回', once:true },
+    { x:10, y:7, art:'paper', who:'地上一串湿脚印', verb:'看看',
+      talk:'toilet_d3', if:'厕所第3回', once:true },
+    { x:4,  y:6, art:'door',  who:'那四间隔间', verb:'看看',
+      talk:'toilet_d4', if:'厕所第4回', once:true }
   ],
   triggers: []
 }, toiletLayout);
@@ -1310,6 +1320,26 @@ var TALK = {
   laoli_pee: { nodes:{
     s:{ text:'（隔间门"咔"地合上。\n　外面那点水声，一下就听不清了。）', next:'t' },
     t:{ text:'（过了一会儿。）\n\n（你出来洗手。\n　水龙头拧开，哗哗地响。）', relieve:true, end:true }
+  }},
+
+  /* ---- 厕所：第 2 趟起，一趟比一趟多一样东西 ----
+     不重新布景，只在原来那几样上加一笔 —— 玩家认得这间屋，
+     所以那多出来的一笔才刺人 */
+  toilet_d2: { nodes:{
+    s:{ text:'（最里头那间，门底下有水渗出来。）', next:'t' },
+    t:{ text:'（你上次来的时候，地上是干的。）', next:'u' },
+    u:{ text:'（你走过去，伸手试了试 —— ）', next:'v' },
+    v:{ text:'（门是从里面扣上的。）', end:true }
+  }},
+  toilet_d3: { nodes:{
+    s:{ text:'（地上一串脚印。）', next:'t' },
+    t:{ text:'（是湿的，从门口一直通到最里头那间。）', next:'u' },
+    u:{ text:'（只有进去的，没有出来的。）', end:true }
+  }},
+  toilet_d4: { nodes:{
+    s:{ text:'（四间里都站着水。）', next:'t' },
+    t:{ text:'（水面是平的。）\n\n（你在这儿站了这么久，一滴都没晃。）', next:'u' },
+    u:{ text:'（最里头那间，门关着。）\n\n（你没听见有人进去。）', end:true }
   }},
 
   /* 牢李② 镜子：要哈气才看得见字，也就是得在玻璃前面站着不动 ——
@@ -2380,7 +2410,7 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       me: M.me.id, map: M.map, x: M.p.x, y: M.p.y, clock: M.clock,
       flags: FLAGS, talked: M.talked, reentry: M.reentry, seq: M.seq,
-      doors: DOOR_OPEN
+      doors: DOOR_OPEN, toiletN: M.toiletN || 0
     }));
   } catch (e){}          // 隐私模式之类存不了就算了，不能因为存档把游戏搞崩
 }
@@ -2400,6 +2430,8 @@ function loadGame(){
   M.talked = s.talked || {};
   M.reentry = s.reentry || {};
   DOOR_OPEN = s.doors || {};             // 推开的门跟着存档走，不然读回来又全锁上了
+  M.toiletN = s.toiletN || 0;
+  if (M.toiletN > 0) toiletEnter2();     // 把『厕所第N回』重新立上（别再多算一趟）
   loadMap(s.map, 0, 0);
   M.p.x = s.x; M.p.y = s.y;
   M.fade = 0.5; M.portalCool = 0.8;
@@ -2491,6 +2523,20 @@ function relieveUrge(){
   M.urge = 0;
   M.urgeNext = (M.walked || 0) + URGE_STEP;
 }
+/* 去厕所是一回一回的。每去一趟，那间屋比上一趟多一点东西 ——
+   同一条路走第二遍，变化是从你已经看熟了的地方长出来的。
+   旗标『厕所第N回』一立，那张图上的东西就换一批。 */
+function toiletEnter(){
+  M.toiletN = (M.toiletN || 0) + 1;
+  return toiletEnter2();
+}
+/* 只把旗标按趟数刷一遍，不加工数 —— 读档回来要用这个 */
+function toiletEnter2(){
+  var n = Math.max(1, Math.min(M.toiletN || 1, 4));
+  for (var i = 1; i <= 6; i++) clearFlag('厕所第' + i + '回');
+  setFlag('厕所第' + n + '回');
+  return n;
+}
 function urgeTick(dt){
   if (!(M.me && M.me.id === 'laoli')) { M.urge = 0; return; }
   if (flagOn('想上厕所')){
@@ -2532,9 +2578,11 @@ function checkpoint(tag){
     talked:  JSON.parse(JSON.stringify(M.talked)),
     reentry: JSON.parse(JSON.stringify(M.reentry))
   };
-  if (tag) toast('存档点 · ' + tag);
+  /* tag 只留给探针看，不往屏幕上写 —— 存档是后台的事，
+     每过一段就飘一行"存档点"出来，太出戏了 */
 }
 function respawn(){
+  M.cpPending = null;                    // 上一世没读完的那段就别记着了
   if (!CP){ loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]); return; }
   FLAGS     = JSON.parse(JSON.stringify(CP.flags));
   M.talked  = JSON.parse(JSON.stringify(CP.talked));
@@ -2859,6 +2907,7 @@ function startWalk(charId){
   DOOR_OPEN = {};                // 新开一局，门全是关的
   M.progSig = '';                // 进度条下一条要重画
   M.goalTxt = null; M.hintTxt = null; M.whereTxt = null; M.arrowA = null;
+  M.cpPending = null; M.toiletN = 0;
   FLAGS = {}; M.seq = 0;          // 新开一局，剧情从头记（顺序谜题也归零）
   /* 你选了谁，整条线就走谁那条 —— 对话和触发区都拿这个当条件 */
   setFlag('是:' + charId);
@@ -3198,6 +3247,9 @@ function closeTalk(){
     die(dm);
     return;
   }
+  /* 这段话读完了（而且人还活着）—— 现在才踩存档点，
+     话里刚立的旗标全在里头了 */
+  if (M.cpPending){ var cpTag = M.cpPending; M.cpPending = null; checkpoint(cpTag); }
 }
 function gotoNode(id){
   var node = M.talk.script.nodes[id];
@@ -3387,8 +3439,15 @@ function runBeat(G, key, byPlayer){
     });
   }
   if (G.stare) M.stare = G.stare;
-  /* 存档点：写到关键那几步上。死了不至于把一整个上午重走一遍 */
-  if (G.cp) checkpoint(G.cp);
+  /* 存档点：等这段话说完了再踩。
+     这话里立的旗标（"该查名单了"那种）是说话的过程里才写进去的，
+     存档点抢在它前面的话，一死就把旗标回滚掉 ——
+     广播喇叭、下一步目标全跟着消失，人复活过来不知道该干嘛。
+     有话说就先记着，等 closeTalk 里再踩。 */
+  if (G.cp){
+    if (G.talk || G.card) M.cpPending = G.cp;
+    else checkpoint(G.cp);
+  }
   if (G.card){ card(G.card, G.cardSecs); return; }    // 大段旁白走全屏，不走黑框
   if (G.chase) startChase();                          // 到这儿，整队开始
   if (G.kill) M.killAfter = true;
@@ -3505,6 +3564,8 @@ function update(dt){
         M.backTo = { map: M.map, tx: bx, ty: by };
       }
       if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h){
+        /* 这是第几趟进厕所 —— 那间屋按趟数换东西 */
+        if (P.to === 'toilet' && M.map !== 'toilet') toiletEnter();
         /* 朝向你走出去的那个方向 —— 从厕所出来就是朝外，不是顶着门 */
         if (P.back && M.backTo) loadMap(M.backTo.map, M.backTo.tx, M.backTo.ty, M.p.dir);
         else loadMap(P.to, P.tx, P.ty, M.p.dir);
@@ -4731,6 +4792,20 @@ clockEl.style.display = 'none';
         /* 进度条 */
         out.push('⑦ 章节=' + chapterNow() + ' 进度=' +
                  progressNow().d + '/' + progressNow().n);
+        /* ⑧ 一趟一趟去，看那间屋换没换东西 */
+        M.toiletN = 0;
+        var trip = [];
+        for (var tv = 1; tv <= 5; tv++){
+          FLAGS = {}; setFlag('是:laoli');
+          toiletEnter();
+          loadMap('toilet', 8, 9);
+          var live = [];
+          allObjs().forEach(function(O){
+            if (O.talk && O.talk.indexOf('toilet_d') === 0 && objLive(O)) live.push(O.talk);
+          });
+          trip.push('第' + tv + '趟[' + live.join('+') + ']');
+        }
+        out.push('⑧ 每趟多出来的东西: ' + trip.join(' → '));
       }
       if (mode === 'opening'){
         out.push('开局 ' + clockText(M.clock) + ' 早读=' + flagOn('早读'));
@@ -4761,6 +4836,43 @@ clockEl.style.display = 'none';
         out.push('复活后 临时旗标=' + flagOn('死后该没了') +
                  ' 在哪=' + M.map + ' 站位=' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
                  ' 几点=' + clockText(M.clock));
+      }
+      if (mode === 'cp'){
+        /* 存档点得等这段话说完了再踩 —— 不然话里立的旗标存不进去，
+           一死就回滚，"下一步"跟着一起没了。
+           牢李点到那儿就是这毛病：点到完，"该查名单了"才立，
+           死了复活，广播喇叭就凭空消失了 */
+        startWalk('laoli');
+        M.fade = 0;
+        function cpBeat(name){
+          var opened = pressByName(name);
+          var g = 0; while (M.talk.open && g++ < 30){ M.talk.typed = 1e9; advanceOrChoose(); }
+          return opened;
+        }
+        cpBeat('open_arrive');
+        out.push('① 到校 说完 → 存档点里有没有「到校」=' + !!(CP && CP.flags['到校']));
+        cpBeat('open_bell');
+        out.push('② 进楼 说完 → 「进了教学楼」=' + !!(CP && CP.flags['进了教学楼']));
+        cpBeat('open_class');
+        out.push('③ 落座 说完 → 「纸条」=' + !!(CP && CP.flags['纸条']));
+        var FT = null;
+        CUR.triggers.forEach(function(G){ if (G.talk === 'free_laoli' && !FT) FT = G; });
+        if (!FT) out.push('找不到 free_laoli 那个触发区');
+        else {
+          M.p.x = FT.x*TILE + TILE/2; M.p.y = FT.y*TILE + TILE/2;
+          M.talk.open = false; M.portalCool = 0; M.talk.cool = 0;
+          update(1/60);
+          var g3 = 0; while (M.talk.open && g3++ < 30){ M.talk.typed = 1e9; advanceOrChoose(); }
+          out.push('④ 出教室 说完 → 现立「该查名单了」=' + flagOn('该查名单了') +
+                   ' 存档点里也有=' + !!(CP && CP.flags['该查名单了']));
+          die('测试');
+          for (var d3=0; d3<140; d3++) update(1/60);
+          out.push('⑤ 死一次复活后：「该查名单了」=' + flagOn('该查名单了'));
+          /* 别拿 H 当变量名 —— var 是函数作用域，一提升就把全局的画布高度遮了 */
+          var spk = null; allObjs().forEach(function(o){ if (o.talk === 'pz_rollcall') spk = o; });
+          out.push('   广播喇叭还在=' + !!(spk && objLive(spk)) +
+                   '（该 true）  目标=' + (goalNow() ? goalNow().t : '（没有！）'));
+        }
       }
       if (mode === 'play'){
         /* 按引导自己走一遍：每一步读目标 → BFS 找路 → 沿途一格一格挪
@@ -5380,9 +5492,11 @@ clockEl.style.display = 'none';
         /* 手动画一帧再取个像素 —— 无头里 rAF 不一定跑，得自己调 */
         try {
           render();
-          var dd = cx.getImageData(Math.floor(W/2), Math.floor(H/2), 1, 1).data;
-          out.push('画布=' + W + '×' + H + ' 中心像素=' + dd[0] + ',' + dd[1] + ',' + dd[2] + ',' + dd[3]);
-        } catch (e){ out.push('!!render ' + e.message); }
+          var px0 = Math.round(W/2), py0 = Math.round(H/2);
+          var dd = cx.getImageData(px0, py0, 1, 1).data;
+          out.push('画布=' + W + '×' + H + ' DPR=' + DPR +
+                   ' 中心像素=' + dd[0] + ',' + dd[1] + ',' + dd[2] + ',' + dd[3]);
+        } catch (e){ out.push('!!render W=' + W + ' H=' + H + ' DPR=' + DPR + ' ' + e.message); }
       }
       if (mode === 'run'){
         /* 同样跑 60 帧，量一量走路和快跑各走多远 —— 倍数对不上就是没生效 */
