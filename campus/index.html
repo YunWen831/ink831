@@ -131,6 +131,16 @@
   #btnBook.on { display:block; }
   #btnBook:active { transform:scale(.93); }
   /* 测试用的加速键。跟"跑"是两回事 —— 这个是给调地图/试剧情用的外挂 */
+  /* 声音开关 —— 手机上原来只能靠键盘 M，等于没有 */
+  #btnSnd { position:absolute; z-index:7; display:none;
+    right:calc(112px + env(safe-area-inset-right,0px));
+    bottom:calc(22px + env(safe-area-inset-bottom,0px));
+    width:44px; height:44px; border-radius:50%;
+    border:2px solid #57534e; background:rgba(18,16,14,.62); color:#cfc7b8;
+    font-family:inherit; font-size:14px; cursor:pointer; }
+  #btnSnd.on { display:block; }
+  #btnSnd.off { border-color:#7a3a3a; color:#a89a9a; }
+
   #btnFast { position:absolute; z-index:7; display:none;
     right:calc(18px + env(safe-area-inset-right,0px) + (clamp(52px,14vw,66px) + 10px) * 2);
     bottom:calc(26px + env(safe-area-inset-bottom,0px) + clamp(70px,19vw,92px) + 14px);
@@ -326,6 +336,7 @@
 <button id="run" type="button">跑</button>
 <button id="btnBook" type="button">本</button>
 <button id="btnFast" type="button">疾</button>
+<button id="btnSnd" type="button">声</button>
 <div id="toast"></div>
 <!-- 数字键盘：谜题要你"数完输进来"，不是四选一瞎猜 -->
 <div id="pad"><div class="ask"></div><div class="buf"></div><div class="keys"></div></div>
@@ -3760,17 +3771,20 @@ function laughAudio(v){
       for (var i = 0; i < n; i++){ q = 0.985 * q + (Math.random()*2-1) * 0.15; d[i] = q; }
       laughSrc = AC.createBufferSource(); laughSrc.buffer = buf; laughSrc.loop = true;
       var bp = AC.createBiquadFilter(); bp.type = 'bandpass';
-      bp.frequency.value = 620; bp.Q.value = 0.9;
+      bp.frequency.value = 330; bp.Q.value = 0.55;      // 压低、发闷 —— 620Hz 那条太吵
       laughGain = AC.createGain(); laughGain.gain.value = 0;
-      laughLFO = AC.createOscillator(); laughLFO.frequency.value = 5.2;
-      laughLfoGain = AC.createGain(); laughLfoGain.gain.value = 0.55;
+      laughLFO = AC.createOscillator(); laughLFO.frequency.value = 4.6;
+      laughLfoGain = AC.createGain(); laughLfoGain.gain.value = 0.30;
       laughLFO.connect(laughLfoGain); laughLfoGain.connect(laughGain.gain);
       laughSrc.connect(bp); bp.connect(laughGain); laughGain.connect(AC.destination);
       laughSrc.start(); laughLFO.start();
     } catch (e){ laughSrc = null; }
   }
   if (laughGain){
-    try { laughGain.gain.setTargetAtTime(laughWant * 0.16, AC.currentTime, 0.35); } catch (e){}
+    /* 静音了就立刻归零（原来关了开关，正在响的这条还在响）；
+       另外加一道门槛：笑欲值低的时候干脆不发声，别一直嗡着 */
+    var g = (SND ? Math.max(0, laughWant - 0.22) * 0.13 : 0);
+    try { laughGain.gain.setTargetAtTime(g, AC.currentTime, 0.45); } catch (e){}
   }
 }
 
@@ -4707,6 +4721,7 @@ function startWalk(charId){
   runEl.classList.add('on');
   bookBtn.classList.add('on');
   fastBtn.classList.add('on');
+  if (sndBtn) sndBtn.classList.add('on');
   M.book = false;
   M.fast = 0;
   M.dying = 0;
@@ -4731,12 +4746,7 @@ window.addEventListener('keydown', function(e){
   if (k === 'tab' || k === 'b'){ if (M.book) closeBook(); else openBook(); return; }
   if (k === 'escape'){ if (M.book) closeBook(); return; }
   if (k === 'g'){ cycleFast(); return; }      // 测试加速
-  if (k === 'm'){                             // 静音
-    SND = !SND;
-    if (!SND) droneOff(); else if (M.chase) droneOn();
-    toast(SND ? '声音：开' : '声音：关');
-    return;
-  }
+  if (k === 'm'){ toggleSnd(); return; }
   if (M.press && (k==='z' || k===' ' || k==='enter')){ hitPress(); return; }
   if (M.book) return;                         // 本子开着，别让走路的键漏进去
   if (k==='z' || k===' ' || k==='enter'){ pressAct(); return; }
@@ -4869,6 +4879,8 @@ function closeBook(){
   bookEl.classList.remove('on');
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
+  if (sndBtn) sndBtn.classList.add('on');
+  if (sndBtn) sndBtn.classList.add('on');
 }
 var bookBtn = document.getElementById('btnBook');
 bookBtn.addEventListener('touchstart', function(e){ e.preventDefault(); e.stopPropagation(); openBook(); }, {passive:false});
@@ -6200,6 +6212,8 @@ document.getElementById('btnStart').addEventListener('click', function(){
 var MAPNAME = { campus:'校园', floor2:'一号教学楼二楼', toilet:'厕所', hill:'后山',
                 arena:'化学竞赛辅导室', resolve:'化学竞赛辅导室' };
 var btnCont = document.getElementById('btnCont'), contTip = document.getElementById('contTip');
+var sndBtn = document.getElementById('btnSnd');
+sndBtn.addEventListener('click', function(e){ e.stopPropagation(); toggleSnd(); });
 if (!hasSave()) btnCont.style.display = 'none';
 else {
   try {
@@ -8364,7 +8378,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v14';
+var BUILD = 'v15';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8410,6 +8424,18 @@ window.addEventListener('error', function(ev){
 window.addEventListener('unhandledrejection', function(ev){
   showErr(ev.reason || 'unhandledrejection', '');
 });
+
+/* 静音开关：键盘 M，或者右下角那个「声」 */
+function toggleSnd(){
+  SND = !SND;
+  if (!SND){
+    droneOff();
+    if (laughGain){ try { laughGain.gain.setTargetAtTime(0, AC.currentTime, 0.05); } catch (e){} }
+  } else if (M.chase) droneOn();
+  var b = document.getElementById('btnSnd');
+  if (b) b.className = 'on' + (SND ? '' : ' off');
+  toast(SND ? '声音：开' : '声音：关');
+}
 
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
