@@ -795,7 +795,7 @@ function museumLayout(){
   R('door', 1, 13, 1, 2);
   NAME(1, 1, 38, 3, '校史馆');
   NAME(2, 12, 33, 4, '走廊');
-  NAME(16, 19, 10, 5, '大展厅');
+  NAME(16, 17, 10, 7, '大展厅');
   NAME(2, 2, 8, 9, '展厅（一）');
   NAME(11, 2, 9, 9, '展厅（二）');
   NAME(21, 2, 9, 9, '荣誉室');
@@ -1039,8 +1039,8 @@ function resolveLayout(){
   var W = 18, H = 14;
   R('wall', 1, 1, W-2, H-2);
   R('classroom', 2, 2, W-4, H-4);
-  NAME(1, 1, 16, 3, '化学竞赛辅导室');
-  NAME(1, 8, 10, 1, '黑板');
+  NAME(1, 8, 10, 1, '黑板');            // 排在前面：站在黑板这段先报「黑板」
+  NAME(1, 1, 16, 12, '化学竞赛辅导室');
 }
 
 /* ================== 三号图：男厕所 ==================
@@ -1255,7 +1255,7 @@ makeMap('school1', {
     { x:20, y:13, art:'roster', who:'门口那本登记表',     verb:'翻翻', talk:'lg_classbook', if:['是:logic','该上二楼了'], once:true },
     { x:9, y:8,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
       talk:'pw_board', if:'擦完墙', once:true },
-    { x:16, y:20,  art:'phone',  who:'架在桌角的手机', verb:'坐下',
+    { x:22, y:13,  art:'phone',  who:'架在桌角的手机', verb:'坐下',
       talk:'lg_game', if:'该上二楼了', once:true },
     { x:23, y:11,  art:'paper',  who:'抽屉里多出来的一张纸', verb:'拿出来',
       talk:'logic_note', if:'帮logic', once:true, oy:-6 }
@@ -1283,7 +1283,7 @@ makeMap('tech', {
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:39, ty:44 } ],
   objs: [
     /* 红色的扳手：拉下去就下课 */
-    { x:34, y:6, art:'speaker', who:'广播台上那个红扳手', verb:'拉下去',
+    { x:5, y:5, art:'speaker', who:'广播台上那个红扳手', verb:'拉下去',
       talk:'chase_bell', if:'被追了', once:true, endchase:true }
   ],
   triggers: [
@@ -1317,10 +1317,10 @@ makeMap('office', {
   npcs: [ { id:'teacher', tx:23, ty:21, face:'up', talk:'hint_teacher' } ],
   objs: [
     /* sd_office_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:30, y:21, art:'paper', who:'门厅里那排班级牌', verb:'看看',
+    { x:30, y:13, art:'paper', who:'门厅里那排班级牌', verb:'看看',
       talk:'cl_office_shui', if:['是:shui','可以走动了'] },
     { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
-    { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'对着看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
+    { x:16, y:13, art:'board',  who:'门厅的值班表', verb:'对着看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'] },
     { x:16, y:21, art:'paper',  who:'广播稿存档',   verb:'翻翻',   talk:'sd_office_logic', if:['是:logic','可以走动了'] }
   ],
@@ -1371,11 +1371,11 @@ makeMap('art', {
     { x:16, y:4, art:'paper', who:'排练厅后墙上的木牌', verb:'看看',
       talk:'cl_art_shui', if:['是:shui','可以走动了'] },
     /* sd_art_logic 的线索 —— 琴房门口的签到簿 */
-    { x:4, y:4, art:'paper', who:'琴房门口挂着的签到簿', verb:'翻翻',
+    { x:32, y:4, art:'paper', who:'琴房门口挂着的签到簿', verb:'翻翻',
       talk:'cl_art_logic', if:['是:logic','可以走动了'] },
-    { x:16, y:13, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'] },
-    { x:16, y:13, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'] },
-    { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'] }
+    { x:16, y:20, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'] },
+    { x:19, y:20, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'] },
+    { x:34, y:6, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'] }
   ],
   triggers: [ { x:35, y:12, w:3, h:1, once:true, talk:'stairs_shut' } ]
 }, artLayout);
@@ -1401,7 +1401,7 @@ makeMap('lab', {
     { x:18, y:5, art:'paper', who:'柜子边上那张化学品清单', verb:'看看',
       talk:'cl_lab_shui', if:['是:shui','可以走动了'] },
     /* sd_lab_logic 的线索 —— 得先来这儿看一眼，回去才答得上来 */
-    { x:30, y:6, art:'paper', who:'讲台上那本公用记录本', verb:'翻翻',
+    { x:25, y:7, art:'paper', who:'讲台上那本公用记录本', verb:'翻翻',
       talk:'cl_lab_logic', if:['是:logic','可以走动了'] },
     { x:15, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
       talk:'pw_table', if:'擦完墙', once:true },
@@ -7446,6 +7446,28 @@ clockEl.style.display = 'none';
         out.push('图=' + gid + ' ' + MAPW + 'x' + MAPH +
                  '  图例：#墙 D门 .走廊 c教室 f室内 g园子 S楼梯 p路 @换图口 空格=没有' +
                  String.fromCharCode(10) + rows.join(String.fromCharCode(10)));
+      }
+      if (mode === 'place'){
+        /* 每个实物：脚下什么地形、落在哪个房间牌子里、站不站得住。
+           位置错了的东西，这几栏里总有一栏对不上 */
+        Object.keys(MAPS).forEach(function(mid){
+          var mp = MAPS[mid];
+          loadMap(mid, mp.spawn[0], mp.spawn[1]);
+          M.fade = 0;
+          (mp.objs || []).forEach(function(O){
+            var t = tileAt(O.x, O.y);
+            var lab = '';
+            LABELS.forEach(function(L){
+              if (O.x >= L.x && O.x < L.x + L.w && O.y >= L.y && O.y < L.y + L.h)
+                lab = (lab ? lab + '/' : '') + L.t;
+            });
+            var stand = TERRAIN[t].solid ? '墙里' : '地上';
+            out.push(mid + '  ' + (O.who || O.art) + ' @' + O.x + ',' + O.y +
+                     '  [' + TERRAIN[t].name + '] ' + stand +
+                     (lab ? '  牌子=' + lab : '  牌子=（没有）') +
+                     (O.if ? '  if=' + (O.if.push ? O.if.join('+') : O.if) : ''));
+          });
+        });
       }
       if (mode === 'text'){
         /* 全篇文本清单：一句话一条，换行打成 
