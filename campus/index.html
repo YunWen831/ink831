@@ -1150,6 +1150,12 @@ makeMap('hill', {
   /* 六块苔本身就是看得见的（墙根那一溜绿的），现在走近了还能按 E 蹭。
      seq 是"守则第几条" —— 刻的字是打乱的，得拿守则的次序去对 */
   objs: [
+    /* sd_hill_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:14, y:7, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_hill_laoli', if:['是:laoli','可以走动了'] },
+    /* sd_hill_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:13, y:7, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_hill_shui', if:['是:shui','可以走动了'] },
     { x:2,  y:3, ox:0, oy:-6, art:'moss', who:'墙根那排苔', verb:'蹭一下',
       talk:'wipe_intro', once:true, cp:'后山' },
     { x:6,  y:4, art:'moss', who:'苔 · 上',   verb:'擦开', seq:1, if:'看到六块苔', talk:'wipe_1' },  // 上
@@ -1248,6 +1254,9 @@ makeMap('museum', {
   deco: [ { x: 11, y: 19, n: 19, dx: 1, who: 'stu1', scale: 1 } ],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:16, ty:110 } ],
   objs: [
+    /* sd_museum_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:24, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_museum_shui', if:['是:shui','可以走动了'] },
     { x:20, y:21, art:'paper', who:'那排毕业照',     verb:'看看', talk:'sd_museum_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:6, art:'paper', who:'玻璃柜里的奖状', verb:'看看', talk:'sd_museum_shui',  if:['是:shui','可以走动了'] },
     { x:26, y:6, art:'paper', who:'借阅登记簿',     verb:'翻翻', talk:'sd_museum_logic', if:['是:logic','可以走动了'] }
@@ -1261,6 +1270,9 @@ makeMap('office', {
   /* 别跟学籍卡柜站同一格 —— 同距离时按 E 永远是"跟人说话"，柜子就永远按不到 */
   npcs: [ { id:'teacher', tx:23, ty:21, face:'up', talk:'hint_teacher' } ],
   objs: [
+    /* sd_office_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:6, y:21, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_office_shui', if:['是:shui','可以走动了'] },
     { x:6,  y:21, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉', talk:'pw_drawer', if:'擦完墙', once:true },
     { x:16, y:21, art:'board',  who:'门厅的值班表', verb:'看看',   talk:'sd_office_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:21, art:'drawer', who:'学籍卡柜',     verb:'拉开',   talk:'sd_office_shui',  if:['是:shui','可以走动了'] },
@@ -1277,6 +1289,12 @@ makeMap('hall2', {
   ],
   npcs: [ { id:'laoli', tx:16, ty:6, face:'down', talk:'hint_laoli' } ],
   objs: [
+    /* sd_two_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:26, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_two_laoli', if:['是:laoli','可以走动了'] },
+    /* sd_two_logic 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:26, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_two_logic', if:['是:logic','可以走动了'] },
     { x:6,  y:6, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli', if:['是:laoli','可以走动了'] },
     { x:6,  y:6, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',  if:['是:shui','可以走动了'] },
     { x:6,  y:6, art:'window', who:'那扇窗户',         verb:'哈口气', talk:'sd_two_logic', if:['是:logic','可以走动了'] }
@@ -1295,6 +1313,9 @@ makeMap('art', {
   w: 40, h: 28, base: 'void', spawn: [3, 13],
   portals: [ { x:1, y:13, w:1, h:2, to:'campus', tx:55, ty:104 } ],
   objs: [
+    /* sd_art_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:6, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_art_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:13, art:'paper',  who:'院子中间那口钟', verb:'看看', talk:'sd_art_laoli', if:['是:laoli','可以走动了'] },
     { x:16, y:13, art:'window', who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',  if:['是:shui','可以走动了'] },
     { x:16, y:13, art:'paper',  who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic', if:['是:logic','可以走动了'] }
@@ -1316,6 +1337,15 @@ makeMap('lab', {
     { x:34, y:17, w:2, h:1, to:'toilet', tx:8, ty:10 }
   ],
   objs: [
+    /* sd_lab_laoli 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:14, y:14, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_lab_laoli', if:['是:laoli','可以走动了'] },
+    /* sd_lab_shui 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:15, y:5, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_lab_shui', if:['是:shui','可以走动了'] },
+    /* sd_lab_logic 的线索 —— 得先来这儿看一眼，回去才答得上来 */
+    { x:26, y:6, art:'paper', who:'墙上钉着的一张纸', verb:'看看',
+      talk:'cl_lab_logic', if:['是:logic','可以走动了'] },
     { x:15, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
       talk:'pw_table', if:'擦完墙', once:true },
     { x:5,  y:5,  art:'drawer', who:'试剂柜',           verb:'拉开',
@@ -1947,6 +1977,38 @@ var TALK = {
     }
   },
 
+  /* ---- 支线线索：先去这儿看一眼，回去那条的正确答案才出现 ---- */
+  cl_museum_shui: { nodes:{
+    s:{ text:'（荣誉室的墙上挂着一排手写的获奖名单。）\n\n（46 班那一届 —— 化学竞赛，二等奖。\n　获奖人那一栏是印上去的，只有那一行是后来手补的。）', set:'看·cl_museum_shui', end:true }
+  }},
+  cl_office_shui: { nodes:{
+    s:{ text:'（门厅里钉着一排班级牌。）\n\n（高二：44　45　46　47。\n　高三那一排，没有 46。）', set:'看·cl_office_shui', end:true }
+  }},
+  cl_art_laoli: { nodes:{
+    s:{ text:'（音乐教室的黑板上留着一行值日记录。）\n\n（三年前十月十二日，早上**七点十分**，\n　有人开了琴房最后一间的门。）', set:'看·cl_art_laoli', end:true }
+  }},
+  cl_two_laoli: { nodes:{
+    s:{ text:'（45 班旧址的讲台上压着一份旧值日表。）\n\n（最后一排靠门那个位子写着一个名字 ——\n　名字上头被指甲来回刮过，刮得纸都起毛了。）', set:'看·cl_two_laoli', end:true }
+  }},
+  cl_two_logic: { nodes:{
+    s:{ text:'（45 班那扇窗户，从里头写着字。）\n\n（是反的。你在脑子里把它翻过来 ——\n　三个字，笔画很轻，像是用指尖写的。）', set:'看·cl_two_logic', end:true }
+  }},
+  cl_hill_laoli: { nodes:{
+    s:{ text:'（墙缝里塞着半张纸，角上被雨水泡过。）\n\n（铅笔字，写得很急：\n　「一、二、三……念到第十九个就停。」）', set:'看·cl_hill_laoli', end:true }
+  }},
+  cl_hill_shui: { nodes:{
+    s:{ text:'（缺口里侧，墙根下压着一截断粉笔。）\n\n（粉笔边上有一道拖痕，一直拖到教室那半块黑板前面。）', set:'看·cl_hill_shui', end:true }
+  }},
+  cl_lab_laoli: { nodes:{
+    s:{ text:'（楼梯间墙上钉着一块旧牌子，字快磨没了。）\n\n（「本楼共 __ 层」—— 那个数字是刻上去的，磨不掉。）', set:'看·cl_lab_laoli', end:true }
+  }},
+  cl_lab_shui: { nodes:{
+    s:{ text:'（柜子边上贴着一张化学品清单，一格对一格。）\n\n（有一行被划掉了，划得很重。那一行的位置，\n　正对着柜子里空着的那一格。）', set:'看·cl_lab_shui', end:true }
+  }},
+  cl_lab_logic: { nodes:{
+    s:{ text:'（实验室的公用记录本摊在讲台上。）\n\n（最后一页只写了半行，笔搁在旁边。\n　本子边上还压着半张没做完的卷子。）', set:'看·cl_lab_logic', end:true }
+  }},
+
   /* ==================== 奶蛙 ====================
      三年前，46 班几个走化学竞赛的学生在辅导室偷偷"合成"了一个东西。
      他们管它叫奶蛙。它醒了 —— 然后让整栋楼的人笑，笑到停不下来。
@@ -1988,7 +2050,7 @@ var TALK = {
     t:{ text:'（获奖人那一栏全都被人剪过 —— 一排看过去全是窟窿。）\n\n（只有一张，剪得最狠。）\n\n（哪一张？）', opts:[
          { t:'数学竞赛 · 一等奖', go:'no' },
          { t:'物理竞赛 · 三等奖', go:'no' },
-         { t:'化学竞赛 · 二等奖', go:'ok' },
+         { t:'化学竞赛 · 二等奖', go:'ok', if:'看·cl_museum_shui' },
          { t:'生物竞赛 · 一等奖', go:'no' } ]},
     no:{ text:'（这张的窟窿没剪那么深。）', next:'t' },
     ok:{ text:'（化学竞赛。二等奖。）\n\n（获奖人那一栏是齐着边剪的 ——\n　底下垫着尺子剪的。剪得很慢，剪得很直。）',
@@ -2012,7 +2074,7 @@ var TALK = {
     s:{ text:'（学籍卡柜没锁，卡是按班号排的。）', next:'t' },
     t:{ text:'（你得找 46 班那张。）\n\n（柜子里三排：高三年级、高二年级、高一年级。）\n\n（46 班是哪个年级？）', opts:[
          { t:'高一年级', go:'no' },
-         { t:'高二年级', go:'ok' },
+         { t:'高二年级', go:'ok', if:'看·cl_office_shui' },
          { t:'高三年级', go:'no' },
          { t:'不在这个柜子里', go:'no' } ]},
     no:{ text:'（班号 4 开头是高二。再看。）', next:'t' },
@@ -2032,7 +2094,7 @@ var TALK = {
     t:{ text:'（停在七点十分。）\n\n（你伸手拨了一下钟摆 —— 卡着的。）', next:'q' },
     q:{ text:'（钟面上有三根针。\n　哪一根停在"十"上？）', opts:[
          { t:'时针', go:'no' },
-         { t:'分针', go:'ok' },
+         { t:'分针', go:'ok', if:'看·cl_art_laoli' },
          { t:'秒针', go:'no' },
          { t:'三根都停在十二上', go:'no' } ]},
     no:{ text:'（七点十分 —— 分钟那一根指着二。再看。）', next:'q' },
@@ -2065,7 +2127,7 @@ var TALK = {
     t:{ text:'（你把它正过来。）\n\n（上面写着：化学竞赛辅导室 —— 三楼。）', next:'q' },
     q:{ text:'（这栋楼有几层？）', opts:[
          { t:'三层', go:'no' },
-         { t:'两层', go:'ok' },
+         { t:'两层', go:'ok', if:'看·cl_lab_laoli' },
          { t:'四层', go:'no' },
          { t:'数不清', go:'no' } ]},
     no:{ text:'（你上楼数一遍。到顶了。）', next:'q' },
@@ -2078,7 +2140,7 @@ var TALK = {
     q:{ text:'（是哪个字母？）', opts:[
          { t:'H', go:'no' },
          { t:'O', go:'no' },
-         { t:'N', go:'ok' },
+         { t:'N', go:'ok', if:'看·cl_lab_shui' },
          { t:'标签早就掉了', go:'no' } ]},
     no:{ text:'（对着周期表看那一格的位置。）', next:'q' },
     ok:{ text:'（N。）\n\n（氮。那一格空着，印子是圆的 ——\n　瓶子是被人整个拿走的。）\n\n（拿走的时候，连瓶底的灰都带走了。）',
@@ -2089,7 +2151,7 @@ var TALK = {
     t:{ text:'（化学的，只做到一半。）\n\n（最后一道题旁边写着一行小字。）', next:'q' },
     q:{ text:'（那行写的是什么？）', opts:[
          { t:'不会做', go:'no' },
-         { t:'来不及了', go:'ok' },
+         { t:'来不及了', go:'ok', if:'看·cl_lab_logic' },
          { t:'明天再写', go:'no' },
          { t:'没写字', go:'no' } ]},
     no:{ text:'（字很小，写在题目边上。再看。）', next:'q' },
@@ -2104,7 +2166,7 @@ var TALK = {
     q:{ text:'（你得先认出那三个字。）\n\n（刮痕底下还剩什么？）', opts:[
          { t:'姓', go:'no' },
          { t:'名', go:'no' },
-         { t:'一个字都没剩', go:'ok' },
+         { t:'一个字都没剩', go:'ok', if:'看·cl_two_laoli' },
          { t:'整个名字都在，只是花了', go:'no' } ]},
     no:{ text:'（刮得很干净。再凑近看。）', next:'q' },
     ok:{ text:'（一个字都没剩。）\n\n（只留下一个空的格子 ——\n　格子还在，座位表的线还绕着它。）\n\n（刮的人刮得很仔细，连笔画边上的纸毛都捻掉了。）',
@@ -2121,7 +2183,7 @@ var TALK = {
     t:{ text:'（雾起来的玻璃上浮出三个字。）\n\n（是反的 —— 从里面写的。）', next:'q' },
     q:{ text:'（把三个字翻过来念 —— 是什么？）', opts:[
          { t:'别回头', go:'no' },
-         { t:'别答应', go:'ok' },
+         { t:'别答应', go:'ok', if:'看·cl_two_logic' },
          { t:'别进来', go:'no' },
          { t:'救我', go:'no' } ]},
     no:{ text:'（是反字。把它翻过来。）', next:'q' },
@@ -2136,7 +2198,7 @@ var TALK = {
     q:{ text:'（它在念什么？）', opts:[
          { t:'课文', go:'no' },
          { t:'通知', go:'no' },
-         { t:'点名', go:'ok' },
+         { t:'点名', go:'ok', if:'看·cl_hill_laoli' },
          { t:'广播操的口令', go:'no' } ]},
     no:{ text:'（再听一遍。注意它顿在哪儿。）', next:'q' },
     ok:{ text:'（点名。）\n\n（念一个，顿一下 —— 停的时间刚好够一个人应一声。）\n\n（念到某一个名字的时候，它顿得比别处长。）',
@@ -2147,7 +2209,7 @@ var TALK = {
     t:{ text:'（后面是一间教室。）\n\n（塌了一半。黑板还立着，上头留着半行粉笔字。）', next:'q' },
     q:{ text:'（那半行写的是什么？）', opts:[
          { t:'一道数学题', go:'no' },
-         { t:'一道没写完的化学式', go:'ok' },
+         { t:'一道没写完的化学式', go:'ok', if:'看·cl_hill_shui' },
          { t:'一个名字', go:'no' },
          { t:'一片乱画', go:'no' } ]},
     no:{ text:'（凑近看。那是化学的符号。）', next:'q' },
@@ -2207,7 +2269,8 @@ var TALK = {
     next:'t' },
     /* 给一整张表，不直接把三个答案列出来 —— 得自己在里头找 */
     /* 按真正的周期表排：第一周期两个，第二周期八个，符号在上、序号在下 */
-    t:{ text:'（墙上那张是全表，只有最上头两行还看得清 —— 排法跟课本上一模一样：）\n\n　　　　　　　　　　　　　　　　　H　　　　　　　　　　　　　　　　　He\n　　　　　　　　　　　　　　　　　1　　　　　　　　　　　　　　　　　2\n\n　　Li　　Be　　　　　　　B　　 C　　 N　　 O　　 F　　　　　Ne\n　　3　　 4　　　　　　　5　　 6　　 7　　 8　　 9　　　　　10',
+    /* 真表：符号一排，下面依次是**原子序数**和**相对原子质量** */
+    t:{ text:'（只有最上头两行没糊。符号在上，下头两排数字 ——\n　上一排是原子序数，下一排是相对原子质量：）\n\n　　　　　　H　　　　　　　　　　　　　He\n　　　　　　1　　　　　　　　　　　　　 2\n　　　　　1.008　　　　　　　　　　　 4.003\n\n　Li　　Be　　　　B　　 C　　 N　　 O　　 F　　　　 Ne\n　 3　　 4　　　　5　　 6　　 7　　 8　　 9　　　　 10\n 6.94　9.012　10.81 12.01 14.01 16.00 19.00　 20.18',
         set:'查过周期表', end:true }}},
 
   pw_drawer: { nodes:{
