@@ -820,6 +820,11 @@ makeMap('campus', {
     { x:13, y:75,  art:'stairs', who:'上楼的楼梯', verb:'上去',
       talk:'logic_route', if:'该上二楼了', once:true },
 
+    /* logic 中段那三处线索 —— 都在一号教学楼走廊上，跑一趟就齐 */
+    { x:17, y:85, art:'paper',  who:'走廊里的楼层平面图', verb:'看',   talk:'lg_floorplan', if:['是:logic','该上二楼了'], once:true },
+    { x:16, y:87, art:'paper',  who:'走廊里那排门牌',     verb:'看',   talk:'lg_plates',    if:['是:logic','该上二楼了'], once:true },
+    { x:17, y:78, art:'roster', who:'门口那本登记表',     verb:'翻翻', talk:'lg_classbook', if:['是:logic','该上二楼了'], once:true },
+
     /* ---- 水哥那条：三处线索各是个能动手的东西 ---- */
     { x:6,  y:73,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
       talk:'pw_board', if:'擦完墙', once:true },
@@ -1303,11 +1308,51 @@ var TALK = {
     text:'走廊里响起一阵脚步，越走越远。\n\n老师被人叫走了 —— 教室门开着，没人拦你。\n\n（你站起来得比别人快。）\n\n（你知道该去哪儿。你每天都去。）',
     set:['可以走动了','上过课','该上二楼了'], end:true }}},
 
-  /* logic 那条线：别人在查，他在瞒。开头就是独白 */
+  /* ==================== logic 的中段：数教室 ====================
+     别的人中段是三步、四步，他原来只有一段独白就上楼了 —— 那是空的。
+     他的谜题是"数"：这栋楼每层该有几间？
+     三处线索散在走廊上（平面图、门牌、登记表），看完才能在楼梯口选对。
+     ======================================================== */
+  lg_floorplan: { nodes:{
+    s:{ text:'（走廊墙上挂着一张平面图，玻璃罩着。）', next:'t' },
+    t:{ text:'（一号教学楼。每层 —— ）\n\n（图上画得清清楚楚：三间。）', next:'u' },
+    u:{ text:'（可你刚才从走廊那头走过来，数出来是四扇窗。）', set:'看过平面图', end:true }
+  }},
+  lg_plates: { nodes:{
+    s:{ text:'（走廊里那排门牌。）', next:'t' },
+    t:{ text:'（44 班。46 班。）\n\n（—— 中间那个号，没有牌子。）', next:'u' },
+    u:{ text:'（墙上留着两个钉眼。）\n\n（钉子拔走很久了 —— 洞边上那圈漆，跟别处一个色。）',
+        set:'数过门牌', end:true }
+  }},
+  lg_classbook: { nodes:{
+    s:{ text:'（班主任办公室门口搁着一本登记表。）', next:'t' },
+    t:{ text:'（46 班：在册十九人。）', next:'u' },
+    u:{ text:'（底下还有一栏，印着"45 班"。）\n\n（空的。一格都没填。）', next:'v' },
+    v:{ text:'（可那一栏的纸，比别处白。）\n\n（像是从来没晒过太阳。）', set:'看过登记表', end:true }
+  }},
+
+  /* 楼梯口。三处都看过了，才多出那第三个选项 */
   logic_route: { nodes:{
-    s:{ text:'（你没往楼下走。）\n\n（你走到上楼的楼梯口。这个点，没人会上去。）', next:'u' },
-    u:{ text:'（你不是今天才知道那间教室的。\n　开学第二个礼拜你就找到了。）\n\n（里面很静，静得能听见自己的笔尖。\n　黑板上的值日表永远停在同一天。\n　所以你在那儿刷题 —— 没人会来吵你。）', next:'w' },
-    w:{ text:'（这件事你没跟任何人说过。）', clock:9*60, set:['logic承认了','可以上去了'], end:true }
+    s:{ text:'（楼梯口。）', next:'t' },
+    t:{ text:'（那你要上去找哪一间？）', opts:[
+         { t:'46 班',                 go:'w46' },
+         { t:'44 班',                 go:'w44' },
+         { t:'……没有牌子的那一间',   go:'right',
+           if:['看过平面图','数过门牌','看过登记表'] } ]},
+
+    /* 选错不是死 —— 是楼梯把你原样送回来。还是"又回到这儿" */
+    w46:{ text:'（你走上去了。）\n\n（走了七级台阶。）\n\n（—— 你还在楼梯口。）', next:'w46b' },
+    w46b:{ text:'（46 班不在这儿。）\n\n（你上来过很多次了。）', end:true },
+    w44:{ text:'（你走上去了。）\n\n（走了七级台阶。）\n\n（—— 你还在楼梯口。）', next:'w44b' },
+    w44b:{ text:'（44 班在一楼。）\n\n（你上来过很多次了。）', end:true },
+
+    right:{ text:'（你踏上第一级。）', next:'r2' },
+    r2:{ text:'（这一遍台阶比刚才多一级。）', next:'r3' },
+    r3:{ text:'（走廊那头，多出一扇门。）', next:'r4' },
+    r4:{ text:'（你不是今天才知道那间教室的。\n　开学第二个礼拜你就找到了。）', next:'r5' },
+    r5:{ text:'（里面很静，静得能听见自己的笔尖。\n　黑板上的值日表永远停在同一天。）', next:'r6' },
+    r6:{ text:'（所以你在那儿刷题 —— 没人会来吵你。）\n\n（这件事你没跟任何人说过。）',
+         clock:9*60, set:['logic承认了','可以上去了'], end:true }
   }},
 
   /* ==================== 谜题 ====================
@@ -2134,7 +2179,8 @@ var GOALS = [
   { if:['数过两遍','可以上去了'], map:'campus', t:'上楼 —— 楼梯口在西头', x:13, y:74 },
   { if:'拿过名单',   map:'campus', t:'回教室',   x:20, y:79  },
   { if:'可以上去了', map:'campus', t:'楼梯口有人等着你',               x:13, y:74  },
-  { if:'该上二楼了', map:'campus', t:'东翼和西翼中间那道楼梯 —— 上去看看', x:13, y:75  },
+  /* logic 中段那三处线索不写成静态条目 —— 写在 goalNow 里，
+     因为"这条还没看"需要取反，静态条目表达不了（见 goalNow 里那段） */
   { if:'答过到',     map:'campus', t:'去大门口',         x:37, y:119 },
   { if:'该查名单了', map:'campus', t:'走廊上的广播',             x:16, y:80  },
 
@@ -2212,6 +2258,19 @@ function goalNow(){
     if (bp) return bp;
   }
   if (!M.chase && M.map === 'toilet') return toiletGoal();
+  /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
+     静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
+     读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
+  if (!M.chase && M.map === 'campus' && flagOn('是:logic') &&
+      flagOn('该上二楼了') && !flagOn('可以上去了')){
+    if (!flagOn('看过平面图'))
+      return { t:'走廊墙上的楼层平面图', x:17, y:85, map:'campus' };
+    if (!flagOn('数过门牌'))
+      return { t:'走廊里那排门牌', x:16, y:87, map:'campus' };
+    if (!flagOn('看过登记表'))
+      return { t:'班主任办公室门口那本登记表', x:17, y:78, map:'campus' };
+    return { t:'走廊东头那道楼梯', x:13, y:75, map:'campus' };
+  }
   for (var i=0;i<GOALS.length;i++){
     var G = GOALS[i];
     if (!goalOK(G)) continue;
@@ -2723,7 +2782,10 @@ var GHOSTS = [
    45 班一个人都没有，那是故意的 */
 var CROWD = [];
 (function(){
-  var ids = ['deskmate', 'logic', 'shui', 'deskmate', 'laoli', 'logic', 'shui'];
+  /* 背景里那些人用没名没姓的同学立绘 —— 千万别拿 laoli/shui/logic 去填，
+     不然你选了 logic，人堆里会站着另一个 logic；更糟的是玩家分不清
+     哪个是"要去找的人"、哪个只是背景 */
+  var ids = ['stu1', 'stu2', 'stu3', 'stu2', 'stu1', 'stu3', 'stu2'];
   var k = 0;
   /* 46 班里坐着的（desk:true 会给他们画张桌子） */
   for (var r=0; r<5; r++) for (var c=0; c<4; c++){
@@ -3643,7 +3705,7 @@ function renderNode(){
   M.talk.shown = [];                      // 这一屏真显示出来的选项，存的是它们在 node.opts 里的下标
   if (node.opts){
     node.opts.forEach(function(o, i){
-      if (o.if && !flagOn(o.if)) return;  // 条件没到，这个选项根本不出现
+      if (o.if && !flagAll(o.if)) return;   // 条件没到，这个选项根本不出现
       M.talk.shown.push(i);
       var li = document.createElement('li');
       li.innerHTML = '<span class="k">' + M.talk.shown.length + '.</span>' + escapeHTML(o.t);
@@ -5506,10 +5568,16 @@ clockEl.style.display = 'none';
               continue;
             }
             M.talk.typed = 1e9;
+            /* 有选项就按 optTry 那个 —— 卡住了就换下一个。
+               老按第一个的话，谜题选项类的（抽屉密码、楼梯口那三扇门）
+               永远试不对，探针就成了摆设 */
+            var nd0 = M.talk.script.nodes[M.talk.nodeId];
+            if (nd0 && nd0.opts && (M.talk.shown || []).length)
+              M.talk.sel = Math.min(optTry, M.talk.shown.length - 1);
             advanceOrChoose();
           }
         }
-        var path = null, pi = 0, roadKey = '', stuckT = 0;
+        var path = null, pi = 0, roadKey = '', stuckT = 0, optTry = 0;
         for (var fr = 0; fr < 90000 && M.screen === 'play'; fr++){
           if (M.dying > 0){ hDeaths++; for (var fz = 0; fz < 260 && M.dying > 0; fz++) update(1/60); continue; }
           if (M.talk.open){ hTickTalk(); continue; }
@@ -5526,6 +5594,7 @@ clockEl.style.display = 'none';
           }
           var key = M.map + ':' + G.x + ',' + G.y;
           if (key !== roadKey || !path || pi >= path.length){
+            if (key !== roadKey) optTry = 0;   // 换目标了 = 换了个谜题，选项从头试
             path = hPath(G.x, G.y); pi = 0; roadKey = key;
             if (hGoals[hGoals.length-1] !== G.t){
               hGoals.push((M.map === 'campus' ? '' : M.map + ':') + G.t);
@@ -5544,10 +5613,14 @@ clockEl.style.display = 'none';
           if (Math.hypot(M.p.x - tx, M.p.y - ty) < 7) pi++;
           if (Math.abs(M.p.x - bx) + Math.abs(M.p.y - by) < 0.15){
             if (++stuckT > 150){
-              hStuck++;
-              hLog.push('卡在 ' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
-                        '（图=' + M.map + ' 目标「' + G.t + '」）');
-              break;
+              stuckT = 0;
+              optTry++;                     // 换一个选项再试（谜题类的得挨个试）
+              if (optTry > 4){
+                hStuck++;
+                hLog.push('卡在 ' + Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                          '（图=' + M.map + ' 目标「' + G.t + '」，四个选项都试过了）');
+                break;
+              }
             }
           } else stuckT = 0;
         }

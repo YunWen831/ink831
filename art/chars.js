@@ -454,6 +454,31 @@ var CHARS = [
           cloth2:'#8479ad', pants:'#3c4046', shoe:'#2b2b30', frame:'#14110f',
           W:AV.white, O:'#17130f', M:'#9c6a5c' } },
 
+  /* 三个没名没姓的学生。背景里的人就该是背景 ——
+     原来拿 laoli/shui/logic 的立绘去填人群，你选 logic 的时候
+     会在人堆里撞见另一个自己 */
+  { id:'stu1', name:'同学', tag:'',
+    bg:'#37383f', hairLine:14, sideburn:16, brow:'thin', eyes:'normal',
+    mouth:'neutral', spr:'short',
+    collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
+    pal:{ skin:'#e8bd96', skin2:'#d0a37d', hair:'#1f1a15', cloth:'#7d8a9a',
+          cloth2:'#68758a', pants:'#3a3d44', shoe:'#26303a',
+          W:AV.white, O:'#17130f', M:'#9c6a5c' } },
+  { id:'stu2', name:'同学', tag:'',
+    bg:'#33383a', hairLine:14, sideburn:16, brow:'thick', eyes:'squint',
+    mouth:'small', spr:'short',
+    collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
+    pal:{ skin:'#f0c69f', skin2:'#dcb088', hair:'#2a211a', cloth:'#8a9384',
+          cloth2:'#717a6d', pants:'#41454a', shoe:'#2b2b30',
+          W:AV.white, O:'#17130f', M:'#9c6a5c' } },
+  { id:'stu3', name:'同学', tag:'',
+    bg:'#3a3640', hairLine:15, sideburn:16, brow:'thin', eyes:'normal',
+    mouth:'neutral', spr:'short',
+    collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
+    pal:{ skin:'#e4b78d', skin2:'#c99f78', hair:'#241c18', cloth:'#9a8f8a',
+          cloth2:'#7f7470', pants:'#3f4248', shoe:'#2a2a2e',
+          W:AV.white, O:'#17130f', M:'#9c6a5c' } },
+
   /* 「他」—— 名册第一行那个名字。配色是灰的：像一张洗淡了的旧照片。
      脸上一根眉毛都没有，眼睛是两条缝，嘴只有一点点 ——
      什么表情都读不出来，比笑或者哭都吓人 */
