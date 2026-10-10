@@ -2080,7 +2080,7 @@ var TALK = {
       kill3:{ text:'屋里跟着笑起来。\n\n我也在笑。我捂不住嘴。', sh:0.8, next:'kill4' },
       kill4:{ text:'讲台上那个东西撑开了。\n\n整间屋子跟着往外涨 —— 墙退开，桌子退到边上，中间空出一大块。', next:'kill5' },
       kill5:{ text:'它笑。\n\n笑声一圈一圈推出来 —— 我听得见，也看得见。\n\n（圈不是整圈的。每一圈都缺一段。）', next:'kill6' },
-      kill6:{ card:'每一圈都缺一段。缺口转到哪儿，你就站哪儿。\n\n一、圈推过来 —— 站在缺口那一段里，圈扫过去也没事。\n二、它推完会歇一下，那时候只有一张讲桌是亮的。\n三、跑过去按那一张。按错的白跑一趟。\n\n（三下。一圈比一圈紧。缺口每一圈都换地方。）', boss:true, end:true }
+      kill6:{ card:'圈从它那儿往外推。每一圈都缺一段。\n\n一、慢的那种：缺口转到哪儿，你就站哪儿。\n二、会转的：缺口一直在动，跟着挪。\n三、又快又窄的：冲着你来 —— 赶紧闪开。\n\n它推完会歇一下，那时候只有一张讲桌是亮的，跑过去按它。\n（三下。一圈比一圈多。同一次歇着只能按一下。）', boss:true, end:true }
     }
   },
 
@@ -3881,6 +3881,12 @@ function spawnWave(){
    它笑完一轮会歇一下，就那一下，走到讲台前面按一下才算打中。
    三条命、它三格血。命数掉光不读档 —— 从头再来一遍。
    ============================================ */
+/* 每一轮推圈的花样：慢圈 / 会转的圈 / 又快又窄的圈 */
+var PATTERN = [ ['arc', 'arc', 'arc'],
+                ['arc', 'spin', 'spit', 'arc'],
+                ['spin', 'spit', 'arc', 'spin', 'spit'] ];
+var VARIETY = [];
+
 function startBoss(){
   /* 这场打完之前那张图装不下 —— 换到大图上来打。
      先记下"从哪儿进来的"：万一战斗起不来，得把人送回去 */
@@ -3890,7 +3896,7 @@ function startBoss(){
   }
   M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
              cd: 0, inv: 1.4, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
-             wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 6.5,
+             wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 6.5, pat: null,
              /* 一圈只盖这么多（弧度）—— 剩下的就是缺口 */
              arcHalf: 1.75,
              /* 三个台子 —— 它歇下来的时候，亮哪一张就按哪一张 */
@@ -3949,13 +3955,16 @@ function bossHit(O){
     return true;
   }
   B.hp--;
-  B.open = 0;
-  B.inv = 0.8;
+  B.inv = 1.0;
   sfxPick();
   shake(0.5);
-  bossHudDraw();
+  /* 窗口立刻收掉：原来只把 B.open 清零，可它是每帧从 B.cd 重算出来的，
+     下一帧又变回 5 点多 —— 一个窗口能连按三下，等于秒杀。
+     现在这一下打完就直接回到推圈那段，想再打得到下一轮 */
+  B.phase = 'wave'; B.wave = 0; B.since = 1.0; B.open = 0; B.lit = -1;
+  bossHudDraw(true);
   if (B.hp <= 0){ bossEnd(); return true; }
-  toast('（按住了一下。）', 1.4);
+  toast('（按住了一下。它又笑了。）', 1.4);
   return true;
 }
 function bossEnd(){
@@ -3982,11 +3991,24 @@ function bossTick(dt){
   if (B.phase === 'wave'){
     B.since -= dt;
     if (B.since <= 0){
-      /* 每一圈都留一段缺口 —— 缺口的角度一轮一轮换。
-         整圈的圈是躲不掉的（半径会扫过每一个距离），有缺口才站得住 */
-      /* 从 16 起 —— 内圈边线画在 r-13 上，从 10 起算头两帧就是负半径，
-         canvas 的 arc 会直接抛异常，整个 render 挂掉、主循环死掉 */
-      B.rings.push({ r: 16, a0: B.wave * 2.1 + B.hp * 1.3 });
+      /* 三种圈，每一轮配一套（三圈 / 四圈 / 五圈）：
+           arc  慢的宽口圈 —— 缺口转到哪儿站哪儿
+           spin 口径一直在转的圈 —— 站着不动会被转过来的边扫到
+           spit 又快又窄的圈 —— 冲着你这个方向来，得赶紧挪开
+         从 16 起 —— 内圈边线画在 r-13 上，从 10 起算头两帧就是负半径，
+         canvas 的 arc 会抛异常，整个 render 挂掉、主循环死掉 */
+      var pat = PATTERN[Math.min(lv, 2)];
+      var kind = pat[B.wave % pat.length];
+      var half = B.arcHalf, spd2 = 96, spin = 0, a0 = B.wave * 2.1 + B.hp * 1.3;
+      if (kind === 'spit'){
+        /* 又窄又快，而且是冲着你来 —— 但只偏你 ±46°，挪一步就躲开了 */
+        half = 0.66; spd2 = 190;
+        a0 = Math.atan2(M.p.y - B.cy, M.p.x - B.cx) + (Math.random() * 1.6 - 0.8);
+      } else if (kind === 'spin'){
+        /* 缺口会转。慢的，但你得跟着挪 */
+        spin = (Math.random() < 0.5 ? -1 : 1) * 0.55;
+      }
+      B.rings.push({ r: 16, a0: a0, half: half, spd: spd2, spin: spin, kind: kind });
       B.wave++;
       B.since = 1.35 - 0.15 * lv;          // 一轮比一轮紧
       B.open = 0;
@@ -4004,10 +4026,14 @@ function bossTick(dt){
     B.open = Math.max(0, B.cd);
     if (B.cd <= 0){ B.phase = 'wave'; B.wave = 0; B.since = 0.7; B.open = 0; B.lit = -1; }
   }
-  /* 圈往外推。压到 96 —— 比走路（108）慢一点，走位就够用，不用非按着跑。
+  /* 圈往外推（速度每圈自己带：慢圈 96、快圈 190）。
      射程 720 盖满整张图（最远的角 666），没有"站角落就安全"这种事 */
   var i;
-  for (i = 0; i < B.rings.length; i++) B.rings[i].r += 96 * dt;
+  for (i = 0; i < B.rings.length; i++){
+    var RR = B.rings[i];
+    RR.r += (RR.spd || 96) * dt;
+    if (RR.spin) RR.a0 += RR.spin * dt;
+  }
   B.rings = B.rings.filter(function(R){ return R.r < 720; });
   /* 撞上就掉一条命 */
   /* 这一句得每帧叫一次 —— 否则"现在该干嘛"那行永远是上一轮的。
@@ -4020,7 +4046,7 @@ function bossTick(dt){
       /* 半径对上了，还得看角度：落在缺口里就没事 */
       var da = pang - B.rings[i].a0;
       da = Math.abs(((da + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-      if (Math.abs(d - B.rings[i].r) < 13 && da < B.arcHalf){
+      if (Math.abs(d - B.rings[i].r) < 13 && da < (B.rings[i].half || B.arcHalf)){
         B.lives--;
         B.inv = 1.2;
         B.hurt = 0.5;
@@ -5652,12 +5678,15 @@ function render(){
     var B = M.boss;
     B.rings.forEach(function(R, i2){
       var al = Math.max(0, 1 - R.r / 720);
-      var a1 = R.a0 - B.arcHalf, a2 = R.a0 + B.arcHalf;
+      var hw = (R.half || B.arcHalf);
+      var a1 = R.a0 - hw, a2 = R.a0 + hw;
+      var fast = (R.kind === 'spit');
       /* 只画那一段弧（约 200°），剩下 160° 是缺口。
          带子 26 像素厚 = 判定厚度 —— 看见的边就是真的边 */
       /* 半径一律夹到正数 —— 负半径 arc 会抛异常，一抛整个画面就冻在那儿 */
       var r1 = Math.max(0.5, R.r - 13), r2 = Math.max(0.5, R.r + 13);
-      cx.strokeStyle = 'rgba(232,163,61,' + (0.30 * al).toFixed(2) + ')';
+      cx.strokeStyle = fast ? ('rgba(255,226,170,' + (0.42 * al).toFixed(2) + ')')
+                            : ('rgba(232,163,61,' + (0.30 * al).toFixed(2) + ')');
       cx.lineWidth = 26;
       cx.beginPath(); cx.arc(B.cx, B.cy, Math.max(0.5, R.r), a1, a2); cx.stroke();
       cx.strokeStyle = 'rgba(255,240,210,' + (0.45 * al).toFixed(2) + ')';
@@ -6726,10 +6755,25 @@ clockEl.style.display = 'none';
         M.boss.inv = 9999;                       // 测试里先别让它把玩家打死
         out.push('它还在笑的时候按 → ' + (function(){
           M.boss.open = 0; var h0 = M.boss.hp; bossHit(); return M.boss.hp === h0 ? '不掉血 ✓' : '掉了 ✗'; })());
+        /* 一个窗口里连按：只该掉一格血。
+           原来 B.open 每帧由 B.cd 重算，清零下一帧就被覆盖 —— 能连按到死 */
+        var hp0 = M.boss.hp, g6 = 0;
+        while (M.boss && M.boss.open <= 0 && g6++ < 40000){ update(1/60); if (M.boss){ M.boss.inv = 9999; M.boss.lives = 3; } }
+        var presses = 0, pz2 = 0;
+        for (pz2 = 0; pz2 < 120; pz2++){
+          if (M.boss && M.boss.open > 0){ bossHit(); presses++; }
+          update(1/60);
+          if (M.boss){ M.boss.inv = 9999; M.boss.lives = 3; }
+        }
+        out.push('一个窗口里连按 ' + presses + ' 下 → 掉了 ' +
+                 (hp0 - (M.boss ? M.boss.hp : 0)) + ' 格血（该是 1）');
+
         var hits = 0, guard = 0;
         while (M.boss && M.boss.hp > 0 && guard++ < 20000){
           update(1/60); M.talk.open = false;
           if (M.boss && M.boss.open > 0){ bossHit(); hits++; }
+          if (M.boss) M.boss.inv = 9999;            // 每帧按回去：命中后会被设成 1.0
+          if (M.boss) M.boss.lives = 3;
         }
         var g9 = 0; while (M.talk.open && g9++ < 30){ M.talk.typed = 1e9; advanceOrChoose(); }
         out.push('趁空档按 ' + hits + ' 下 → hp=' + (M.boss ? M.boss.hp : 0) +
@@ -7944,7 +7988,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v10';
+var BUILD = 'v11';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
