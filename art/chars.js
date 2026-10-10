@@ -496,7 +496,7 @@ var CHARS = [
      这一版就他一个 acc:'ribbon'，所以人堆里一眼认得出来 */
   { id:'zzx', name:'zzx', tag:'逻辑的',
     bg:'#3a2c33', hairLine:14, sideburn:15, brow:'thin', eyes:'normal',
-    mouth:'small', spr:'short', acc:'ribbon', skirt:true, skirtFrom:16,
+    mouth:'small', spr:'short', acc:'ribbon', skirt:true, skirtFrom:13,
     collar:['..CCCC..','.CCCCCC.','CCCCCCCC'],
     pal:{ skin:'#f4d6bb', skin2:'#dcb591', hair:'#241d1b', cloth:'#f2efe8',
           cloth2:'#d6d0c4', pants:'#b8342c', shoe:'#6d2a24', frame:'#141110',

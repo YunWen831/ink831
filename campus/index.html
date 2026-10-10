@@ -586,12 +586,14 @@ NAME(5,  73, 4, 7, '45班');
 NAME(5,  84, 4, 7, '厕所');   // 一号教学楼西翼南排 —— 牢李常去
 bigBuilding(4, 48, '二号教学楼', 'east');
 NAME(5, 60, 4, 7, '厕所');    // 二号教学楼西翼南排。牢李的"想上厕所"就靠这三间
-NAME(57, 84, 4, 7, '厕所');   // 实验楼西翼南排 —— 原来这儿也是厕所，只是地上没写字
 
 /* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
    实验楼跟教学楼一样是"竖空地"的壳子；艺术楼是"回"字 */
 ringBuilding(56, 95, '艺术楼');                      // 离大门最近，占了原来艺术楼+实验楼两块地
-bigBuilding(56, 72, '实验楼', 'west');               // 顶到三教原来的位置
+/* 实验楼：楼里的东西都搬到 lab 那张图去了 ——
+   校园上只留一个实心的壳和门口那一格。踩门口进楼 */
+R('wall', 56, 72, 20, 20);
+R('door', 56, 81, 1, 2);               // 顶到三教原来的位置
 bigBuilding(56, 48, '第三教学楼', 'west');           // 三教上移，跟西边二号教学楼并排
 
 /* ---------- 中心广场：一整块草坪，路自己组成一个"田"字 ----------
@@ -684,6 +686,14 @@ function floor2Layout(){
   NAME(39, 2, 7, 22, '45班');           // 楼上也有一间 45 班
 }
 
+/* ================== 六号图：实验楼 ==================
+   楼里从校园那张图里拆出来了 —— 校园上只剩一个壳和一道门。
+   里面的形状还是 bigBuilding() 生成的那套，只是原点挪到了 (1,1)。
+   ================================================ */
+function labLayout(){
+  bigBuilding(1, 1, '实验楼', 'west');
+}
+
 /* ================== 五号图：化学竞赛辅导室 ==================
    全查清之后才能进来的那一章 —— 三年前那天早上七点十分，原样停着。
    这张图里没有出口：它是最后一场戏，演完就结算。
@@ -773,7 +783,7 @@ makeMap('campus', {
     /* 后山那条路走到头 —— 那堵墙现在是一张单独的图 */
     { x:8,  y:6,  w:2, h:1, to:'hill', tx:10, ty:8 },
     { x:6,  y:59, w:2, h:1, to:'toilet', tx:8, ty:10 },
-    { x:58, y:83, w:2, h:1, to:'toilet', tx:8, ty:10 }
+    { x:56, y:81, w:1, h:2, to:'lab', tx:3, ty:10 },   // 实验楼门口 —— 楼里是单独一张图
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -815,9 +825,11 @@ makeMap('campus', {
       talk:'rule_sheet', if:'纸条', once:true, cp:'看过守则' },
     { x:20, y:79,  art:'roster', who:'讲台上摊着的点名册', verb:'翻翻',
       talk:'scare_count', if:'看过守则', once:true, cp:'数过两遍' },
-    /* 门要开在门上 —— 这扇原来是画在教室正中间地上的 */
+    /* 门要开在门上 —— 这扇原来是画在教室正中间地上的。
+       它同时是这道门唯一的把手：《45 班》里那句话是站在门口读的，
+       按一下要真把门推开，不然那间屋子（水哥要去看黑板）就进不去了 */
     { x:6,  y:80,  art:'door',   who:'45 班的门', verb:'看看',
-      talk:'scare_45', if:'看过守则', once:true },
+      talk:'scare_45', if:'看过守则', once:true, open:true },
     { x:16, y:80,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
       talk:'pz_rollcall', if:'该查名单了', once:true },
     { x:16, y:82,  ox:0, oy:-22, art:'speaker', who:'走廊上的广播喇叭', verb:'听',
@@ -835,8 +847,6 @@ makeMap('campus', {
     /* ---- 水哥那条：三处线索各是个能动手的东西 ---- */
     { x:6,  y:73,  ox:0, oy:-24, art:'board', who:'45 班黑板上的半行字', verb:'看',
       talk:'pw_board', if:'擦完墙', once:true },
-    { x:58, y:76,  ox:0, oy:-22, art:'chart', who:'墙上那张周期表', verb:'看',
-      talk:'pw_table', if:'擦完墙', once:true },
     { x:10, y:102, art:'drawer', who:'lg7 的办公桌', verb:'拉抽屉',
       talk:'pw_drawer', if:'擦完墙', once:true },
     { x:8,  y:22,  art:'tree',   who:'那排朝向不对的树', verb:'看看',
@@ -869,9 +879,6 @@ makeMap('campus', {
     { x:65, y:105, art:'window',who:'院子里的回声',   verb:'听',   talk:'sd_art_shui',     if:['是:shui','可以走动了'],  once:true },
     { x:65, y:105, art:'paper', who:'谱架上那一页',   verb:'看看', talk:'sd_art_logic',    if:['是:logic','可以走动了'], once:true },
 
-    { x:60, y:78, art:'board',  who:'钉反了的那块牌子', verb:'正过来', talk:'sd_lab_laoli',  if:['是:laoli','可以走动了'], once:true },
-    { x:60, y:78, art:'drawer', who:'试剂柜',           verb:'拉开',   talk:'sd_lab_shui',   if:['是:shui','可以走动了'],  once:true },
-    { x:60, y:78, art:'paper',  who:'讲台抽屉',         verb:'拉开',   talk:'sd_lab_logic',  if:['是:logic','可以走动了'], once:true },
 
     { x:7,  y:52, art:'paper',  who:'45 班的座位表',    verb:'看看',   talk:'sd_two_laoli',  if:['是:laoli','可以走动了'], once:true },
     { x:7,  y:52, art:'paper',  who:'学习园地上的作文', verb:'看看',   talk:'sd_two_shui',   if:['是:shui','可以走动了'],  once:true },
@@ -934,8 +941,6 @@ makeMap('campus', {
     { x:13, y:66, w:2, h:1, once:true, talk:'stairs_shut' },
     { x:65, y:49, w:2, h:1, once:true, talk:'stairs_shut' },
     { x:65, y:66, w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:65, y:73, w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:65, y:90, w:2, h:1, once:true, talk:'stairs_shut' },
 
     /* ---- 追逐里能用的机关：一个挡人，一个直接提前下课 ----
        拉铃那个在科技楼的网控中心（走廊北边那间），得绕进屋里去，
@@ -971,6 +976,35 @@ makeMap('hill', {
   ],
   triggers: []
 }, hillLayout);
+
+makeMap('lab', {
+  w: 22, h: 22,
+  base: 'void',
+  spawn: [3, 10],
+  portals: [
+    /* 门口那道门 —— 出去回校园，落在楼外墙根。
+       千万别写 back:true：楼里那个厕所口也是"通向校园以外"的，
+       会把 backTo 改写成"回 lab 自己"，于是这道门永远把自己送回来，
+       人就出不了实验楼 */
+    { x:1, y:10, w:1, h:2, to:'campus', tx:54, ty:81 },
+    /* 西翼南排那间厕所 */
+    { x:3, y:12, w:2, h:1, to:'toilet', tx:8, ty:10 }
+  ],
+  objs: [
+    { x:3, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
+      talk:'pw_table', if:'擦完墙', once:true },
+    { x:5, y:7,  art:'board',  who:'钉反了的那块牌子', verb:'正过来',
+      talk:'sd_lab_laoli', if:['是:laoli','可以走动了'], once:true },
+    { x:5, y:7,  art:'drawer', who:'试剂柜',           verb:'拉开',
+      talk:'sd_lab_shui',  if:['是:shui','可以走动了'],  once:true },
+    { x:5, y:7,  art:'paper',  who:'讲台抽屉',         verb:'拉开',
+      talk:'sd_lab_logic', if:['是:logic','可以走动了'], once:true }
+  ],
+  triggers: [
+    { x:10, y:2,  w:2, h:1, once:true, talk:'stairs_shut' },
+    { x:10, y:19, w:2, h:1, once:true, talk:'stairs_shut' }
+  ]
+}, labLayout);
 
 makeMap('resolve', {
   w: 18, h: 14,
@@ -2216,7 +2250,7 @@ var GOALS = [
 
   /* ——— 水哥那条：抽屉密码三处线索 ——— */
   { if:'查过周期表',   map:'campus', t:'行政楼',   x:10, y:102 },
-  { if:'看过黑板式子', map:'campus', t:'实验楼',         x:58, y:76  },
+  { if:'看过黑板式子', map:'lab',    t:'实验楼',         x:3,  y:5   },
   { if:'擦完墙',       map:'campus', t:'45 班空教室', x:6,  y:73  },
 
   /* ——— 数苔藓：一块一块来，箭头直接指下一块 ——— */
@@ -2304,7 +2338,12 @@ function goalNow(){
   for (var i=0;i<GOALS.length;i++){
     var G = GOALS[i];
     if (!goalOK(G)) continue;
-    if (G.map && M.map !== G.map) continue;
+    /* 带条件的（="剧情阶段"）在别的图上也返回 —— 玩家得知道"该去哪栋楼"。
+       原来这儿一律 continue，跨图的那一步就被跳过去了：比如
+       "看完黑板 → 去实验楼"，人在校园上永远看不见这步，目标一直停在上一句。
+       但没有条件的纯兜底条目（"往东走"那种）只在它自己那张图上算数，
+       不然它会永远抢在最前面 */
+    if (G.map && M.map !== G.map && !G.if) continue;
     return G;
   }
   return null;
@@ -2344,8 +2383,17 @@ function goalTick(){
     if (M.goalTxt !== ''){ M.goalTxt = ''; goalEl.textContent = ''; }
     arrowEl.classList.remove('on'); return;
   }
+  /* 目标在别的图上：字照写，箭头指到"通向那张图的那个口" */
+  var GX = G.x, GY = G.y;
+  if (G.map && G.map !== M.map){
+    var por = null;
+    (CUR.portals || []).forEach(function(P){
+      if (P.to === G.map && !P.back && !por) por = P;
+    });
+    if (por){ GX = por.x + Math.floor(por.w/2); GY = por.y + Math.floor(por.h/2); }
+  }
   if (G.t !== M.goalTxt){ M.goalTxt = G.t; goalEl.innerHTML = '<b>→</b> ' + escapeHTML(G.t); }
-  var sx = G.x*TILE + TILE/2 - camX, sy = G.y*TILE + TILE/2 - camY;
+  var sx = GX*TILE + TILE/2 - camX, sy = GY*TILE + TILE/2 - camY;
   /* 目标在画面里就不指了 —— 一直挂着个箭头反而碍事 */
   if (sx > 30 && sx < W-30 && sy > 30 && sy < H-30){ arrowEl.classList.remove('on'); return; }
   /* 角度量化到 1/40 圈再比对 —— 差点角度就重写三个 style，
@@ -2837,7 +2885,7 @@ var CROWD = [];
 var TOILETS = [
   { map:'campus', x:5,  y:84, w:4, h:7 },   // 一号教学楼西翼南排
   { map:'campus', x:5,  y:60, w:4, h:7 },   // 二号教学楼西翼南排
-  { map:'campus', x:57, y:84, w:4, h:7 }    // 实验楼西翼南排（门在 58,83）
+  { map:'lab',    x:2,  y:13, w:4, h:7 }    // 实验楼西翼南排（门在 58,83）
 ];
 function inToilet(){
   if (M.map === 'toilet') return true;        // 厕所现在是一张单独的图
@@ -5590,7 +5638,7 @@ clockEl.style.display = 'none';
             advanceOrChoose();
           }
         }
-        var path = null, pi = 0, roadKey = '', stuckT = 0, optTry = 0;
+        var path = null, pi = 0, roadKey = '', stuckT = 0, optTry = 0, sameKey = 0, lastKey = '';
         for (var fr = 0; fr < 90000 && M.screen === 'play'; fr++){
           if (M.dying > 0){ hDeaths++; for (var fz = 0; fz < 260 && M.dying > 0; fz++) update(1/60); continue; }
           if (M.talk.open){ hTickTalk(); continue; }
@@ -5606,6 +5654,12 @@ clockEl.style.display = 'none';
             G = { t:'去' + G.map, x:por.x + Math.floor(por.w/2), y:por.y + Math.floor(por.h/2) };
           }
           var key = M.map + ':' + G.x + ',' + G.y;
+          if (key === lastKey){ if (++sameKey === 400 && path && path.length <= 2)
+            hLog.push('同一个目标重复 400 次：图=' + M.map + ' 站位=' +
+                      Math.floor(M.p.x/TILE) + ',' + Math.floor(M.p.y/TILE) +
+                      ' 目标=' + key + ' 地形=' + tileAt(G.x, G.y) +
+                      ' 能站=' + !TERRAIN[tileAt(G.x, G.y)].solid + ' 路径=' + (path ? path.length : 'null'));
+          } else { lastKey = key; sameKey = 0; }
           if (key !== roadKey || !path || pi >= path.length){
             if (key !== roadKey) optTry = 0;   // 换目标了 = 换了个谜题，选项从头试
             path = hPath(G.x, G.y); pi = 0; roadKey = key;
