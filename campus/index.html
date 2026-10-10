@@ -440,6 +440,10 @@ function makeMap(id, def, build){
   def.portals = def.portals || [];
   def.triggers = def.triggers || [];
   def.objs = def.objs || [];
+  /* solid 是"画出来、但不让走"的矩形 [x0,y0,x1,y1]（闭区间）。
+     楼拆成独立图之后，校园上要留住楼的外观 —— 画法一点不改，
+     只是把里头判成实心。通往楼里的传送口不受影响 */
+  def.solid = def.solid || [];
   def.objs.forEach(function(O, i){ O._i = i; });   // 认下自己是第几个，旗标拿它当钥匙
   MAPS[id] = def;
   B = null;
@@ -590,10 +594,9 @@ NAME(5, 60, 4, 7, '厕所');    // 二号教学楼西翼南排。牢李的"想�
 /* ---------- 东侧：从大门往里，依次。门一律朝西 ----------
    实验楼跟教学楼一样是"竖空地"的壳子；艺术楼是"回"字 */
 ringBuilding(56, 95, '艺术楼');                      // 离大门最近，占了原来艺术楼+实验楼两块地
-/* 实验楼：楼里的东西都搬到 lab 那张图去了 ——
-   校园上只留一个实心的壳和门口那一格。踩门口进楼 */
-R('wall', 56, 72, 20, 20);
-R('door', 56, 81, 1, 2);               // 顶到三教原来的位置
+/* 实验楼：楼里是单独一张图了，但校园上照旧把它画出来 ——
+   "外观要保留"。让里头走不进去靠 makeMap 的 solid 矩形，不是把楼涂成一块灰 */
+bigBuilding(56, 72, '实验楼', 'west');               // 顶到三教原来的位置
 bigBuilding(56, 48, '第三教学楼', 'west');           // 三教上移，跟西边二号教学楼并排
 
 /* ---------- 中心广场：一整块草坪，路自己组成一个"田"字 ----------
@@ -691,7 +694,33 @@ function floor2Layout(){
    里面的形状还是 bigBuilding() 生成的那套，只是原点挪到了 (1,1)。
    ================================================ */
 function labLayout(){
-  bigBuilding(1, 1, '实验楼', 'west');
+  var W = 42, H = 30;
+  R('wall', 1, 1, W-2, H-2);          // 外壳（里头全是墙，下面再挖）
+  R('classroom', 2, 2, W-4, 10);      // 北排实验室 rows 2..11
+  R('wall', 2, 12, W-4, 1);           // 北排和走廊之间那道墙
+  R('corridor', 2, 13, W-4, 4);       // 当中一条长走廊 rows 13..16
+  R('wall', 2, 17, W-4, 1);           // 南排那道墙
+  R('classroom', 2, 18, W-4, 10);     // 南排 rows 18..27
+  [10, 20, 30].forEach(function(vx){  // 南北各隔成四间
+    R('wall', vx, 2, 1, 10);
+    R('wall', vx, 18, 1, 10);
+  });
+  [4, 14, 24, 34].forEach(function(dx){   // 每间朝走廊开一道门
+    R('door', dx, 12, 2, 1);
+    R('door', dx, 17, 2, 1);
+  });
+  R('door', 1, 14, 1, 2);             // 正门开在西头，进来就是走廊
+  R('stairs', 36, 13, 3, 4);          // 东头那截楼梯：焊着铁栅
+  NAME(1, 1, 40, 3, '实验楼');
+  NAME(2, 13, 33, 4, '走廊');
+  NAME(2,  2, 8, 10, '化学实验室（一）');
+  NAME(11, 2, 9, 10, '化学实验室（二）');
+  NAME(21, 2, 9, 10, '物理实验室');
+  NAME(31, 2, 9, 10, '器材室');
+  NAME(2,  18, 8, 10, '准备室');
+  NAME(11, 18, 9, 10, '仪器室');
+  NAME(21, 18, 9, 10, '竞赛辅导室');
+  NAME(31, 18, 9, 10, '厕所');
 }
 
 /* ================== 五号图：化学竞赛辅导室 ==================
@@ -747,7 +776,9 @@ function hillLayout(){
 /* ================== 登记两张图 ================== */
 makeMap('campus', {
   w: 80, h: 125,
-  spawn: [39, 122],                     // 大门口
+  spawn: [39, 122],
+  /* 实验楼里头：画得跟以前一模一样，可人走不进去（楼里另有一张图） */
+  solid: [[57, 73, 74, 90]],                     // 大门口
   statue: STATUE,                       // 只有校园有像，别的图没有就不画
   npcs: [
     /* 老师：晚自习在一号教学楼教室，其余时间在行政楼办公室。
@@ -978,31 +1009,30 @@ makeMap('hill', {
 }, hillLayout);
 
 makeMap('lab', {
-  w: 22, h: 22,
+  w: 42, h: 30,
   base: 'void',
-  spawn: [3, 10],
+  spawn: [3, 14],
   portals: [
-    /* 门口那道门 —— 出去回校园，落在楼外墙根。
+    /* 正门 —— 出去回校园，落在楼外墙根。
        千万别写 back:true：楼里那个厕所口也是"通向校园以外"的，
        会把 backTo 改写成"回 lab 自己"，于是这道门永远把自己送回来，
        人就出不了实验楼 */
-    { x:1, y:10, w:1, h:2, to:'campus', tx:54, ty:81 },
-    /* 西翼南排那间厕所 */
-    { x:3, y:12, w:2, h:1, to:'toilet', tx:8, ty:10 }
+    { x:1, y:14, w:1, h:2, to:'campus', tx:54, ty:81 },
+    /* 南排最东头那间是厕所 */
+    { x:34, y:17, w:2, h:1, to:'toilet', tx:8, ty:10 }
   ],
   objs: [
-    { x:3, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
+    { x:15, y:5,  ox:0, oy:-22, art:'chart',  who:'墙上那张周期表', verb:'看',
       talk:'pw_table', if:'擦完墙', once:true },
-    { x:5, y:7,  art:'board',  who:'钉反了的那块牌子', verb:'正过来',
-      talk:'sd_lab_laoli', if:['是:laoli','可以走动了'], once:true },
-    { x:5, y:7,  art:'drawer', who:'试剂柜',           verb:'拉开',
+    { x:5,  y:5,  art:'drawer', who:'试剂柜',           verb:'拉开',
       talk:'sd_lab_shui',  if:['是:shui','可以走动了'],  once:true },
-    { x:5, y:7,  art:'paper',  who:'讲台抽屉',         verb:'拉开',
-      talk:'sd_lab_logic', if:['是:logic','可以走动了'], once:true }
+    { x:25, y:5,  art:'paper',  who:'讲台抽屉',         verb:'拉开',
+      talk:'sd_lab_logic', if:['是:logic','可以走动了'], once:true },
+    { x:34, y:15, ox:0, oy:-24, art:'board', who:'钉反了的那块牌子', verb:'正过来',
+      talk:'sd_lab_laoli', if:['是:laoli','可以走动了'], once:true }
   ],
   triggers: [
-    { x:10, y:2,  w:2, h:1, once:true, talk:'stairs_shut' },
-    { x:10, y:19, w:2, h:1, once:true, talk:'stairs_shut' }
+    { x:36, y:13, w:3, h:1, once:true, talk:'stairs_shut' }
   ]
 }, labLayout);
 
@@ -1155,7 +1185,18 @@ function allObjs(){
   if (!CUR.allObjs) CUR.allObjs = (CUR.objs || []).concat(CUR.doorObjs || []);
   return CUR.allObjs;
 }
+function inSolidRect(tx, ty){
+  var R2 = (CUR && CUR.solid) || [];
+  for (var i=0;i<R2.length;i++){
+    var r = R2[i];
+    if (tx >= r[0] && tx <= r[2] && ty >= r[1] && ty <= r[3]) return true;
+  }
+  return false;
+}
 function solidAt(tx, ty){
+  /* 传送口一律能站 —— 不然踩不上去，换图就废了 */
+  if (isPortalTile(tx, ty)) return false;
+  if (inSolidRect(tx, ty)) return true;
   return !!TERRAIN[tileAt(tx,ty)].solid || doorBlocked(tx, ty);
 }
 
@@ -2250,7 +2291,7 @@ var GOALS = [
 
   /* ——— 水哥那条：抽屉密码三处线索 ——— */
   { if:'查过周期表',   map:'campus', t:'行政楼',   x:10, y:102 },
-  { if:'看过黑板式子', map:'lab',    t:'实验楼',         x:3,  y:5   },
+  { if:'看过黑板式子', map:'lab',    t:'实验楼',         x:15, y:5   },
   { if:'擦完墙',       map:'campus', t:'45 班空教室', x:6,  y:73  },
 
   /* ——— 数苔藓：一块一块来，箭头直接指下一块 ——— */
@@ -2885,7 +2926,7 @@ var CROWD = [];
 var TOILETS = [
   { map:'campus', x:5,  y:84, w:4, h:7 },   // 一号教学楼西翼南排
   { map:'campus', x:5,  y:60, w:4, h:7 },   // 二号教学楼西翼南排
-  { map:'lab',    x:2,  y:13, w:4, h:7 }    // 实验楼西翼南排（门在 58,83）
+  { map:'lab',    x:32, y:19, w:6, h:8 }    // 实验楼西翼南排（门在 58,83）
 ];
 function inToilet(){
   if (M.map === 'toilet') return true;        // 厕所现在是一张单独的图
