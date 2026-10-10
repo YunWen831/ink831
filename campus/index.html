@@ -1114,16 +1114,16 @@ makeMap('campus', {
     /* 后山那条路走到头 —— 那堵墙现在是一张单独的图 */
     { x:8,  y:6,  w:2, h:1, to:'hill', tx:10, ty:8 },
     /* 二号教学楼那间厕所现在在 hall2 那张图里 */
-    { x:56, y:81, w:1, h:2, to:'lab', tx:3, ty:10 },   // 实验楼门口 —— 楼里是单独一张图
+    { x:56, y:81, w:1, h:2, to:'lab', tx:3, ty:10, if:'开了·实验楼' }, // 实验楼门口
     /* 其余五栋：踩门口进楼，楼里各有自己一张图 */
-    { x:15, y:110, w:1, h:2, to:'museum', tx:3, ty:13 },
-    { x:23, y:100, w:1, h:2, to:'office', tx:3, ty:13 },
-    { x:23, y:57,  w:1, h:2, to:'hall2',  tx:3, ty:13 },
-    { x:56, y:57,  w:1, h:2, to:'hall3',  tx:3, ty:13 },
-    { x:56, y:104, w:1, h:2, to:'art',    tx:3, ty:13 },
+    { x:15, y:110, w:1, h:2, to:'museum', tx:3, ty:13, if:'开了·校史馆' },
+    { x:23, y:100, w:1, h:2, to:'office', tx:3, ty:13, if:'开了·行政楼' },
+    { x:23, y:57,  w:1, h:2, to:'hall2',  tx:3, ty:13, if:'开了·二号教学楼' },
+    { x:56, y:57,  w:1, h:2, to:'hall3',  tx:3, ty:13, if:'开了·第三教学楼' },
+    { x:56, y:104, w:1, h:2, to:'art',    tx:3, ty:13, if:'开了·艺术楼' },
     /* 得先按门那段（open_bell）—— 不然人一踩就被传进去，开场白没了 */
     { x:23, y:81,  w:1, h:2, to:'school1', tx:21, ty:16, if:'进了教学楼' },
-    { x:39, y:43,  w:1, h:1, to:'tech',    tx:3, ty:13 },
+    { x:39, y:43,  w:1, h:1, to:'tech',    tx:3, ty:13, if:'开了·科技楼' },
   ],
   /* 剧情触发区：踩进去就跑一段。once 的只跑一次。
      按顺序读就是这条线的开场：到校 → 进楼 → 落座看纸条 */
@@ -1136,19 +1136,19 @@ makeMap('campus', {
     { x:32, y:117, ox:0, oy:-14, art:'window', who:'保安室的窗', verb:'看看',
       talk:'open_arrive', once:true, cp:'到校' },
     { x:23, y:57,  art:'door', who:'二号教学楼的正门', verb:'推开',
-      talk:'door_2', once:true, open:true },
+      talk:'door_2', once:true, open:true, set:'开了·二号教学楼' },
     { x:56, y:57,  art:'door', who:'第三教学楼的正门', verb:'推开',
-      talk:'door_3', once:true, open:true },
+      talk:'door_3', once:true, open:true, set:'开了·第三教学楼' },
     { x:56, y:81,  art:'door', who:'实验楼的正门',     verb:'推开',
-      talk:'door_lab', once:true, open:true },
+      talk:'door_lab', once:true, open:true, set:'开了·实验楼' },
     { x:56, y:104, art:'door', who:'艺术楼的正门',     verb:'推开',
-      talk:'door_art', once:true, open:true },
+      talk:'door_art', once:true, open:true, set:'开了·艺术楼' },
     { x:23, y:100, art:'door', who:'行政楼的正门',     verb:'推开',
-      talk:'door_office', once:true, open:true },
+      talk:'door_office', once:true, open:true, set:'开了·行政楼' },
     { x:15, y:110, art:'door', who:'校史馆的门',       verb:'推开',
-      talk:'door_museum', once:true, open:true },
+      talk:'door_museum', once:true, open:true, set:'开了·校史馆' },
     { x:39, y:43,  art:'door', who:'科技楼的正门',     verb:'推开',
-      talk:'door_tech', once:true, open:true },
+      talk:'door_tech', once:true, open:true, set:'开了·科技楼' },
     { x:8,  y:22,  art:'tree',   who:'那排朝向不对的树', verb:'看看',
       talk:'pz_trees', if:'擦完墙', once:true },
     { x:39, y:25,  art:'phone',  who:'你的手机', verb:'摸出来',
@@ -1545,6 +1545,9 @@ function isPortalTile(x, y){
   if (!CUR || !CUR.portals) return false;
   for (var i=0;i<CUR.portals.length;i++){
     var P = CUR.portals[i];
+    /* 口子上带了条件、条件又没到 —— 那这道口现在还不是口，是道关着的门。
+       不这么写的话，门格子照旧算"通"，人一踩就进去了，门成了摆设 */
+    if (P.if && !flagOn(P.if)) continue;
     if (x >= P.x && x < P.x+P.w && y >= P.y && y < P.y+P.h) return true;
   }
   return false;
@@ -3131,6 +3134,13 @@ var CLUES = {
   '镜子上三个字': '厕所雾玻璃上有手指写的三个字：别答应。',
   '擦完墙':       '后山墙根六块苔底下刻着六个字：上、师、如、玻、门、数 —— 正好是守则六条的头一个字。',
 
+  /* ---- 下面这五条：动作一直有，可旗标立了没人读 —— 做完了什么都不留 ---- */
+  '算过值日表':   '二楼那间教室的黑板右下角留着半块值日表：九月十七日，星期五。可今天也是九月十七日，星期二 —— 表停住的那天不是今天，是某一年的九月十七日。',
+  '看过那局游戏': '最后一排靠窗那张桌上摆着一台手机，一局第五人格永远打不完。求生者那一栏只有一个头像亮着，ID 是 0917 —— 网线那头那个人，一直在等他走下一步。',
+  '数过名单':     '46 班教室墙上那张长名单，从头数到尾是十九行。最后一行底下还留着半行空白 —— 像是本来还要再写一个，笔停了。',
+  '数过窗户':     '走廊那排窗户，走一遍数出来是四扇。可图纸上写着每层三间 —— 那第四扇，是开在哪儿的。',
+  '45班那张桌子': '45 班最后一排靠门那张桌子上，用圆规刻着两个名字。一个不认得，另一个是 46 班名册第一行那个 —— 刻得很深，像是刻了很多遍。',
+
   '拿回手机':     'lg7 抽屉里压着一张化学竞赛报名表，整张只填了一个名字，被水泡花了。背面他写着：三年前填的，填完就没敢再往下填。',
   '看懂树阵':     '从后山回来的时候，树全换了朝向 —— 它们都朝着西边，背冲着东边。',
 
@@ -3232,6 +3242,11 @@ var TASKS = [
   { ch:3, t:'等走廊把那串名字念完',    f:'念名声过去了' },
   { ch:3, t:'在黑板正中间译出那页笔记', f:'译出化学笔记' },
   { ch:3, who:'logic', t:'靠窗那张桌子坐下看看', f:'热椅子', opt:true },
+  { ch:3, t:'二楼那间教室的值日表，对一下日期', f:'算过值日表', opt:true },
+  { ch:3, t:'最后一排那张桌上的那局游戏',       f:'看过那局游戏', opt:true },
+  { ch:2, who:'laoli', t:'数一数教室墙上那张长名单', f:'数过名单', opt:true },
+  { ch:2, who:'logic', t:'数一数走廊那排窗户',       f:'数过窗户', opt:true },
+  { ch:2, who:'laoli', t:'45 班那张桌子上的两个名字', f:'45班那张桌子', opt:true },
 
   /* 四、跑 */
   { ch:4, t:'穿过校园，去最北头的科技楼', f:'该去科技楼了' },
@@ -5339,6 +5354,28 @@ function render(){
     }
   });
 
+  /* ---- 坐满的那一屋子人：stare 的时候会一起转过头 ----
+     直接画站立的小人，一屋子人齐刷刷站着，看着像罚站。
+     现在只画上半身 + 前面补一张桌子 —— 一眼就是"坐在那儿"。
+     画在小人之前 —— 原来画在人后面，你一坐下就被这一屋子人盖上，
+     屏幕上找不着自己 */
+  CROWD.forEach(function(c){
+    if (c.map !== M.map) return;
+    var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
+    if (cxp < camX - 60 || cxp > camX + W + 60 || cyp < camY - 90 || cyp > camY + H + 60) return;
+    var cdir = 'down';
+    /* 被追的时候，全校的人一起转过来看着你 —— 他们在数你 */
+    if (M.stare > 0 || M.chase) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
+    /* 画完整小人，再把桌子压在他腿前面 —— 挡住腿就是"坐着"。
+       （先前想裁掉下半身，裁切没生效，人整个不见了） */
+    drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
+    if (!c.desk) return;                    // 校园里站着的人，前面没有桌子
+    var w = 16*2;
+    cx.fillStyle = '#7d5530';
+    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 14);
+    cx.fillStyle = '#a8763f';
+    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 5);
+  });
   /* 小人按 y 排序再画，下面的挡住上面的 —— 就这一点就分出前后了 */
   var order = M.npcs.slice();
   order.push({ id:'__me', me:true, x:M.p.x, y:M.p.y });
@@ -5360,6 +5397,23 @@ function render(){
   order.sort(function(a,b){ return a.y - b.y; });
   order.forEach(function(o){
     if (o.me){
+      /* 身边人一多，脚下垫一圈暖光 —— 一屋子一样的小人里，
+         得一眼认出哪个是自己 */
+      var near = 0;
+      for (var ci2 = 0; ci2 < CROWD.length; ci2++){
+        var c2 = CROWD[ci2];
+        if (c2.map !== M.map) continue;
+        if (Math.hypot(c2.x*TILE + TILE/2 - M.p.x, c2.y*TILE + TILE/2 - M.p.y) < TILE*2.6) near++;
+      }
+      if (near >= 3){
+        cx.save();
+        var gr = cx.createRadialGradient(M.p.x, M.p.y + 4, 2, M.p.x, M.p.y + 4, 27);
+        gr.addColorStop(0, 'rgba(232,163,61,.40)');
+        gr.addColorStop(1, 'rgba(232,163,61,0)');
+        cx.fillStyle = gr;
+        cx.beginPath(); cx.ellipse(M.p.x, M.p.y + 4, 27, 13, 0, 0, 7); cx.fill();
+        cx.restore();
+      }
       drawSprite(M.me.id, M.p.x, M.p.y, M.p.dir, M.p.anim, M.p.moving, 2);
     } else if (o.obj){
       var O = o.O;
@@ -5480,26 +5534,6 @@ function render(){
     cx.restore();
   });
 
-  /* ---- 坐满的那一屋子人：stare 的时候会一起转过头 ----
-     直接画站立的小人，一屋子人齐刷刷站着，看着像罚站。
-     现在只画上半身 + 前面补一张桌子 —— 一眼就是"坐在那儿" */
-  CROWD.forEach(function(c){
-    if (c.map !== M.map) return;
-    var cxp = c.x*TILE + TILE/2, cyp = c.y*TILE + TILE/2;
-    if (cxp < camX - 60 || cxp > camX + W + 60 || cyp < camY - 90 || cyp > camY + H + 60) return;
-    var cdir = 'down';
-    /* 被追的时候，全校的人一起转过来看着你 —— 他们在数你 */
-    if (M.stare > 0 || M.chase) cdir = faceTowards(cxp, cyp, M.p.x, M.p.y);
-    /* 画完整小人，再把桌子压在他腿前面 —— 挡住腿就是"坐着"。
-       （先前想裁掉下半身，裁切没生效，人整个不见了） */
-    drawSprite(c.id, cxp, cyp, cdir, 0, false, 2);
-    if (!c.desk) return;                    // 校园里站着的人，前面没有桌子
-    var w = 16*2;
-    cx.fillStyle = '#7d5530';
-    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 14);
-    cx.fillStyle = '#a8763f';
-    cx.fillRect(cxp - w/2 + 2, cyp - 13, w - 4, 5);
-  });
 
 
   /* ---- 多站的那个人：站在那儿，你走近了就没有了 ---- */
@@ -6200,8 +6234,12 @@ clockEl.style.display = 'none';
         out.push('走廊·拿牢李旗标 → ' + hitAt(16, 74, ['镜子上三个字']));
       }
       if (mode === 'rule'){
-        /* 守则第四条：在玻璃前面站住不动，应该死 */
-        setFlag('看过守则');
+        /* 守则第四条：在玻璃前面站住不动，应该死。
+           那块玻璃在一号教学楼那张图上 —— 校园上根本没有会死的触发区，
+           原来在这儿干找，当然"找不到" */
+        loadMap('school1', 16, 20);
+        M.fade = 0;
+        setFlag(['是:laoli','看过守则','可以走动了']);
         var RG = null;
         CUR.triggers.forEach(function(G){ if (G.kill) RG = G; });
         if (!RG) out.push('找不到"会死"的触发区');
@@ -6559,6 +6597,9 @@ clockEl.style.display = 'none';
         out.push('① 到校 说完 → 存档点里有没有「到校」=' + !!(CP && CP.flags['到校']));
         cpBeat('open_bell');
         out.push('② 进楼 说完 → 「进了教学楼」=' + !!(CP && CP.flags['进了教学楼']));
+        /* 落座、出教室这两段都在一号教学楼那张图上 */
+        loadMap('school1', 16, 20);
+        M.fade = 0; M.portalCool = 0; M.talk.cool = 0;
         cpBeat('open_class');
         out.push('③ 落座 说完 → 「纸条」=' + !!(CP && CP.flags['纸条']));
         var FT = null;
@@ -6974,6 +7015,10 @@ clockEl.style.display = 'none';
           ['科技楼',    'door_tech',  39, 46, 'w', 39, 43]
         ];
         function past(dx, dy, key, doorX, doorY){
+          /* 换图了就是进去了 —— 别拿坐标比：人已经站在新那张图上了，
+             坐标是新图的坐标，比出来永远是"没进去"（三教/实验楼/艺术楼
+             就是这么被误判成"还是进不去"的） */
+          if (M.map !== 'campus') return true;
           if (key === 'a') return Math.floor(M.p.x/TILE) < doorX;
           if (key === 'd') return Math.floor(M.p.x/TILE) > doorX;
           if (key === 'w') return Math.floor(M.p.y/TILE) < doorY;
@@ -7401,6 +7446,80 @@ clockEl.style.display = 'none';
         out.push('图=' + gid + ' ' + MAPW + 'x' + MAPH +
                  '  图例：#墙 D门 .走廊 c教室 f室内 g园子 S楼梯 p路 @换图口 空格=没有' +
                  String.fromCharCode(10) + rows.join(String.fromCharCode(10)));
+      }
+      if (mode === 'opt'){
+        /* 任务清单里标了 opt 的，真走过去做一遍：先找出立那个旗标的实物，
+           走过去按，选项挨个试、数字题按题面自己给的答案打。
+           查两件事：这一条做不做得了；做完了旗标有没有真的立起来 */
+        var wh5 = (/([?&]as=(\w+))/.exec(q) || [,'','laoli'])[2];
+        var want5 = TASKS.filter(function(T){
+          return T.opt && typeof T.f === 'string' && (!T.who || T.who === wh5);
+        });
+        function pre5(){
+          FLAGS = {};
+          setFlag(['是:' + wh5, '可以走动了', '看过守则', '上过二楼', '该上二楼了',
+                   '进了教学楼', '该查名单了', '拿过名单', '有翻译笔', '该去后山了',
+                   '擦完墙', '见过:lg7', '知道lg7在抓人',
+                   '帮logic', '帮值周生', '看到六块苔', '镜子上三个字', '镜子盯着你']);
+        }
+        function find5(f){
+          var hit = null;
+          Object.keys(MAPS).forEach(function(mid){
+            if (hit) return;
+            var mp = MAPS[mid];
+            (mp.objs || []).concat(mp.triggers || []).forEach(function(O){
+              if (hit || !O.talk) return;
+              var sc = TALK[O.talk]; if (!sc) return;
+              Object.keys(sc.nodes).forEach(function(nk){
+                if (hit) return;
+                var st = sc.nodes[nk].set;
+                var arr = (st && st.push) ? st : (st ? [st] : []);
+                if (arr.indexOf(f) >= 0) hit = { map: mid, talk: O.talk };
+              });
+            });
+          });
+          return hit;
+        }
+        function drain5(pick){
+          var g = 0, ans = '';
+          while (M.talk.open && g++ < 40){
+            var ndc = M.talk.script.nodes[M.talk.nodeId];
+            if (M.pad){
+              if (!ans){
+                if (ndc && ndc.ask) ans = String(ndc.ask.key);   // 答案题面自己写着
+                else { hidePad(); M.talk.open = false; return; }
+              }
+              for (var ci = 0; ci < ans.length; ci++) padKey(ans.charAt(ci));
+              padKey('定'); ans = '';
+              if (M.pad){ hidePad(); M.talk.open = false; return; }   // 还开着 = 答错了
+              continue;
+            }
+            if (ndc && ndc.opts && pick !== undefined)
+              M.talk.sel = Math.min(pick, (M.talk.shown || []).length - 1);
+            M.talk.typed = 1e9; advanceOrChoose();
+          }
+        }
+        var got5 = 0;
+        want5.forEach(function(T){
+          var at = find5(T.f);
+          if (!at){ out.push('[?] ' + T.t + ' —— 找不到立「' + T.f + '」的实物'); return; }
+          var done = false, how = '';
+          var picks = [undefined, 0, 1, 2, 3, 4];
+          for (var pi5 = 0; pi5 < picks.length && !done; pi5++){
+            pre5();
+            loadMap(at.map, MAPS[at.map].spawn[0], MAPS[at.map].spawn[1]);
+            M.fade = 0; M.portalCool = 0; M.talk.cool = 0; M.talk.open = false;
+            if (!pressByName(at.talk)) continue;
+            drain5(picks[pi5]);
+            if (flagOn(T.f)){
+              done = true;
+              how = (picks[pi5] === undefined) ? '直接做完' : ('选对第' + (picks[pi5] + 1) + '个');
+            }
+          }
+          if (done){ got5++; out.push('[过] ' + T.t + ' ← ' + how); }
+          else out.push('[死] ' + T.t + '（' + T.f + '）做完了旗标没立起来');
+        });
+        out.push('支线任务点走得通 ' + got5 + '/' + want5.length + '（' + wh5 + '）');
       }
       if (mode === 'ask'){
         /* 只为一件事：把数字键盘那一屏停住，截图看它有没有压住要答的那句话 */
