@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#12100e">
-<title>第十九声 · 校园异闻</title>
+<title>在学校乱逛</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#12100e;
@@ -385,7 +385,7 @@
 </div>
 
 <div class="screen on" id="scTitle">
-  <h1>第十九声<small>校园异闻 · THE LAST ROLL CALL</small></h1><p class="intro">早读点名时，空座位上有人答了一声「到」。<br>今天，学校里所有人都在笑。</p>
+  <h1>在学校乱逛<small>放学了，先别回头 · AFTER CLASS</small></h1><p class="intro">早读点名时，空座位上有人答了一声「到」。<br>今天，学校里所有人都在笑。</p>
   <div class="tip">
     <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　按住 <span class="kbd">Shift</span> 快跑　·　<span class="kbd">Tab</span> 翻本子<br>
     走近人或物件，按 <b>E</b> / <b>Z</b> / <b>空格</b> 调查；手机左侧拖动走路，右下操作。<br>
@@ -3843,7 +3843,8 @@ function snapshot(){
     flags:JSON.parse(JSON.stringify(FLAGS)), talked:Object.assign({},M.talked),
     reentry:Object.assign({},M.reentry), seq:M.seq, doors:Object.assign({},DOOR_OPEN),
     backTo:M.backTo || null, toiletN:M.toiletN || 0, walked:M.walked || 0,
-    urgeNext:M.urgeNext || URGE_STEP, urgeGap:M.urgeGap || URGE_STEP, laugh:M.laugh || 0 };
+    urgeNext:M.urgeNext || URGE_STEP, urgeGap:M.urgeGap || URGE_STEP, laugh:M.laugh || 0,
+    bossHp:M.boss ? M.boss.hp : M.bossRetryHp || 3 };
 }
 function saveGame(){
   if (M.screen !== 'play' || !M.me) return;
@@ -3880,7 +3881,7 @@ function loadGame(){
   M.safeX = Math.floor(M.p.x/TILE); M.safeY = Math.floor(M.p.y/TILE);
   if (M.toiletN) toiletEnter2();
   if (flagOn('被追了') && !flagOn('冲出校门') && M.map !== 'arena') startChase(true);
-  if (M.map === 'arena') startBoss();
+  if (M.map === 'arena') startBoss(s.bossHp);
   applyClock(); checkpoint(); saveGame();
   toast('调查继续。按本子查看当前主线。');
   return true;
@@ -4044,7 +4045,7 @@ function respawn(){
   M.urgeGap = s.urgeGap || URGE_STEP; M.urgeNext = s.urgeNext || M.walked + M.urgeGap;
   M.laugh = 0; laughSet(0);
   loadMap(s.map,0,0); M.p.x = s.x; M.p.y = s.y; recoverPosition();
-  if (s.map === 'arena') startBoss();
+  if (s.map === 'arena') startBoss(s.bossHp);
   else if (flagOn('被追了') && !flagOn('冲出校门')) startChase(true);
   applyClock(); M.renderDirty = true;
 }
@@ -4161,14 +4162,15 @@ var PATTERN = [ ['arc', 'arc', 'arc'],
                 ['spin', 'spit', 'arc', 'spin', 'spit'] ];
 var VARIETY = [];
 
-function startBoss(){
+function startBoss(hp){
   /* 这场打完之前那张图装不下 —— 换到大图上来打。
      先记下"从哪儿进来的"：万一战斗起不来，得把人送回去 */
   if (M.map !== 'arena'){
     M.arenaBack = { map: M.map, x: M.p.x, y: M.p.y };
     loadMap('arena', 17, 17); M.fade = 0.4; M.portalCool = 0.8;
   }
-  M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
+  var resumeHp = clamp(hp || M.bossRetryHp || 3,1,3); delete M.bossRetryHp;
+  M.boss = { hp: resumeHp, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
              cd: 0, inv: 1.4, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
              wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 7.5 + (flagOn('校准节拍') ? 2 : 0), pat: null,
              /* 一圈只盖这么多（弧度）—— 剩下的就是缺口 */
@@ -4209,10 +4211,11 @@ function bossHudDraw(force){
   } else {
     say = '圈上有缺口 —— 站到缺口那一段里，圈扫过去也没事';
   }
-  el.innerHTML = '<div class="nm">奶蛙</div>' +
+  el.innerHTML = '<div class="nm">奶蛙 · ' + ['','真假信号','模仿影子','循环广播'][B.hp] + '</div>' +
                  '<div class="hp">' + h + '</div>' +
                  '<div class="lf">' + l + '</div>' +
-                 '<div class="say' + (B.open > 0 ? ' go' : '') + '">' + say + '</div>';
+                 '<div class="say' + (B.open > 0 ? ' go' : '') + '">' + say + '</div>' +
+                 '<div class="say">' + (B.hp===2?'影子重复你两秒前的路线。别原地等它。':B.hp===1?'白灯持续亮才是真的；闪烁的灯在骗人。':'先关掉第一个回声节点。圈的缺口可以通过。') + '</div>';
 }
 /* O 是玩家按的那张讲桌。不给就当成"亮着的那张"（探针走这条）。
    按错桌子不掉血 —— 但那一趟白跑，窗口就那么长 */
@@ -4240,6 +4243,7 @@ function bossHit(O){
   B.phase = 'wave'; B.wave = 0; B.since = 1.0; B.open = 0; B.lit = -1;
   bossHudDraw(true);
   if (B.hp <= 0){ bossEnd(); return true; }
+  checkpoint('回声节点关闭');
   toast('（按住了一下。它又笑了。）', 1.4);
   return true;
 }
@@ -4334,7 +4338,7 @@ function bossTick(dt){
              从科技楼门口重新跑一趟校园，跑到校门口 */
           bossHud(false);
           droneOff();
-          M.boss = null;
+          M.bossRetryHp = B.hp; M.boss = null;
           M.bossRetryT = 1.2; M.renderDirty = true;
           toast('没能压住笑声。原地重试，调查线索全部保留。', 2.4);
           return;
@@ -5405,10 +5409,11 @@ function update(dt){
      后面再乘测试加速（「疾」，默认 1×） */
   var running = !!(keys['shift'] || M.run);  // 憋着跑不起来
   var spd = SPD * (running ? RUN_MULT : 1) * TEST_SPEEDS[M.fast || 0];
+  if (M.map === 'night' && M.night && M.night.crouch) spd = SPD * 0.5 * TEST_SPEEDS[M.fast || 0];
   // Toilet detours never slow the main route.  // 牢李憋着的时候走不快
 
   var mvx = 0, mvy = 0;
-  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut && !(M.cardT > 0)){
+  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut && !(M.cardT > 0) && !(M.night && M.night.hidden)){
     if (keys['a']||keys['arrowleft'])  mvx -= 1;
     if (keys['d']||keys['arrowright']) mvx += 1;
     if (keys['w']||keys['arrowup'])    mvy -= 1;
@@ -6062,7 +6067,7 @@ function render(){
     if (B.open > 0 && B.lit >= 0){
       var L = B.plats[B.lit];
       var lx = L.x*TILE + TILE/2, ly = L.y*TILE + TILE/2;
-      var pu = 0.45 + 0.4 * Math.sin(B.t * 9);
+      var pu = B.hp===1 ? 0.85 : 0.45 + 0.4 * Math.sin(B.t * 9);
       cx.fillStyle = 'rgba(255,255,255,' + (pu * 0.35).toFixed(2) + ')';
       cx.beginPath(); cx.ellipse(lx, ly + 12, 46, 24, 0, 0, 7); cx.fill();
       cx.strokeStyle = 'rgba(255,255,255,' + pu.toFixed(2) + ')';
@@ -6138,6 +6143,7 @@ function render(){
     cx.fillRect(0, 0, MAPW*TILE, MAPH*TILE);
   }
 
+  drawWanderWorld();
   cx.restore();
 
   /* 死亡：黑幕压下来，中间一行字。
@@ -8401,7 +8407,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v21';
+var BUILD = 'v22';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8462,7 +8468,8 @@ function toggleSnd(){
 }
 
 </script>
-<script src="story.js?v=21"></script>
+<script src="story.js?v=22"></script>
+<script src="wander.js?v=22"></script>
 <script>
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
