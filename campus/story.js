@@ -150,12 +150,14 @@ function mainStepReference(){ return mainSteps().find(function(s){return !taskDo
 // Visiting a puzzle is not completing it. Check its reward so existing saves
 // containing a failed attempt can retry without losing any other progress.
 var RETRY_FLAGS={lg_hooks:'数过名单',lg_windows:'数过窗户',h3_log:'数过广播记录',
-  f2_roster:'算过值日表',f2_phone:'看过那局游戏'};
+  f2_roster:'算过值日表',f2_phone:'看过那局游戏',rs_open:'进了辅导室'};
 function beatSpent(beat,key){
   if(!FLAGS[key]) return false;
+  // Room introductions finish before their chapter does. Retrying by the
+  // chapter reward would reopen rs_open every frame and prevent reaching him.
+  if(RETRY_FLAGS[beat.talk]) return flagOn(RETRY_FLAGS[beat.talk]);
   var st=mainSteps().find(function(s){return s.scripts.includes(beat.talk);});
   if(st) return taskDone(st);
-  if(RETRY_FLAGS[beat.talk]) return flagOn(RETRY_FLAGS[beat.talk]);
   return true;
 }
 // mainSteps concatenates the original step objects, so references stay stable.
