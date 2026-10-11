@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#12100e">
-<title>在校园里乱逛</title>
+<title>第十九声 · 校园异闻</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body { width:100%; height:100%; overflow:hidden; background:#12100e;
@@ -311,6 +311,27 @@
 
   #probe { position:absolute; left:0; top:0; z-index:99; font-size:1px; opacity:.01;
     pointer-events:none; }
+
+  .intro { text-align:center; line-height:1.9; color:#ddc8a8; font-size:15px; }
+  .quality { padding:8px 18px; font-size:12px; color:#cbbda6; }
+  #btnFast.on { display:none; }
+  body.debug #btnFast.on { display:block; }
+  #btnBoss { display:none; }
+  body.debug #btnBoss { display:block; }
+  #tension { display:none; position:absolute; z-index:5; left:14px; top:104px;
+    width:100px; height:7px; border-radius:4px; background:#39332c; pointer-events:none; }
+  #tension.on { display:block; }
+  #tension span { position:absolute; top:-18px; font-size:11px; color:#cbbda6; }
+  #tension i { display:block; height:100%; width:0; background:#d7b16c; border-radius:4px; }
+  #tension.high i { background:#ed7665; }
+  #card { cursor:pointer; pointer-events:none; }
+  #card.on { pointer-events:auto; }
+  #card::after { content:'轻点或按空格继续'; display:block; position:absolute; bottom:8px; font-size:11px; color:#cbbda6; }
+  #boss .say { max-width:min(88vw,520px); }
+  @media (max-width:520px) { #dlgBox { max-height:55dvh; overflow-y:auto; touch-action:pan-y; }
+    #dlgTxt { font-size:16px; line-height:1.65; } #dlgAv { width:56px; height:56px; }
+    #scBook { touch-action:pan-y; } #boss { top:116px; width:92vw; }
+    #boss .say { margin-inline:auto; } .screen { padding:18px; gap:12px; } }
 </style>
 </head>
 <body>
@@ -341,12 +362,12 @@
 </div>
 
 <div id="stick"><div id="knob"></div></div>
-<button id="act" type="button">说话</button>
+<button id="act" type="button">调查</button>
 <button id="run" type="button">跑</button>
 <button id="btnBook" type="button">本</button>
-<button id="btnFast" type="button">疾</button>
+<button id="btnFast" type="button" aria-label="调试加速">疾</button>
 <button id="btnSnd" type="button">声</button>
-<div id="toast"></div>
+<div id="toast" role="status"></div><div id="tension" aria-label="笑欲"><span>笑欲</span><i></i></div>
 <!-- 数字键盘：谜题要你"数完输进来"，不是四选一瞎猜 -->
 <div id="pad"><div class="ask"></div><div class="buf"></div><div class="keys"></div></div>
 <div id="chase"><div class="big"></div><div class="sm">离下课铃</div><div class="ct"></div></div>
@@ -360,18 +381,18 @@
 <div class="screen" id="scBook">
   <h2>本子</h2>
   <div id="bookList"></div>
-  <button class="btn" id="btnBookClose">合上</button>
+  <button class="btn quality" id="btnQualityBook">画质：省电</button><button class="btn" id="btnBookClose">合上</button>
 </div>
 
 <div class="screen on" id="scTitle">
-  <h1>在校园里乱逛<small>CAMPUS</small></h1>
+  <h1>第十九声<small>校园异闻 · THE LAST ROLL CALL</small></h1><p class="intro">早读点名时，空座位上有人答了一声「到」。<br>今天，学校里所有人都在笑。</p>
   <div class="tip">
     <span class="kbd">WASD</span><span class="kbd">↑↓←→</span> 走路　·　按住 <span class="kbd">Shift</span> 快跑　·　<span class="kbd">Tab</span> 翻本子<br>
-    走到人跟前，按 <b>Z</b> / <b>空格</b> 跟他说话；手机左下拖动走路，右下三个圆键。<br>
+    走近人或物件，按 <b>E</b> / <b>Z</b> / <b>空格</b> 调查；手机左侧拖动走路，右下操作。<br>
     教学楼里有楼梯口，踩上去能上楼；路上捡到东西会自动记进本子。<br>
-    进度的存着的，关了页再回来能接着走。
+    本子会记录当前主线和支线。进度自动保存，离开页面后可继续。<br>靠近笑着的人时不要久站；走动可以缓解笑欲。
   </div>
-  <button class="btn" id="btnStart">出门</button>
+  <button class="btn" id="btnStart">开始调查</button><button class="btn quality" id="btnQuality">画质：省电</button>
   <button class="btn" id="btnCont">接着上次</button>
   <div class="tip" id="contTip"></div>
 </div>
@@ -3000,14 +3021,11 @@ pressEl.addEventListener('click', function(e){ e.stopPropagation(); });
 function card(text, secs){
   cardTxt.textContent = text;
   cardEl.classList.add('on');
-  M.cardT = (secs || 2.8);
+  M.cardT = secs || 3.4;
+  M.renderDirty = true;
   dlgEl.classList.remove('on');
   hidePress();
-  /* 场景卡等于把这段对话收了尾 —— 必须走 closeTalk 而不是自己设个
-     M.talk.open=false 就算完。少了它，那张卡之后的按钮全都不回来
-     （这就是"刚进去按键会消失"） */
-  closeTalk();
-  sfxPick();
+  clearInput();
 }
 function flashRed(){ redEl.classList.add('on'); setTimeout(function(){ redEl.classList.remove('on'); }, 130); }
 function shake(secs){ M.shakeT = secs || 0.5; }
@@ -3108,58 +3126,15 @@ function toiletGoal(){
   return { t:'出去 —— 原路回去', x:9, y:11, map:'toilet' };
 }
 function goalNow(){
-  /* 憋着的时候别管什么剧情了 —— 目标直接换成最近的厕所，
-     箭头也会跟着指过去。不然玩家根本不知道该往哪儿跑 */
-  if (!M.chase && flagOn('想上厕所')){
-    if (M.map === 'toilet') return toiletGoal();
-    /* 厕所是单独一张图：指那间屋子没用（那是换图的门口），
-       要指"通到厕所去的那个口子"。人一踩上去就换图 */
-    var bp = null, bd2 = 1e9, px2 = M.p.x/TILE, py2 = M.p.y/TILE;
-    (CUR.portals||[]).forEach(function(P){
-      if (P.to !== 'toilet' || (P.if && !flagOn(P.if))) return;
-      var cx = P.x + P.w/2 - 0.5, cy = P.y + P.h/2 - 0.5;
-      var d = Math.hypot(cx - px2, cy - py2);
-      if (d < bd2){ bd2 = d; bp = { t:'厕所 —— 憋着走不快', x: P.x + Math.floor(P.w/2),
-                                    y: P.y + Math.floor(P.h/2), map: M.map }; }
-    });
-    if (bp) return bp;
-  }
-  if (!M.chase && M.map === 'toilet') return toiletGoal();
-  /* 打起来了：别再说"跟他说话"了，说怎么打 */
   if (M.boss){
     if (M.boss.open > 0 && M.boss.lit >= 0){
-      var LP = M.boss.plats[M.boss.lit];
-      return { t:'它歇了 —— 去' + LP.nm + '那张讲桌按下去',
-               x: LP.x, y: LP.y, map: 'arena' };
+      var P = M.boss.plats[M.boss.lit];
+      return { t:'反击：去' + P.nm + '亮着的讲桌，按调查', x:P.x, y:P.y, map:'arena' };
     }
-    return { t:'圈上有缺口 —— 站到缺口那一段里',
-             x: Math.round(M.boss.cx/TILE), y: Math.round(M.boss.cy/TILE), map: 'arena' };
+    return { t:'躲开金色弧线，站在圈的缺口里', x:17, y:17, map:'arena' };
   }
-  /* logic 中段：三处线索，缺哪条指哪条；三条齐了才指楼梯。
-     静态条目写不了"这条还没看"（条件只能写"成立"），写成死循环过 ——
-     读过登记表以后目标还一直指登记表，人就卡在门口不动了 */
-  if (!M.chase && M.map === 'school1' && flagOn('是:logic') &&
-      flagOn('该上二楼了') && !flagOn('可以上去了')){
-    if (!flagOn('看过平面图'))
-      return { t:'走廊墙上的楼层平面图', x:20, y:20, map:'school1' };
-    if (!flagOn('数过门牌'))
-      return { t:'走廊里那排门牌', x:19, y:22, map:'school1' };
-    if (!flagOn('看过登记表'))
-      return { t:'班主任办公室门口那本登记表', x:20, y:13, map:'school1' };
-    return { t:'走廊东头那道楼梯', x:16, y:10, map:'school1' };
-  }
-  for (var i=0;i<GOALS.length;i++){
-    var G = GOALS[i];
-    if (!goalOK(G)) continue;
-    /* 带条件的（="剧情阶段"）在别的图上也返回 —— 玩家得知道"该去哪栋楼"。
-       原来这儿一律 continue，跨图的那一步就被跳过去了：比如
-       "看完黑板 → 去实验楼"，人在校园上永远看不见这步，目标一直停在上一句。
-       但没有条件的纯兜底条目（"往东走"那种）只在它自己那张图上算数，
-       不然它会永远抢在最前面 */
-    if (G.map && M.map !== G.map && !G.if) continue;
-    return G;
-  }
-  return null;
+  if (M.chase) return { t:'向南跑到校门，穿过人排的缺口', x:39, y:123, map:'campus' };
+  return mainGoal();
 }
 /* 目标上的条件。写字符串就是"这个旗标立了"；写数组就是"全都得立"。
    有的步骤光看一个旗标会指错 —— 见"上楼"那一条 */
@@ -3439,7 +3414,7 @@ function clockText(min){
 }
 /* 剧情把时间往前推。进制是分钟，写 setClock(7*60+30) 就是七点半 */
 function setClock(min){
-  M.clock = min;
+  M.clock = Math.max(M.clock || 0, min);
   applyClock();
   if (clockEl) clockEl.textContent = clockText(M.clock);
 }
@@ -3486,7 +3461,10 @@ function speaker(id){
    ============================================ */
 var cv = document.getElementById('cv'), cx = cv.getContext('2d');
 var W = 0, H = 0, DPR = 1, camX = 0, camY = 0;
-var DPR_CAP = ('ontouchstart' in window) ? 1.5 : 2;
+var MOBILE = matchMedia('(pointer:coarse)').matches || ('ontouchstart' in window);
+var QUALITY = MOBILE ? 'low' : 'balanced';
+try { QUALITY = localStorage.getItem('ink831:quality') || QUALITY; } catch(e){}
+var DPR_CAP = QUALITY === 'low' ? 1 : 1.5;
 function resize(){
   DPR = Math.min(window.devicePixelRatio||1, DPR_CAP);
   W = cv.clientWidth; H = cv.clientHeight;
@@ -3666,7 +3644,7 @@ function cutNext(){
   if (!C) return;
   C.i++;
   if (C.i >= C.list.length){
-    M.cut = null;
+    M.cut = null; M.cardT = 0; cardEl.classList.remove('on');
     var f = M.cutAfter; M.cutAfter = null;
     if (f) f();
     return;
@@ -3691,8 +3669,7 @@ function cutTick(dt){
   if (!C) return;
   /* 按任意键 / 点一下 = 跳这一拍（按住就一路快进）——
      开场那两段十几秒不能跳的话，第二遍玩的人要骂人 */
-  if (keys['w'] || keys['a'] || keys['s'] || keys['d'] ||
-      keys[' '] || keys['z'] || keys['enter'] || keys['shift']) C.t = 0;
+  // A fresh press skips one beat; held movement never skips the whole scene.
   C.t -= dt;
   if (C.t <= 0) cutNext();
 }
@@ -3718,16 +3695,19 @@ function laughNearby(){
   return n;
 }
 function laughTick(dt){
-  if (M.screen !== 'play' || M.chase || M.boss || M.dying > 0){ laughSet(0); return; }
+  if (M.screen !== 'play' || M.chase || M.boss || M.dying > 0){ M.laugh=0; laughSet(0); tensionTick(); return; }
   /* 念对白、翻本子、看过场的时候停住 ——
      不然玩家读着读着就被自己的笑填满了，那是"卡住"，不是恐怖 */
   if (M.talk.open || M.book || M.cut || M.cardT > 0) return;
   var m = M.clock / 1440;
   var rate = LAUGH_BASE * (1 + m * 2.2);
   var near = laughNearby();
+  if (M.p.moving || flagOn('切断广播')) near = 0;
   if (near > 0) M.laugh = Math.min(1, (M.laugh || 0) + (LAUGH_NEAR * Math.min(near, 4) / 4 + rate) * dt);
   else          M.laugh = Math.max(0, (M.laugh || 0) - LAUGH_FALL * dt);
   laughSet(M.laugh);
+  tensionTick();
+  if (M.laugh >= 0.55 && (M.laughPrev || 0) < 0.55) toast('嘴角在自己往上抬。离开人群，别站着。', 2.8);
   if (M.laugh >= 0.75 && (M.laughPrev || 0) < 0.75) laughSfx(0.72);
   M.laughPrev = M.laugh;
   if (M.laugh >= 1){
@@ -3827,14 +3807,19 @@ function loadMap(id, tx, ty, dir){
   }
   /* 这张图上每一格还关着的门，都做成一个能按的东西。
      手写过话的那几扇（正门那些）自己带话本，这儿跳过它们 */
-  CUR.solidMap = null;              // 换图了，实心表重算
+  CUR.solidMap = null; CUR.allObjs = null;
+  M.renderDirty = true;
+  clearTileCache();
+  clearInput();              // 换图了，实心表重算
   CUR.doorObjs = [];
   for (var dgy = 0; dgy < MAPH; dgy++) for (var dgx = 0; dgx < MAPW; dgx++){
     if (MAP[dgy][dgx] !== 'door') continue;
     if (isPortalTile(dgx, dgy)) continue;        // 通道口
     if (doorOpen(dgx, dgy)) continue;            // 已经开了
     var clash = false;
-    (CUR.objs || []).forEach(function(O){ if (O.x === dgx && O.y === dgy) clash = true; });
+    (CUR.objs || []).forEach(function(O){
+      if ((O.x === dgx && O.y === dgy) || (O.open && Math.abs(O.x-dgx)+Math.abs(O.y-dgy)<=1)) clash = true;
+    });
     if (clash) continue;
     CUR.doorObjs.push({ x:dgx, y:dgy, art:'door', who:'门', verb:'推开',
                         talk:'push_door', open:true, auto:true, near:58 });
@@ -3853,17 +3838,19 @@ function loadMap(id, tx, ty, dir){
    自动存：每 4 秒一次、切到后台一次、关页面前一次。
    ============================================ */
 var SAVE_KEY = 'ink831:save';
+function snapshot(){
+  return { version:2, me:M.me.id, map:M.map, x:M.p.x, y:M.p.y, clock:M.clock,
+    flags:JSON.parse(JSON.stringify(FLAGS)), talked:Object.assign({},M.talked),
+    reentry:Object.assign({},M.reentry), seq:M.seq, doors:Object.assign({},DOOR_OPEN),
+    backTo:M.backTo || null, toiletN:M.toiletN || 0, walked:M.walked || 0,
+    urgeNext:M.urgeNext || URGE_STEP, urgeGap:M.urgeGap || URGE_STEP, laugh:M.laugh || 0 };
+}
 function saveGame(){
   if (M.screen !== 'play' || !M.me) return;
-  try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({
-      me: M.me.id, map: M.map, x: M.p.x, y: M.p.y, clock: M.clock,
-      flags: FLAGS, talked: M.talked, reentry: M.reentry, seq: M.seq,
-      doors: DOOR_OPEN, toiletN: M.toiletN || 0,
-      walked: M.walked || 0, urgeNext: M.urgeNext || 0, urgeGap: M.urgeGap || URGE_STEP,
-      laugh: M.laugh || 0
-    }));
-  } catch (e){}          // 隐私模式之类存不了就算了，不能因为存档把游戏搞崩
+  // Never persist half a dialogue, death or a transition with already consumed triggers.
+  var pending = M.talk.open || M.cut || M.cardT > 0 || M.dying > 0;
+  var saved = pending && CP ? CP : snapshot();
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(saved)); } catch(e){}
 }
 function hasSave(){
   try { return !!localStorage.getItem(SAVE_KEY); } catch (e){ return false; }
@@ -3872,35 +3859,40 @@ function clearSave(){
   try { localStorage.removeItem(SAVE_KEY); } catch (e){}
 }
 function loadGame(){
-  var s = null;
-  try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e){}
-  if (!s || !MAPS[s.map]) return false;
-  startWalk(s.me || 'laoli');            // 先把一切清干净，再拿存档盖上去
-  M.clock = s.clock || CLOCK_START;
-  FLAGS = s.flags || {};
-  M.talked = s.talked || {};
-  M.reentry = s.reentry || {};
-  DOOR_OPEN = s.doors || {};             // 推开的门跟着存档走，不然读回来又全锁上了
-  M.toiletN = s.toiletN || 0;
-  /* 走了多远也跟着回来 —— 不存的话读一次档，计数器归零，
-     一出厕所就又是一趟 */
-  M.walked = s.walked || 0;
-  M.laugh = s.laugh || 0;
-  M.urgeGap = s.urgeGap || URGE_STEP;
-  M.urgeNext = s.urgeNext || ((M.walked) + M.urgeGap);
-  if (M.toiletN > 0) toiletEnter2();     // 把『厕所第N回』重新立上（别再多算一趟）
-  loadMap(s.map, 0, 0);
-  M.p.x = s.x; M.p.y = s.y;
-  M.fade = 0.5; M.portalCool = 0.8;
-  /* 存完档要重新踩一个存档点 —— startWalk 里那个是"刚开局、什么都没有"的，
-     留着它的话，接着上次一进去死一次，整个上午就被抹回去了 */
-  M.seq = s.seq || 0;
-  checkpoint();
-  saveGame();
+  var s;
+  try { s = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch(e){}
+  if (!s || !MAPS[s.map] || !CAST.includes(s.me) || !Number.isFinite(s.x) || !Number.isFinite(s.y)){
+    contTip.textContent = '这份存档无法读取，请开始一次新的调查。'; return false;
+  }
+  startWalk(s.me);
+  FLAGS = s.flags && typeof s.flags === 'object' ? s.flags : {};
+  setFlag('是:' + s.me);
+  M.clock = Number.isFinite(s.clock) ? s.clock : CLOCK_START;
+  M.talked = s.talked || {}; M.reentry = s.reentry || {}; DOOR_OPEN = s.doors || {};
+  M.backTo = s.backTo || null; M.seq = s.seq || 0;
+  M.toiletN = s.toiletN || 0; M.walked = s.walked || 0;
+  M.laugh = clamp(s.laugh || 0,0,0.9); M.urgeGap = s.urgeGap || URGE_STEP;
+  M.urgeNext = s.urgeNext || M.walked + M.urgeGap;
+  repairLegacySave(s.version);
+  loadMap(s.map,0,0);
+  M.p.x = clamp(s.x,TILE,MAPW*TILE-TILE); M.p.y = clamp(s.y,TILE,MAPH*TILE-TILE);
+  recoverPosition();
+  M.safeX = Math.floor(M.p.x/TILE); M.safeY = Math.floor(M.p.y/TILE);
+  if (M.toiletN) toiletEnter2();
+  if (flagOn('被追了') && !flagOn('冲出校门') && M.map !== 'arena') startChase(true);
+  if (M.map === 'arena') startBoss();
+  applyClock(); checkpoint(); saveGame();
+  toast('调查继续。按本子查看当前主线。');
   return true;
 }
-window.addEventListener('visibilitychange', function(){ if (document.hidden) saveGame(); });
+document.addEventListener('visibilitychange', function(){
+  clearInput(); lastT = 0; accT = 0;
+  if (document.hidden){ saveGame(); cancelAnimationFrame(frameId); clearTimeout(frameTimer); }
+  else { M.renderDirty = true; scheduleFrame(); }
+});
+window.addEventListener('blur', function(){ clearInput(); });
 window.addEventListener('beforeunload', saveGame);
+
 
 /* ==================== 牢李：说想上厕所就想上厕所 ====================
    以前是拿 Math.random() 掷骰子 —— 玩家一局都碰不上一次，
@@ -4018,7 +4010,7 @@ function urgeTick(dt){
     return;
   }
   M.urge = 0;
-  if (M.chase) return;                     // 被追的时候顾不上这个
+  return; // 厕所保留自主调查，移除强制走路计数打断任务。
   if (inToilet()) return;                  // 人已经在厕所里了，就别再喊
   var T = nearestToilet();
   if (!T) return;
@@ -4039,35 +4031,22 @@ function urgeTick(dt){
    ==================================================== */
 var CP = null;
 function checkpoint(tag){
-  CP = {
-    map: M.map, x: M.p.x, y: M.p.y, clock: M.clock,
-    seq: M.seq || 0,
-    doors:   JSON.parse(JSON.stringify(DOOR_OPEN)),
-    flags:   JSON.parse(JSON.stringify(FLAGS)),
-    talked:  JSON.parse(JSON.stringify(M.talked)),
-    reentry: JSON.parse(JSON.stringify(M.reentry))
-  };
-  /* tag 只留给探针看，不往屏幕上写 —— 存档是后台的事，
-     每过一段就飘一行"存档点"出来，太出戏了 */
+  if (M.me) CP = snapshot();
 }
 function respawn(){
-  M.cpPending = null;                    // 上一世没读完的那段就别记着了
-  if (!CP){ loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]); return; }
-  FLAGS     = JSON.parse(JSON.stringify(CP.flags));
-  M.talked  = JSON.parse(JSON.stringify(CP.talked));
-  M.reentry = JSON.parse(JSON.stringify(CP.reentry));
-  M.seq     = CP.seq || 0;
-  DOOR_OPEN = JSON.parse(JSON.stringify(CP.doors || {}));
-  loadMap(CP.map, 0, 0);
-  M.p.x = CP.x; M.p.y = CP.y;
-  M.clock = CP.clock;
-  M.fade = 0.55; M.portalCool = 1.0;
-  M.chase = null;                        // 追逐战的东西全清掉
-  /* 可是"被追着"这件事还在旗标里 —— 死在追逐里读档回来，
-     队得重新整起来，不然走到校门也不会结算，人就卡死在那儿了 */
-  if (flagOn('被追了')) startChase(true);
-  applyClock();
-  if (clockEl) clockEl.textContent = clockText(M.clock);
+  if (!CP) return;
+  var s = CP;
+  resetTransient();
+  FLAGS = JSON.parse(JSON.stringify(s.flags)); DOOR_OPEN = Object.assign({},s.doors);
+  M.talked = Object.assign({},s.talked); M.reentry = Object.assign({},s.reentry);
+  M.seq = s.seq || 0; M.clock = s.clock; M.backTo = s.backTo || null;
+  M.toiletN = s.toiletN || 0; M.walked = s.walked || 0;
+  M.urgeGap = s.urgeGap || URGE_STEP; M.urgeNext = s.urgeNext || M.walked + M.urgeGap;
+  M.laugh = 0; laughSet(0);
+  loadMap(s.map,0,0); M.p.x = s.x; M.p.y = s.y; recoverPosition();
+  if (s.map === 'arena') startBoss();
+  else if (flagOn('被追了') && !flagOn('冲出校门')) startChase(true);
+  applyClock(); M.renderDirty = true;
 }
 /* 死。默认一秒多之后自动回存档点 */
 function die(why, delay){
@@ -4137,7 +4116,7 @@ function restartFromChase(){
 function startChase(fromRespawn){
   if (M.chase) return;
   if (!fromRespawn) setFlag('被追了');   // 先立旗标再存档：读档回来还得知道自己在被追
-  setClock(21*60 + 30);                  // 整队是在熄灯前
+  if (!fromRespawn) setClock(21*60 + 30);                  // 复活保留检查点时间
   /* 憋着上厕所这件事到这儿先放下 —— 不许快跑的话，这一场必死 */
   if (flagOn('想上厕所')){ clearFlag('想上厕所'); M.urge = 0; }
   /* 在科技楼里开追的时候不出排（楼里放不下）——
@@ -4191,7 +4170,7 @@ function startBoss(){
   }
   M.boss = { hp: 3, lives: 3, t: 0, rings: [], phase: 'wave', since: 1.4,
              cd: 0, inv: 1.4, open: 0, cx: 0, cy: 0, dead: false, hurt: 0,
-             wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 6.5, pat: null,
+             wave: 0, hudSig: '', lit: -1, lastLit: -1, win: 7.5 + (flagOn('校准节拍') ? 2 : 0), pat: null,
              /* 一圈只盖这么多（弧度）—— 剩下的就是缺口 */
              arcHalf: 1.75,
              /* 三个台子 —— 它歇下来的时候，亮哪一张就按哪一张 */
@@ -4201,6 +4180,7 @@ function startBoss(){
   var O = objByTalkHere('rs_frog');
   M.boss.cx = (O ? O.x : 17) * TILE + TILE/2;
   M.boss.cy = (O ? O.y : 12) * TILE + TILE/2;
+  checkpoint('战斗开始');
   bossHud(true);
   laughSfx(0.8);
   toast('它撑开了。躲开推过来的圈 —— 它歇下来的时候，跑去按亮着的那张讲桌。', 4.0);
@@ -4355,7 +4335,8 @@ function bossTick(dt){
           bossHud(false);
           droneOff();
           M.boss = null;
-          restartFromChase();
+          M.bossRetryT = 1.2; M.renderDirty = true;
+          toast('没能压住笑声。原地重试，调查线索全部保留。', 2.4);
           return;
         }
         toast('（你也在笑。笑到扶不住墙。）', 1.5);
@@ -4387,7 +4368,7 @@ function chaseTick(dt){
     checkpoint();
   }
   /* 他们在数 —— 数到十九，下课铃正好响 */
-  C.count = Math.max(0, (M.clock - 10*60) * 3.17);
+  C.count = Math.min(19, Math.floor((M.clock - 21*60-30) / 60 * 19));
   if (clockEl) clockEl.textContent = clockText(M.clock);
   if (chaseEl){
     chaseEl.querySelector('.big').textContent = clockText(M.clock);
@@ -4420,6 +4401,7 @@ function chaseTick(dt){
 }
 /* 全查清了：校门口那场之后不走，回楼里，进那一章 */
 function enterResolve(){
+  setFlag('返回辅导室');
   loadMap('resolve', 8, 11);
   M.fade = 1.0;
   M.portalCool = 0.6;
@@ -4631,7 +4613,11 @@ function endingFor(){
   return { title: title, lines: head.concat(wallTail(told, notes)).concat(invTail()) };
 }
 function showOver(e){
-  M.screen = 'over';
+  M.screen = 'over'; clearInput(); droneOff(); bossHud(false);
+  if (laughEl) laughEl.pause();
+  dlgEl.classList.remove('on'); cardEl.classList.remove('on');
+  M.cut = null; M.cardT = 0; M.talk = freshTalk();
+  document.getElementById('tension').classList.remove('on');
   document.getElementById('overTxt').innerHTML =
     '<h1>' + escapeHTML(e.title) + '</h1>' +
     e.lines.map(function(s){ return '<p>' + escapeHTML(s) + '</p>'; }).join('');
@@ -4672,6 +4658,7 @@ function toast(msg, secs){
 
 /* ==================== 开局 ==================== */
 function startWalk(charId){
+  resetTransient();
   audioInit();                   // 浏览器要用户点一下才肯出声，"出门"就是那一下
   var me = null;
   CHARS.forEach(function(c){ if (c.id===charId) me = c; });
@@ -4727,12 +4714,15 @@ window.addEventListener('keydown', function(e){
   if (M.screen !== 'play') return;
   /* 本子：Tab 或 B 开关，Esc 合上 */
   if (k === 'tab' || k === 'b'){ if (M.book) closeBook(); else openBook(); return; }
-  if (k === 'escape'){ if (M.book) closeBook(); return; }
-  if (k === 'g'){ cycleFast(); return; }      // 测试加速
+  if (k === 'escape'){ if (M.book) closeBook(); else if (M.pad) closeTalk(); return; }
+  if (k === 'g' && DEBUG){ cycleFast(); return; }      // 测试加速
   if (k === 'm'){ toggleSnd(); return; }
-  if (M.press && (k==='z' || k===' ' || k==='enter')){ hitPress(); return; }
+  if (M.cut && ['e','z',' ','enter'].includes(k)){ cutNext(); return; }
+  if (M.cardT > 0 && !M.cut && ['e','z',' ','enter'].includes(k)){ finishCard(); return; }
+  if (M.pad){ if (/^[0-9]$/.test(k)) padKey(k); else if (k==='backspace') padKey('退'); else if (k==='enter') padKey('定'); return; }
+  if (M.press && (k==='e' || k==='z' || k===' ' || k==='enter')){ hitPress(); return; }
   if (M.book) return;                         // 本子开着，别让走路的键漏进去
-  if (k==='z' || k===' ' || k==='enter'){ pressAct(); return; }
+  if (k==='e' || k==='z' || k===' ' || k==='enter'){ pressAct(); return; }
   if (M.talk.open){
     if (k==='arrowup'   || k==='w') moveSel(-1);
     if (k==='arrowdown' || k==='s') moveSel(1);
@@ -4825,8 +4815,7 @@ function buildBook(){
   /* 查过的事：六栋楼各一处，查清几处决定你最后能拿到哪一档
      —— 0～1 只是逃出去，2～4 知道经过，5～6 能进去把事了掉 */
   var mine = sideMine(), got = invCount();
-  h += '<h3>查过的事　' + got + '/6　（' +
-       ['', '还只是逃出去', '能知道经过', '能了掉这件事'][invTier()] + '）</h3>';
+  h += '<h3>校园记录　' + got + '/6　（影响收尾，不阻挡主线）</h3>';
   h += mine.map(function(s){
     var done = flagOn(sideFlag(s));
     return '<p>' + (done ? '✓' : '○') + '　<b>' + escapeHTML(s.b) + '</b>　' +
@@ -4849,8 +4838,8 @@ function buildBook(){
   bookList.innerHTML = h;
 }
 function openBook(){
-  if (M.screen !== 'play' || M.talk.open || M.book) return;
-  M.book = true;
+  if (M.screen !== 'play' || M.talk.open || M.book || M.cut || M.cardT > 0 || M.dying > 0) return;
+  M.book = true; clearInput(); saveGame();
   buildBook();
   bookEl.classList.add('on');
   stickEnd();
@@ -4858,7 +4847,7 @@ function openBook(){
   bookBtn.classList.remove('on'); fastBtn.classList.remove('on');
 }
 function closeBook(){
-  M.book = false;
+  M.book = false; clearInput(); M.renderDirty = true;
   bookEl.classList.remove('on');
   actEl.classList.add('on'); runEl.classList.add('on');
   bookBtn.classList.add('on'); fastBtn.classList.add('on');
@@ -4879,6 +4868,7 @@ bookEl.addEventListener('click', function(e){ if (e.target === bookEl) closeBook
 var TEST_SPEEDS = [1, 3, 8];
 var fastBtn = document.getElementById('btnFast');
 function cycleFast(){
+  if (!DEBUG) return;
   M.fast = ((M.fast || 0) + 1) % TEST_SPEEDS.length;
   fastBtn.classList.toggle('x2', M.fast === 1);
   fastBtn.classList.toggle('x3', M.fast === 2);
@@ -4917,6 +4907,7 @@ function flagAll(f){
 function objLive(O){
   if (!O) return false;
   if (O.if && !flagAll(O.if)) return false;
+  if (!mainAllowed(O.talk)) return false;
   if (O.gone && FLAGS[objKey(O)]) return false;
   /* 顺序谜题：每一块都能按。
      按了先认字（永久记住），顺序对不对是 runBeat 那边管的事 ——
@@ -4962,6 +4953,8 @@ function thingNear(){
 /* 按 E 动一个实物。走的是和触发区同一条效果管线。
    动过的还能再动一次 —— 只是那一次只把话重念一遍 */
 function pressObj(O){
+  M.lastObserved = M.lastAction || '推开一扇门';
+  M.lastAction = O && O.who || '站在走廊';
   if (M.boss && O && O.talk && O.talk.indexOf('plat_') === 0){ bossHit(O); return; }
   if (M.boss && O && O.talk === 'rs_frog'){
     toast('（按它没用 —— 它歇下来的时候，去按亮着的那张讲桌。）', 2.2);
@@ -4970,9 +4963,7 @@ function pressObj(O){
   if (!objLive(O)) return;
   var k = objKey(O);
   if (objReplayable(O) && O.talk){
-    M.replay = true;
-    if (!openScript(O.talk)) M.replay = false;
-    M.replay = false;
+    openScript(O.talk, true);
     M.talk.cool = Math.max(M.talk.cool, 0.15);
     return;
   }
@@ -4980,7 +4971,9 @@ function pressObj(O){
   M.talk.cool = Math.max(M.talk.cool, 0.15);
 }
 function pressAct(){
-  if (M.screen !== 'play') return;
+  if (M.screen !== 'play' || M.dying > 0 || M.book) return;
+  if (M.cut){ cutNext(); return; }
+  if (M.cardT > 0){ finishCard(); return; }
   if (M.talk.open){ advanceOrChoose(); return; }   // 开着就先推进，不会再开一次
   if (M.talk.cool > 0) return;
   var t = thingNear();
@@ -5007,15 +5000,17 @@ function drawPad(){
   padEl.querySelector('.buf').textContent = P.buf.split('').join(' ');
   var ks = padEl.querySelector('.keys');
   if (ks.childNodes.length) return;                 // 建一次就够
-  ['1','2','3','4','5','6','7','8','9','退','0','定'].forEach(function(k){
+  ['1','2','3','4','5','6','7','8','9','退','0','定','离开'].forEach(function(k){
     var b2 = document.createElement('button');
     b2.type = 'button'; b2.textContent = k;
+    if(k==='离开') b2.style.gridColumn='1 / -1';
     b2.addEventListener('click', function(e){ e.stopPropagation(); padKey(k); });
     ks.appendChild(b2);
   });
 }
 function padKey(k){
   var P = M.pad; if (!P) return;
+  if(k==='离开'){closeTalk();return;}
   if (k === '退'){ P.buf = P.buf.slice(0, -1); }
   else if (k === '定'){
     if (P.buf === P.key){ hidePad(); sfxPick(); gotoNode(P.to); }
@@ -5049,14 +5044,15 @@ function beginScript(name, who){
   if (!s) return false;
   M.talk.script = s;
   M.talk.who = who || null;
-  M.talk.open = true;
-  stickEnd();
+  M.talk.open = true; M.talk.replay = false;
+  clearInput(); M.renderDirty = true;
   actEl.classList.remove('on'); runEl.classList.remove('on');
   bookBtn.classList.remove('on'); fastBtn.classList.remove('on');
   dlgEl.classList.add('on');
   return true;
 }
 function openTalk(n){
+  if (!mainAllowed(n.talk)) { toast('他没有抬头。先处理本子上的调查。'); return; }
   if (!beginScript(n.talk, n.id)) return;
   M.talk.npc = n;
   /* 转身面向对方 —— 很便宜，但一下就"对上眼"了 */
@@ -5065,10 +5061,13 @@ function openTalk(n){
 }
 /* 旁白走这条：没有脸、没有名字，就是一段字。
    触发区、捡到东西、走到某处看见什么，全用它 */
-function openScript(name){
-  if (!beginScript(name, null)) return;
+function openScript(name, replay){
+  if (!beginScript(name, null)) return false;
+  M.talk.replay = !!replay;
   M.talk.npc = null;
-  gotoNode(M.talk.script.start || firstNode(M.talk.script));
+  var entry = M.talk.script.entryBy && M.talk.script.entryBy.find(function(e){return !e.if || flagAll(e.if);});
+  gotoNode(entry ? entry.go : M.talk.script.start || firstNode(M.talk.script));
+  return true;
 }
 function closeTalk(){
   var n = M.talk.npc;
@@ -5078,7 +5077,8 @@ function closeTalk(){
     var node = M.talk.script.nodes[M.talk.nodeId];
     if (node && typeof node.end === 'string') M.reentry[n.id] = node.end;
   }
-  M.talk.open = false;
+  var replay = M.talk.replay;
+  M.talk.open = false; M.talk.replay = false; M.renderDirty = true; clearInput();
   M.talk.npc = null; M.talk.nodeId = null;
   M.talk.cool = 0.2;                      // 关掉之后 0.2 秒内不许再开，防手抖
   dlgEl.classList.remove('on');
@@ -5096,7 +5096,7 @@ function closeTalk(){
   /* 校门口那场戏完了 —— 全查清的人不进结算，转身回楼里 */
   if (M.showOverAfter){
     M.showOverAfter = false;
-    if (invTier() >= 3){ enterResolve(); return; }
+    if (!flagOn('选择离校')){ enterResolve(); checkpoint('返回辅导室'); return; }
     showOver(endingFor());
     return;
   }
@@ -5109,6 +5109,7 @@ function closeTalk(){
   }
   /* 这段话读完了（而且人还活着）—— 现在才踩存档点，
      话里刚立的旗标全在里头了 */
+  if (!replay && !M.killAfter && !M.dying && !M.boss && !M.chase && !M.cut) checkpoint('对话完成');
   if (M.cpPending){ var cpTag = M.cpPending; M.cpPending = null; checkpoint(cpTag); }
 }
 function gotoNode(id){
@@ -5116,10 +5117,12 @@ function gotoNode(id){
   var node = M.talk.script.nodes[id];
   if (!node){ closeTalk(); return; }      // 指到不存在的节点就当聊完，别卡死
   M.talk.nodeId = id;
+  M.talk.pressShownFor = null;
+  if (M.talk.script === TALK.radio_case && id === 's') node.text = '广播机里念出一句话：\n「你刚才调查了' + (M.lastObserved || '保安室的窗') + '。现在你在看着我。」\n\n声音是我的。计时器却显示07:10。';
   hidePress();                            // 换节点就把上一个按钮收掉
   /* 重看模式：这个东西玩家已经动过了，再按一遍只是把那段话念回来，
      不能再立旗标、不能推时间、更不能触发"读完就死" */
-  if (!M.replay){
+  if (!M.talk.replay){
     if (node.set && !FLAGS[node.set]) sfxPick();
     if (node.set) setFlag(node.set);      // 剧情就是在这儿记下来的
     /* 也有要撤掉的：旗标只能说"是"，说不了"不是"，所以得能清 */
@@ -5134,22 +5137,31 @@ function gotoNode(id){
     if (node.relieve) relieveUrge();                      // 牢李上完了
     if (node.resolve) M.resolveAfter = true;               // 这声"到"答完就收尾
     if (node.boss) M.bossPending = true;                   // 念完这段再换图开打
-    if (node.scene) playScene(node.scene);                 // 这一句带一段过场
+    // Scene continuation is installed after the node state is fully prepared.                 // 这一句带一段过场
   }
   M.talk.typed = 0;                       // 打字机从头开始
   M.talk.blipAt = 0;
   M.talk.sel = 0;
+  if (node.scene && !M.talk.replay){
+    full = node.text || '';
+    playScene(node.scene, function(){
+      if (!M.talk.open) return;
+      M.talk.typed = full.length; advanceOrChoose();
+    });
+    return;
+  }
   renderNode();
 }
 function renderNode(){
   if (!M.talk.script) return;
   var node = M.talk.script.nodes[M.talk.nodeId];
+  full = node.text || '';
   /* 标了 card 的节点走全屏场景卡 —— 关键那几句不该缩在角落里 */
-  if (node.press) showPress(node);        // 这一句会让屏幕下方冒出一个按钮
+  // Timed choices appear only after the complete prompt is readable.
   if (node.ask) showPad(node);            // 这一句会冒出数字键盘
   if (node.sh) shake(node.sh);            // 这一句该让画面抖一下
   if (node.stare) M.stare = node.stare;   // 这几秒里，所有人都会看着你
-  if (node.card){ card(full2(node), 3.4); return; }
+  if (node.card){ full = node.text || node.card; M.talk.typed = String(full).length; M.nodeCard = true; card(full, 4.5); return; }
   dlgEl.classList.add('on');
   var who = M.talk.who;                   // 旁白是 null
   var sp = who ? speaker(who) : null;
@@ -5184,7 +5196,7 @@ function renderNode(){
     }
     markSel();
   }
-  full = node.text;
+  full = node.text || '';
 }
 var full = '', optsEl = document.getElementById('dlgOpts');
 var dlgEl = document.getElementById('dlg'), dlgBox = document.getElementById('dlgBox'),
@@ -5196,10 +5208,14 @@ function escapeHTML(s){
 function full2(node){ return node.text; }
 function nodeDone(){ return M.talk.typed >= full.length; }
 function advanceOrChoose(){
+  if (M.cut || M.nodeCard || M.pad) return;
   if (!M.talk.script){ closeTalk(); return; }
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node) { closeTalk(); return; }
   if (!nodeDone()){ M.talk.typed = full.length; drawText(); return; }  // 没出完就先出完
+  if (node.press && M.talk.pressShownFor !== M.talk.nodeId){
+    M.talk.pressShownFor=M.talk.nodeId; showPress(node); return;
+  }
   /* 挂着按钮就等着 —— 这一句不能靠空格往下推，
      不然按一下就把整段对话关掉了（按钮计时也就废了） */
   if (M.press) return;
@@ -5215,6 +5231,7 @@ function advanceOrChoose(){
   closeTalk();
 }
 function choose(i){
+  if (!M.talk.open || !M.talk.script || M.cut || M.pad) return;
   var node = M.talk.script.nodes[M.talk.nodeId];
   if (!node.opts || !node.opts[i]) return;
   gotoNode(node.opts[i].go);
@@ -5245,12 +5262,17 @@ function drawText(){
   var s = full.slice(0, Math.floor(M.talk.typed));
   if (s.length > (M.talk.blipAt || 0)){ M.talk.blipAt = s.length + 3; sfxBlip(); }
   dlgTxt.textContent = s;
+  if (s.length >= full.length && node.press && M.talk.pressShownFor !== M.talk.nodeId){
+    M.talk.pressShownFor=M.talk.nodeId; showPress(node);
+  }
   dlgMore.classList.toggle('on', s.length >= full.length && !node.opts);
 }
 /* 点屏幕任何地方都能往下推 —— 只有那个黑框能点，太别扭了。
    选项和突现按钮自己有 stopPropagation，不会被这条误触 */
 document.addEventListener('click', function(e){
-  if (!M.talk.open) return;
+  if (M.cut){ cutNext(); return; }
+  if (M.cardT > 0){ finishCard(); return; }
+  if (!M.talk.open || M.book || M.screen !== 'play') return;
   var t = e.target;
   if (t && t.closest && t.closest('#dlgOpts,#press,#pad,#act,#run,#btnBook,#btnFast')) return;
   advanceOrChoose();
@@ -5275,6 +5297,7 @@ var SPD = 108, RUN_MULT = 2.4;
 /* 一段剧情的全部效果。触发区踩上去走它，实物的 E 也走它 ——
    一套管线两处用，省得两边各写一遍，写着写着就不一样了 */
 function runBeat(G, key, byPlayer){
+  if (!mainAllowed(G.talk)) return;
   /* 顺序谜题：seq 是第几步，得按守则的顺序来。
      按错不清零 —— 六块苔是一横排，去下一块的路上必然要经过别的几块，
      路过顺手按一下就整面墙重来，那不叫谜题，叫坑。
@@ -5331,11 +5354,13 @@ function runBeat(G, key, byPlayer){
 }
 
 function update(dt){
+  if (M.screen !== 'play' || M.book || document.hidden) return;
   M.t += dt;
-  applyClock();                          // 时间由剧情推，这儿只管把时间段旗标刷一遍
+  var clockSig=M.map+':'+Math.floor(M.clock);
+  if(M.clockSig!==clockSig){ M.clockSig=clockSig; applyClock(); }
   if (M.screen === 'play' && !M.talk.open && !M.book && !M.chase) urgeTick(dt);
   /* 场景卡：自己淡出 */
-  if (M.cardT > 0){ M.cardT -= dt; if (M.cardT <= 0 && cardEl) cardEl.classList.remove('on'); }
+  if (M.cardT > 0 && !M.cut){ M.cardT -= dt; if (M.cardT <= 0) finishCard(); }
   if (M.shakeT > 0) M.shakeT = Math.max(0, M.shakeT - dt);
   /* 二楼的灯：念名字一起来，就从西头一间一间地灭，往你这边推 */
   if (M.map === 'floor2' && flagOn('走廊在念名字')) M.lightT = (M.lightT || 0) + dt;
@@ -5377,12 +5402,12 @@ function update(dt){
 
   /* 快跑：键盘按住 Shift，手机靠右下那个「跑」圆键切换。
      后面再乘测试加速（「疾」，默认 1×） */
-  var running = !!(keys['shift'] || M.run) && !flagOn('想上厕所');  // 憋着跑不起来
+  var running = !!(keys['shift'] || M.run);  // 憋着跑不起来
   var spd = SPD * (running ? RUN_MULT : 1) * TEST_SPEEDS[M.fast || 0];
-  if (flagOn('想上厕所')) spd *= 0.62;  // 牢李憋着的时候走不快
+  // Toilet detours never slow the main route.  // 牢李憋着的时候走不快
 
   var mvx = 0, mvy = 0;
-  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut){
+  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut && !(M.cardT > 0)){
     if (keys['a']||keys['arrowleft'])  mvx -= 1;
     if (keys['d']||keys['arrowright']) mvx += 1;
     if (keys['w']||keys['arrowup'])    mvy -= 1;
@@ -5396,8 +5421,12 @@ function update(dt){
     var nx = M.p.x + mvx*spd*dt, ny = M.p.y + mvy*spd*dt;
     /* 分轴判定：贴着墙走的时候能顺墙滑，不会整个人卡住 */
     var wx0 = M.p.x, wy0 = M.p.y;
-    if (canWalk(nx, M.p.y)) M.p.x = nx;
-    if (canWalk(M.p.x, ny)) M.p.y = ny;
+    var steps = Math.max(1,Math.ceil(Math.max(Math.abs(nx-M.p.x),Math.abs(ny-M.p.y))/6));
+    var dx = (nx-M.p.x)/steps, dy = (ny-M.p.y)/steps;
+    for (var sub=0;sub<steps;sub++){
+      if (canWalk(M.p.x+dx,M.p.y)) M.p.x += dx;
+      if (canWalk(M.p.x,M.p.y+dy)) M.p.y += dy;
+    }
     /* 走了多远 —— 牢李"想上厕所"是按这个算的，不是掷骰子 */
     M.walked = (M.walked || 0) + Math.hypot(M.p.x - wx0, M.p.y - wy0);
     M.p.dir = (Math.abs(mvx) > Math.abs(mvy)) ? (mvx>0?'right':'left') : (mvy>0?'down':'up');
@@ -5408,13 +5437,14 @@ function update(dt){
     M.p.anim = 0;
   }
 
-  dbgTick(dt);
+  if (DEBUG) dbgTick(dt);
   cutTick(dt);
   laughTick(dt);
 
   /* arena 上没 Boss 就是死局 —— 那张图没有出口，存档又不存战斗状态。
      读一次档回来就站在一张空图上动不了。这儿自愈：重开这一场；
      连试三次还起不来，就把人送回进来时那张图 */
+  if (M.bossRetryT > 0){ M.bossRetryT -= dt; if (M.bossRetryT > 0) return; startBoss(); }
   if (M.map === 'arena' && M.screen === 'play' && !M.boss && !M.bossEnding && !M.talk.open){
     M.bossCool = (M.bossCool || 0) - dt;
     if (M.bossCool <= 0){
@@ -5476,14 +5506,14 @@ function update(dt){
   }
 
   /* 踩到出口就换图。刚落地那 0.7 秒不判，免得在门口来回弹 */
-  if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR){
+  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut && !(M.cardT > 0) && M.portalCool <= 0 && CUR){
     var ptx = Math.floor(M.p.x/TILE), pty = Math.floor(M.p.y/TILE);
     for (var pi=0; pi<CUR.portals.length; pi++){
       var P = CUR.portals[pi];
-      if (P.if && !flagOn(P.if)) continue;
+      if (P.if && !flagAll(P.if)) continue;
       /* 回来的时候要落回"进门前站的那一格"，不是门口往下一格 ——
          厕所那间屋是封死的：落在屋里就只能再踩一次门，来回传 */
-      if (P.to !== 'campus'){
+      if (ptx >= P.x && ptx < P.x+P.w && pty >= P.y && pty < P.y+P.h && !P.back && P.to !== 'campus'){
         var bx = (M.safeX === undefined) ? ptx : M.safeX;
         var by = (M.safeY === undefined) ? pty + 1 : M.safeY;
         M.backTo = { map: M.map, tx: bx, ty: by };
@@ -5510,7 +5540,7 @@ function update(dt){
 
   /* 踩到剧情触发区就跑一段。once 的跑过就不再跑 ——
      记号记在 FLAGS 里，所以跟着存档一起走 */
-  if (M.screen === 'play' && !M.talk.open && !M.book && M.portalCool <= 0 && CUR && CUR.triggers){
+  if (M.screen === 'play' && !M.talk.open && !M.book && !M.cut && !(M.cardT > 0) && M.portalCool <= 0 && CUR && CUR.triggers){
     var gtx = Math.floor(M.p.x/TILE), gty = Math.floor(M.p.y/TILE);
     /* 把这张图的触发区数组抓在手里：跑到一半要是换了图，
        数组就短了，再往下读会读到 undefined 直接炸 */
@@ -5520,15 +5550,17 @@ function update(dt){
       var G = trigs[gi], gk = '@' + M.map + ':' + gi;
       if (!G) continue;            // 数组里有个空洞（多写了个逗号），跳过它
       if (G.once && FLAGS[gk]) continue;
-      if (G.if && !flagOn(G.if)) continue;
+      if (G.if && !flagAll(G.if)) continue;
+      if (!mainAllowed(G.talk)) continue;
       var inG = gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h;
-      if (!inG){ if (M.stillKey === gk){ M.stillKey = null; M.stillT = 0; } continue; }
+      if (!inG){ if (M.stillKey === gk){ M.stillKey = null; M.stillT = 0; M.stillWarn = null; } continue; }
       /* 有的是"踩到就触发"，有的是"停在这儿不动才触发" —— 守则里那些
          "不要停下来"的条款，就是靠这个当真的 */
       if (G.still){
         if (M.stillKey !== gk){ M.stillKey = gk; M.stillT = 0; }
         if (M.p.moving){ M.stillT = 0; continue; }      // 一动就重新计时
         M.stillT = (M.stillT || 0) + dt;
+        if (M.stillT > G.still*0.35 && !M.stillWarn){ M.stillWarn = gk; toast('这里的声音变近了。别停，离开这块地方。',2); }
         if (M.stillT < G.still) continue;
       }
       /* 顺序谜题：seq 是第几步。得从 1 挨着来，跳着踩就回到第一步 */
@@ -5572,7 +5604,8 @@ function update(dt){
   var whereTxt = whereText(Math.floor(M.p.x/TILE), Math.floor(M.p.y/TILE));
   if (whereTxt !== M.whereTxt){ M.whereTxt = whereTxt; whereEl.textContent = whereTxt; }
   if (vigEl) vigEl.className = M.chase ? 'chase' : (M.map === 'floor2' ? 'dark' : '');
-  goalTick();
+  M.uiT=(M.uiT || 0)+dt;
+  if(M.uiT>=0.12 || M.renderDirty){M.uiT=0;goalTick();}
 }
 var whereEl = document.getElementById('where'), clockEl = document.getElementById('clock');
 
@@ -5833,8 +5866,7 @@ function render(){
 
   var x0 = Math.floor(camX/TILE), x1 = Math.min(MAPW-1, Math.ceil((camX+W)/TILE));
   var y0 = Math.floor(camY/TILE), y1 = Math.min(MAPH-1, Math.ceil((camY+H)/TILE));
-  for (var y=y0; y<=y1; y++)
-    for (var x=x0; x<=x1; x++) drawTile(MAP[y][x], x*TILE, y*TILE);
+  drawCachedTiles(x0,y0,x1,y1);
   drawLabels();
   drawStatue();
 
@@ -6142,22 +6174,29 @@ function render(){
    ============================================ */
 var lastT = 0, accT = 0;
 var MIN_STEP = ('ontouchstart' in window) ? (1/30) : (1/60);
-function loop(ts){
-  /* 一帧里抛一次异常，rAF 就不再排下一帧 —— 屏幕就定在那儿动不了了。
-     这就是"运行一小会就卡死"的样子。包起来：出错只报错，画面接着走。 */
-  try {
-    var dt = lastT ? Math.min((ts-lastT)/1000, 0.05) : 0;
-    lastT = ts;
-    accT += dt;
-    if (accT < MIN_STEP){ requestAnimationFrame(loop); return; }
-    var use = Math.min(accT, 0.05);
-    accT = 0;
-    try { update(use); } catch (e1){ showErr(e1); }
-    try { if (M.screen === 'play') render(); } catch (e2){ showErr(e2); }
-  } catch (e0){ showErr(e0); }
-  requestAnimationFrame(loop);
+var frameId = 0, frameTimer = 0;
+function scheduleFrame(){
+  cancelAnimationFrame(frameId); clearTimeout(frameTimer);
+  if (document.hidden) return;
+  var fps = M.screen !== 'play' || M.book ? 4 :
+    (M.talk.open || M.cut || M.cardT > 0 ? 20 :
+      (MOBILE || QUALITY === 'low' ? 30 : 60));
+  frameTimer = setTimeout(function(){ frameId = requestAnimationFrame(loop); },Math.max(0,1000/fps-5));
 }
-
+function loop(ts){
+  if (document.hidden) return;
+  var dt = lastT ? Math.min((ts-lastT)/1000,0.1) : 0;
+  lastT = ts;
+  try {
+    if (M.screen === 'play' && !M.book){
+      update(dt);
+      if (M.renderDirty || (!M.talk.open && !M.cut && !(M.cardT > 0)) || M.shakeT > 0 || M.fade > 0){
+        render(); M.renderDirty = false;
+      }
+    }
+  } catch(e){ showErr(e); }
+  scheduleFrame();
+}
 /* ==================== 屏幕 ==================== */
 function show(el){
   var all = document.querySelectorAll('.screen');
@@ -6187,7 +6226,7 @@ var PICK_NOTE = {
   logic: '刚跟 lg7 说过话，多少知道点。'
 };
 document.getElementById('btnStart').addEventListener('click', function(){
-  clearSave();                 // 开新局就得是真新局，别把上一局的存档留在这儿
+  // Preserve the existing save until the player actually chooses a character.
   /* 立绘是异步光栅化的，可能还没好 —— 等一下再建卡片，免得空图 */
   setTimeout(buildPick, 120);
 });
@@ -8361,7 +8400,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v19';
+var BUILD = 'v20';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8421,6 +8460,9 @@ function toggleSnd(){
   toast(SND ? '声音：开' : '声音：关');
 }
 
+</script>
+<script src="story.js"></script>
+<script>
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
    而 tileAt 每帧都调 —— 上一版就是在主循环第一帧崩掉，整个画面全黑。 */
@@ -8428,7 +8470,7 @@ loadMap('campus', MAPS.campus.spawn[0], MAPS.campus.spawn[1]);
 resize();
 /* 地址后面带 ?boss=1 就直接进那场 */
 if (/[?&]boss(=1)?(&|$)/.test(location.search)) jumpToBoss('laoli');
-requestAnimationFrame(loop);
+scheduleFrame();
 </script>
 </body>
 </html>
