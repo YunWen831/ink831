@@ -146,6 +146,17 @@ function mainAllowed(name){
   return taskDone(own) || own===mainStepReference();
 }
 function mainStepReference(){ return mainSteps().find(function(s){return !taskDone(s);}); }
+// Visiting a puzzle is not completing it. Check its reward so existing saves
+// containing a failed attempt can retry without losing any other progress.
+var RETRY_FLAGS={lg_hooks:'数过名单',lg_windows:'数过窗户',h3_log:'数过广播记录',
+  f2_roster:'算过值日表',f2_phone:'看过那局游戏'};
+function beatSpent(beat,key){
+  if(!FLAGS[key]) return false;
+  var st=mainSteps().find(function(s){return s.scripts.includes(beat.talk);});
+  if(st) return taskDone(st);
+  if(RETRY_FLAGS[beat.talk]) return flagOn(RETRY_FLAGS[beat.talk]);
+  return true;
+}
 // mainSteps concatenates the original step objects, so references stay stable.
 function chapterNow(){ return mainStep().ch; }
 function progressNow(){var all=mainSteps().filter(function(s){return s.ch===chapterNow();}); return {ch:chapterNow(),n:all.length,d:all.filter(taskDone).length};}
@@ -194,6 +205,9 @@ writeNode('free_shui','s','周五我替lg7搬过一个黄色样品。瓶子里�
 writeNode('free_logic','s','我借过东头那间安静的教室。每次出来，手机上的时间都少八分钟。\n\n今天门牌又少了一块。先拿图纸、门牌和登记表对一下。');
 writeNode('hint_duty','r3','值周生翻开旧名单。\n\n「现有十九人。旧录音却会多念一个：顾言。」\n\n第一行被划穿，背页还留着笔印。我把它拓到纸上。');
 writeNode('pw_drawer','t','锁边贴着便签：\n「密码按黑板式子里的原子个数，不按元素序号。」\n\n下面多了一行小字：\n「不要播放九月十四日的录音。」');
+TALK.pw_drawer.nodes.u.esc=true;
+TALK.pw_drawer.nodes.no.next='u';
+delete TALK.pw_drawer.nodes.no.end;
 writeNode('pw_drawer','ok4','手机里最后一张照片拍在周五07:10。\n顾言站在讲台边，手里捧着黄色样品。\n\n照片里没有人笑。视频却传出一整间教室的笑声。');
 writeNode('lg7_pen','w','他把笔递过来。\n「那不是翻译，是还原。擦掉的字，它还能读出来。」');
 writeNode('lg7_pen','x','「笔记是顾言写的。上周五，我让他留下来记录实验。」\n\n他握着笔，不肯松手。\n「如果看到他，告诉他今天已经十八日。」');

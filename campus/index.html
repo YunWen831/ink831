@@ -4918,11 +4918,12 @@ function objLive(O){
   if (O.auto && doorOpen(O.x, O.y)) return false;
   return true;
 }
-/* 已经动过一次了？那再按就只重念一遍，不再改剧情。
+/* 已经完成了？那再按就只重念一遍，不再改剧情。
+   答错、退出、尚未读完的主线交互仍可正常重试。
    顺序谜题（六块苔）不算 —— 擦错顺序以后要能重新擦一遍，
    按了只重念不动手的话，那面墙就永远擦不完了。
    那个小便池也不算：憋着这件事会来第二趟。 */
-function objSpent(O){ return !!(O.once && FLAGS[objKey(O)]); }
+function objSpent(O){ return !!(O.once && beatSpent(O, objKey(O))); }
 /* 顺序谜题不适用"重看" —— 它每次都得真跑一遍，
    不然按错一次（字认下来了），那块就被当成"看过了"，顺序再也推不动 */
 function objReplayable(O){ return objSpent(O) && O.seq === undefined; }
@@ -5549,7 +5550,7 @@ function update(dt){
       if (CUR.triggers !== trigs) break;            // 换图了，这一趟作废
       var G = trigs[gi], gk = '@' + M.map + ':' + gi;
       if (!G) continue;            // 数组里有个空洞（多写了个逗号），跳过它
-      if (G.once && FLAGS[gk]) continue;
+      if (G.once && beatSpent(G, gk)) continue;
       if (G.if && !flagAll(G.if)) continue;
       if (!mainAllowed(G.talk)) continue;
       var inG = gtx >= G.x && gtx < G.x+G.w && gty >= G.y && gty < G.y+G.h;
@@ -8400,7 +8401,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v20';
+var BUILD = 'v21';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8461,7 +8462,7 @@ function toggleSnd(){
 }
 
 </script>
-<script src="story.js"></script>
+<script src="story.js?v=21"></script>
 <script>
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
