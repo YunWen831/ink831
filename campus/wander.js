@@ -291,5 +291,5 @@ bossTick=function(dt){
 var originalWanderBossHit=bossHit;
 bossHit=function(o){var b=M.boss,inv=b&&b.inv;var result=originalWanderBossHit(o);if(M.boss&&M.boss===b&&flagOn('走出循环')&&b.inv!==inv)b.inv+=.5;return result;};
 var originalWanderBuildBook=buildBook;
-buildBook=function(){originalWanderBuildBook();bookList.insertAdjacentHTML('beforeend','<h3>可选玩法 · 校园后门</h3>'+Object.keys(EPISODES).map(function(id){var e=EPISODES[id];return '<p>'+(flagOn(e.reward)?'✓':'○')+' <b>'+e.title+'</b><br>'+{night:'第三教学楼 · 西侧走廊门：躲灯、藏身、投纸团。',photo:'校史馆 · 南侧展厅门：对照旧照片找三处变化。',loop:'艺术楼 · 西侧走廊门：记住门牌、时钟和脚印。'}[id]+'</p>';}).join(''));};
+buildBook=function(){originalWanderBuildBook();bookList.insertAdjacentHTML('beforeend','<h3>探索玩法 · 校园后门</h3>'+Object.keys(EPISODES).map(function(id){var e=EPISODES[id];return '<p>'+(flagOn(e.reward)?'✓':'○')+' <b>'+e.title+'</b><br>'+escapeHTML(e.location||{night:'第三教学楼 · 西侧走廊门：躲灯、藏身、投纸团。',photo:'校史馆 · 南侧展厅门：对照旧照片找三处变化。',loop:'艺术楼 · 西侧走廊门：记住门牌、时钟和脚印。'}[id])+'</p>';}).join(''));};
 syncEpisodeUI();
