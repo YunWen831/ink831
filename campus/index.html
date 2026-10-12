@@ -5863,9 +5863,12 @@ function render(){
   cx.fillRect(0,0,W,H);
   if (!M.me) return;
 
-  camX = clamp(M.p.x - W/2, 0, Math.max(0, MAPW*TILE - W));
-  camY = clamp(M.p.y - H/2, 0, Math.max(0, MAPH*TILE - H));
+  var camera=M.filmCamera||M.p, filmZoom=M.filmZoom||1;
+  var viewW=W/filmZoom,viewH=H/filmZoom;
+  camX = clamp(camera.x - viewW/2, 0, Math.max(0, MAPW*TILE - viewW));
+  camY = clamp(camera.y - viewH/2, 0, Math.max(0, MAPH*TILE - viewH));
   cx.save();
+  if(M.filmCamera){cx.scale(filmZoom,filmZoom);cx.translate(Math.max(0,(viewW-MAPW*TILE)/2),Math.max(0,(viewH-MAPH*TILE)/2));}
   /* 死的时候镜头往玩家身上推一点 —— 就这一点，那一秒完全不一样 */
   if (M.dying > 0){
     var zk = (1 - M.dying / (M.deathDur || 1.1)) * 0.32;
@@ -5875,9 +5878,10 @@ function render(){
   cx.translate(-Math.round(camX) + (sk ? (Math.random()*2-1)*sk : 0),
                -Math.round(camY) + (sk ? (Math.random()*2-1)*sk : 0));
 
-  var x0 = Math.floor(camX/TILE), x1 = Math.min(MAPW-1, Math.ceil((camX+W)/TILE));
-  var y0 = Math.floor(camY/TILE), y1 = Math.min(MAPH-1, Math.ceil((camY+H)/TILE));
+  var x0 = Math.floor(camX/TILE), x1 = Math.min(MAPW-1, Math.ceil((camX+viewW)/TILE));
+  var y0 = Math.floor(camY/TILE), y1 = Math.min(MAPH-1, Math.ceil((camY+viewH)/TILE));
   drawCachedTiles(x0,y0,x1,y1);
+  if(typeof drawAtmosphereFloor==='function')drawAtmosphereFloor();
   drawLabels();
   drawStatue();
 
@@ -5969,7 +5973,7 @@ function render(){
       /* 门自己已经画在格子上了（关着的样子就是那格本身），别再叠一层 */
       if (!O.auto){
         if (used) cx.globalAlpha = 0.5;
-        drawObj(O.art, ogx, ogy);
+        if(O.talk==='rs_frog'&&typeof drawSampleObject==='function')drawSampleObject(ogx,ogy);else drawObj(O.art, ogx, ogy);
         if (used) cx.globalAlpha = 1;
       }
       var od = Math.hypot(o.x - M.p.x, o.y - TILE/2 - M.p.y);
@@ -5978,7 +5982,7 @@ function render(){
          目标行 + 屏幕边缘那个箭头已经够了，剩下的该自己找 */
       /* 一栋楼里十几扇门，全挂上"门"两个字，屏幕就成货架了 ——
          门只在"就站在它跟前"的时候才报名字 */
-      if (O.who && (O.auto ? (M.nearObj === O) : (od < 150)) && !used){
+      if (!M.film && O.who && (O.auto ? (M.nearObj === O) : (od < 150)) && !used){
         cx.font = '600 12px system-ui,"Microsoft YaHei",sans-serif';
         cx.textAlign = 'center';
         cx.fillStyle = 'rgba(0,0,0,.6)';
@@ -6004,7 +6008,7 @@ function render(){
       drawSprite(o.id, o.x, o.y, o.dir, 0, false, 2);
       /* 名字挂在头顶。小人在图上才 32×48，发型配色认人还是慢，
          挂个名字一下就清楚了；离远了不画，免得满屏都是字 */
-      if (Math.hypot(o.x - M.p.x, o.y - M.p.y) < NAME_R){
+      if (!M.film && Math.hypot(o.x - M.p.x, o.y - M.p.y) < NAME_R){
         var nm = speaker(o.id).name;
         cx.font = '600 13px system-ui,"Microsoft YaHei",sans-serif';
         cx.textAlign = 'center';
@@ -6052,22 +6056,7 @@ function render(){
       cx.lineTo(B.cx + Math.cos(a2) * (R.r + 13), B.cy + Math.sin(a2) * (R.r + 13));
       cx.stroke();
     });
-    /* 它自己：一团绿，笑的时候鼓一下 */
-    var puff = B.phase === 'wave' ? 1 + 0.25 * Math.sin(B.t * 18) : 1;
-    /* 大图里得看得见 —— 原来半径 16，在一间大屋子当中像颗豆子 */
-    cx.fillStyle = '#e0c247';
-    cx.beginPath(); cx.arc(B.cx, B.cy, 26 * puff, 0, 7); cx.fill();
-    cx.fillStyle = '#f2dc76';
-    cx.beginPath(); cx.arc(B.cx - 7, B.cy - 8, 11 * puff, 0, 7); cx.fill();
-    cx.fillStyle = '#16160f';
-    cx.beginPath(); cx.arc(B.cx - 8, B.cy - 4, 3.4, 0, 7); cx.fill();
-    cx.beginPath(); cx.arc(B.cx + 7, B.cy - 4, 3.4, 0, 7); cx.fill();
-    /* 那张咧着的嘴 —— 笑的时候咧得更开 */
-    cx.strokeStyle = '#8a7320';
-    cx.lineWidth = 4;
-    cx.beginPath();
-    cx.arc(B.cx, B.cy + 2, (13 + 4 * puff), 0.12 * Math.PI, 0.88 * Math.PI);
-    cx.stroke();
+    drawHorrorBoss(B);
     /* 能打的那一下：亮着的那张讲桌闪一大圈，四个箭头从四边指过去 */
     if (B.open > 0 && B.lit >= 0){
       var L = B.plats[B.lit];
@@ -8412,7 +8401,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v25';
+var BUILD = 'v26';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8473,9 +8462,10 @@ function toggleSnd(){
 }
 
 </script>
-<script src="story.js?v=25"></script>
-<script src="wander.js?v=25"></script>
-<script src="annex.js?v=25"></script>
+<script src="story.js?v=26"></script>
+<script src="wander.js?v=26"></script>
+<script src="annex.js?v=26"></script>
+<script src="cinema.js?v=26"></script>
 <script>
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
