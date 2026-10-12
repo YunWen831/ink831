@@ -190,8 +190,10 @@ function yardTick(dt){
  }
  var moved=Math.hypot(M.p.x-t.px,M.p.y-t.py)>0.5,inTrack=M.p.x>=5*TILE&&M.p.x<29*TILE&&M.p.y>=7*TILE&&M.p.y<32*TILE;
  if(t.phase==='stop'&&t.grace<=0&&inTrack&&moved){
+  t.caught=(t.caught||0)+1;
+  if(t.caught>=3){clearInput();die('第三次回头，他终于认出了你的声音。\n跑道尽头的空校服里，多了一张脸。',1.7);return;}
   M.p.x=15*TILE+16;M.p.y=33*TILE+16;clearInput();t.phase='walk';t.t=3.6;t.grace=.3;flashRed();shake(.25);
-  toast('他看见了。退回跑道起点；调查记录还在。',2.5);
+  checkpoint('跑道起点');toast('他看见了（'+t.caught+'/3）。第三次会致死；先站住，再走。',3);
  }t.px=M.p.x;t.py=M.p.y;
 }
 var annexUpdate=update;
@@ -207,6 +209,7 @@ syncEpisodeUI=function(){
  if(M.map==='yard'){
   var t=M.yardTrial;detail=flagOn('拿到旧哨子')?'旧哨子已拿到。看台旁、拿卷尺的人和东侧旧食堂还可以调查。':(t&&t.phase==='stop'?'红灯 · 他回头了：松开方向，站住！':t&&t.phase==='warn'?'黄灯 · 要回头了，现在准备停！':'绿灯 · 可以走，跑道终点的旧哨子在北侧。');
  }else detail=mealRound()===3?'三份已送回 · 再问窗口的人，继续调查。':'第'+(mealRound()+1)+'/3份：'+mealMenu()+' · 餐盘：'+(mealTray().map(function(i){return ANNEX_FOOD[i];}).join(' → ')||'空');
+ if(M.map==='yard'&&!flagOn('拿到旧哨子'))detail+=' · 被发现 '+((M.yardTrial&&M.yardTrial.caught)||0)+'/3';
  var sig=M.map+':'+detail;if(episodeHud.dataset.annex!==sig){episodeHud.dataset.annex=sig;episodeHud.innerHTML='<b>'+EPISODES[M.map].title+'</b><br>'+detail;}
 };
 var annexDraw=drawWanderWorld;

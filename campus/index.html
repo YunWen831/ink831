@@ -3881,7 +3881,7 @@ function loadGame(){
   M.safeX = Math.floor(M.p.x/TILE); M.safeY = Math.floor(M.p.y/TILE);
   if (M.toiletN) toiletEnter2();
   if (flagOn('被追了') && !flagOn('冲出校门') && M.map !== 'arena') startChase(true);
-  if (M.map === 'arena') startBoss(s.bossHp);
+  if (M.map === 'arena') startBoss(s.bossHp,s.bossSeals);
   applyClock(); checkpoint(); saveGame();
   toast('调查继续。按本子查看当前主线。');
   return true;
@@ -4045,7 +4045,7 @@ function respawn(){
   M.urgeGap = s.urgeGap || URGE_STEP; M.urgeNext = s.urgeNext || M.walked + M.urgeGap;
   M.laugh = 0; laughSet(0);
   loadMap(s.map,0,0); M.p.x = s.x; M.p.y = s.y; recoverPosition();
-  if (s.map === 'arena') startBoss(s.bossHp);
+  if (s.map === 'arena') startBoss(s.bossHp,s.bossSeals);
   else if (flagOn('被追了') && !flagOn('冲出校门')) startChase(true);
   applyClock(); M.renderDirty = true;
 }
@@ -5940,6 +5940,7 @@ function render(){
   });
   order.sort(function(a,b){ return a.y - b.y; });
   order.forEach(function(o){
+    if(M.film&&o.id==='lg7'&&M.film.beat.film.startsWith('lg7_'))return;
     if (o.me){
       /* 身边人一多，脚下垫一圈暖光 —— 一屋子一样的小人里，
          得一眼认出哪个是自己 */
@@ -8401,7 +8402,7 @@ clockEl.style.display = 'none';
 /* ==================== 版本 · 帧数 ====================
    手机上出问题，第一件要分清的是：画面冻住了（帧数停了），
    还是画面正常、只是玩不下去（帧数还在跳）。左下角这行就是干这个的。 */
-var BUILD = 'v26';
+var BUILD = 'v27';
 var dbgEl = null, dbgT = 0, dbgF = 0;
 function dbgTick(dt){
   dbgF++;
@@ -8462,10 +8463,13 @@ function toggleSnd(){
 }
 
 </script>
-<script src="story.js?v=26"></script>
-<script src="wander.js?v=26"></script>
-<script src="annex.js?v=26"></script>
-<script src="cinema.js?v=26"></script>
+<script src="story.js?v=27"></script>
+<script src="wander.js?v=27"></script>
+<script src="annex.js?v=27"></script>
+<script src="cinema.js?v=27"></script>
+<script src="class46.js?v=27"></script>
+<script src="danger.js?v=27"></script>
+<script src="siege.js?v=27"></script>
 <script>
 /* ==================== 起飞 ====================
    地图必须在起飞前就装上。它是空的时侯 tileAt 会读到 undefined，
