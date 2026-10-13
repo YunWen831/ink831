@@ -21,11 +21,11 @@ window.YUNWEN_PROJECTS = [
     imageAlt: 'ds词塔战斗界面'
   },
   {
-    title: '言灵',
+    title: 'qoder言',
     category: 'game',
     description: '四六级单词肉鸽。探索地牢，拼写真正的 CET-4/6 词汇，收集言灵。',
     href: './spell/index.html',
     image: './assets/spell-cover.png',
-    imageAlt: '言灵游戏画面'
+    imageAlt: 'qoder言游戏画面'
   }
 ];
