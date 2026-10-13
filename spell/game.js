@@ -298,7 +298,8 @@
       gold: 0,
       items: { potion: 1, hint: 1, skip: 0, shield: 0 },
       shieldActive: false,
-      stats: { steps: 0, answered: 0, correct: 0, events: 0, newThisRun: 0, bosses: 0 },
+      ghosts: [],
+      stats: { steps: 0, answered: 0, correct: 0, events: 0, newThisRun: 0, bosses: 0, ghostsKilled: 0 },
       over: false
     };
     usedWords = {};
@@ -339,8 +340,9 @@
           tile.textContent = '·'; tile.style.opacity = '0.4';
         } else {
           tile.className += ' ' + TERRAINS[cell.terrain].cls;
-          var icons = { discovery:'📖', event:'？', treasure:'✧', rest:'🔥', shop:'🏪', boss:'⚔', trap:'⚡', portal:'🌀' };
+          var icons = { discovery:'📖', event:'？', treasure:'✧', rest:'🔥', shop:'🏪', boss:'⚔', trap:'⚡', portal:'🌀', ghost:'👻' };
           tile.textContent = icons[cell.type] || TERRAINS[cell.terrain].icon;
+          if (cell.type === 'ghost') tile.style.animation = 'pulse 1.5s infinite';
         }
 
         if (isAdjacent && !isPlayer) {
@@ -384,6 +386,12 @@
       case 'challenge': { var w = pickWord(cell.terrain); if (isNew(w)) startLearn(w, cell.terrain, 'challenge'); else startChallenge(cell.terrain, w, false); break; }
       case 'discovery': startLearn(pickWord(cell.terrain), cell.terrain, 'discovery'); break;
       case 'boss': startChallenge(cell.terrain, pickWord(cell.terrain, true), true); break;
+      case 'ghost': {
+        var gw = BY[cell.ghostWord];
+        if (!gw) { cell.type = 'challenge'; save(); renderMap(); show('map'); break; }
+        startGhostChallenge(cell.terrain, gw, x, y);
+        break;
+      }
       case 'trap': startTrap(cell.terrain); break;
       case 'portal': startPortal(); break;
       case 'shop': startShop(); break;
@@ -473,6 +481,7 @@
   }
   function submitChallenge() {
     if (!CH || CH.done) return;
+    if (trapTimerInterval) { clearInterval(trapTimerInterval); trapTimerInterval = null; }
     var input = $('challengeInput').value.trim().toLowerCase();
     if (!input) return;
     CH.done = true;
@@ -491,12 +500,25 @@
       Prog.prof[w.w] = Math.min(4, profOf(w) + 1);
       R.gold += verdict === 'exact' ? goldReward : Math.round(goldReward / 2);
       if (CH.boss && verdict === 'exact') R.stats.bosses++;
-      f.textContent = (verdict === 'exact' ? '正确！' : '差一点！') + want + (CH.boss ? ' · Boss 击败！' : '');
+      if (CH.ghost) {
+        killGhost(CH.ghostX, CH.ghostY);
+        R.map[CH.ghostY][CH.ghostX].type = 'challenge';
+        R.map[CH.ghostY][CH.ghostX].ghostWord = null;
+        f.textContent = (verdict === 'exact' ? '正确！' : '差一点！') + want + ' · 幽灵消灭！';
+      } else {
+        f.textContent = (verdict === 'exact' ? '正确！' : '差一点！') + want + (CH.boss ? ' · Boss 击败！' : '');
+      }
       f.className = 'flash ok'; detail.textContent = senses(w);
       $('challengeInput').className = 'ok'; say(want); sfxOk();
     } else {
       if (R.shieldActive) { R.shieldActive = false; f.textContent = '护盾挡住了！正确：' + want; f.className = 'flash info'; }
-      else { R.energy = Math.max(0, R.energy - energyPenalty); f.textContent = '错误。正确：' + want; f.className = 'flash no'; }
+      else {
+        R.energy = Math.max(0, R.energy - energyPenalty);
+        f.textContent = '错误。正确：' + want; f.className = 'flash no';
+        if (!CH.trap && R.ghosts.length < 5) {
+          spawnGhost(w);
+        }
+      }
       Prog.prof[w.w] = Math.max(0, profOf(w) - 1); detail.textContent = senses(w);
       var twin = (w.cf || []).indexOf(typed) >= 0;
       if (twin) { var tw = BY[typed]; detail.textContent = '你拼的 ' + typed + (tw ? '（'+senses(tw)+'）' : '') + ' ≠ ' + want + '（' + senses(w) + '）'; }
@@ -508,15 +530,56 @@
   }
   function skipChallenge() { CH = null; renderMap(); show('map'); }
 
+  function spawnGhost(word) {
+    var candidates = [];
+    for (var y = 0; y < MAP_SIZE; y++) for (var x = 0; x < MAP_SIZE; x++) {
+      var c = R.map[y][x];
+      if (!c.visited && c.type !== 'goal' && c.type !== 'start' && c.type !== 'ghost' && !(x === R.px && y === R.py))
+        candidates.push({ x: x, y: y });
+    }
+    if (!candidates.length) return;
+    var pos = candidates[(Math.random() * candidates.length) | 0];
+    R.map[pos.y][pos.x].type = 'ghost';
+    R.map[pos.y][pos.x].ghostWord = word.w;
+    R.ghosts.push({ word: word.w, x: pos.x, y: pos.y });
+  }
+
+  function killGhost(x, y) {
+    R.ghosts = R.ghosts.filter(function (g) { return !(g.x === x && g.y === y); });
+    R.stats.ghostsKilled++;
+  }
+
+  function startGhostChallenge(terrain, word, gx, gy) {
+    CH = { terrain: terrain, word: word, boss: false, ghost: true, ghostX: gx, ghostY: gy, done: false, hintUsed: false };
+    $('challengeIcon').textContent = '👻';
+    $('challengePrompt').textContent = '幽灵阻挡！拼出这个词消灭它';
+    $('challengeCn').textContent = senses(word);
+    $('challengeHint').textContent = hintOf(word.w, false);
+    $('challengeInput').value = ''; $('challengeInput').className = '';
+    $('challengeFlash').textContent = ''; $('challengeFlash').className = 'flash';
+    $('challengeDetail').textContent = '';
+    $('submitBtn').disabled = false; $('skipBtn').disabled = true;
+    $('bossTag').style.display = 'none';
+    var rootEl = $('challengeRoot');
+    var rootStr = getRoots(word);
+    if (rootStr) { rootEl.textContent = '词根：' + rootStr; rootEl.style.display = 'block'; }
+    else rootEl.style.display = 'none';
+    var confuseEl = $('challengeConfuse');
+    if (word.cf && word.cf.length) { confuseEl.textContent = '注意形近词：' + word.cf.slice(0, 2).join(', '); confuseEl.style.display = 'block'; }
+    else confuseEl.style.display = 'none';
+    $('challengeItems').innerHTML = '';
+    show('challenge'); $('challengeInput').focus();
+  }
+
   /* =========================================================
-     陷阱
+     陷阱（限时）
      ========================================================= */
   function startTrap(terrain) {
     var w = pickWord(terrain);
     if (isNew(w)) { startLearn(w, terrain, 'challenge'); return; }
-    CH = { terrain: terrain, word: w, boss: false, trap: true, done: false, hintUsed: false };
+    CH = { terrain: terrain, word: w, boss: false, trap: true, done: false, hintUsed: false, timer: 15 };
     $('challengeIcon').textContent = '⚡';
-    $('challengePrompt').textContent = '陷阱！快速拼出';
+    $('challengePrompt').textContent = '陷阱！15秒内拼出';
     $('challengeCn').textContent = senses(w);
     $('challengeHint').textContent = hintOf(w.w, false);
     $('challengeInput').value = ''; $('challengeInput').className = '';
@@ -524,7 +587,36 @@
     $('challengeDetail').textContent = '';
     $('bossTag').style.display = 'none'; $('challengeRoot').style.display = 'none'; $('challengeConfuse').style.display = 'none';
     $('submitBtn').disabled = false; $('skipBtn').disabled = true; $('challengeItems').innerHTML = '';
+    startTrapTimer();
     show('challenge'); $('challengeInput').focus();
+  }
+
+  var trapTimerInterval = null;
+  function startTrapTimer() {
+    if (trapTimerInterval) clearInterval(trapTimerInterval);
+    updateTimerDisplay();
+    trapTimerInterval = setInterval(function () {
+      if (!CH || CH.done) { clearInterval(trapTimerInterval); trapTimerInterval = null; return; }
+      CH.timer--;
+      updateTimerDisplay();
+      if (CH.timer <= 0) {
+        clearInterval(trapTimerInterval); trapTimerInterval = null;
+        CH.done = true;
+        R.energy = Math.max(0, R.energy - 2);
+        $('challengeFlash').textContent = '时间到！正确：' + CH.word.w;
+        $('challengeFlash').className = 'flash no';
+        $('challengeInput').className = 'no';
+        $('submitBtn').disabled = true;
+        say(CH.word.w); sfxBad();
+        save();
+        setTimeout(function () { if (R.energy <= 0) return endRun(false, '能量耗尽'); CH = null; renderMap(); show('map'); }, 2000);
+      }
+    }, 1000);
+  }
+
+  function updateTimerDisplay() {
+    if (!CH) return;
+    $('challengePrompt').textContent = '陷阱！' + CH.timer + '秒内拼出';
   }
 
   /* =========================================================
@@ -760,6 +852,7 @@
     stats.appendChild(makeStat(R.stats.steps, '步数'));
     stats.appendChild(makeStat(R.stats.correct, '答对'));
     stats.appendChild(makeStat(R.stats.bosses || 0, 'Boss'));
+    stats.appendChild(makeStat(R.stats.ghostsKilled || 0, '幽灵'));
     stats.appendChild(makeStat(R.stats.newThisRun || 0, '新学'));
     stats.appendChild(makeStat(R.gold, '金币'));
     stats.appendChild(makeStat(knownCount(), '总掌握'));
