@@ -37,6 +37,7 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 .btn:disabled{opacity:.4}
 .btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
 .btn.purple{background:var(--purple);color:#000;border-color:var(--purple)}
+.btn.danger{border-color:var(--red)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;margin-right:4px}
 .tag.new{background:#1e3a5f;color:#93c5fd}
@@ -49,17 +50,19 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 #titleBtns{width:100%;max-width:320px}
 
 .map-header{padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0}
-.map-grid{display:grid;gap:2px;margin:8px auto;grid-template-columns:repeat(8,1fr);width:min(100%,360px);aspect-ratio:1}
-.tile{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
-  font-size:14px;cursor:pointer;transition:all .15s;border:2px solid transparent;user-select:none}
+.map-grid{display:grid;gap:2px;margin:8px auto;grid-template-columns:repeat(10,1fr);width:min(100%,380px);aspect-ratio:1}
+.tile{aspect-ratio:1;border-radius:3px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;cursor:pointer;transition:all .15s;border:2px solid transparent;user-select:none}
 .tile:active{transform:scale(.9)}
-.tile.player{border-color:var(--gold);box-shadow:0 0 8px rgba(251,191,36,.5)}
+.tile.player{border-color:var(--gold);box-shadow:0 0 6px rgba(251,191,36,.5)}
 .tile.adjacent{border-color:rgba(126,200,227,.5)}
 .tile.goal{background:var(--gold)!important;color:#000;font-weight:700}
 .tile-water{background:#1e3a5f}.tile-forest{background:#14532d}
 .tile-mountain{background:#44403c}.tile-desert{background:#78350f}
 .tile-swamp{background:#365314}.tile-plains{background:#1e293b}
-.tile-discovery{background:#4a1d6e}
+
+.items-bar{display:flex;gap:4px;margin-top:4px;flex-wrap:wrap}
+.item-badge{font-size:11px;background:var(--panel2);padding:2px 6px;border-radius:8px;color:var(--muted)}
 
 .challenge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px}
 .challenge .terrain-icon{font-size:48px;margin-bottom:12px}
@@ -67,6 +70,7 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 .challenge .hint{font-family:var(--mono);font-size:14px;color:var(--muted);letter-spacing:.2em;margin-bottom:8px}
 .challenge .root-hint{font-size:12px;color:var(--purple);margin-bottom:8px;font-family:var(--mono)}
 .challenge .confuse-warn{font-size:12px;color:var(--red);margin-bottom:8px}
+.challenge .boss-tag{font-size:12px;color:var(--gold);margin-bottom:4px;font-weight:600}
 #challengeInput{width:100%;max-width:320px;padding:14px;font-family:var(--mono);font-size:20px;
   text-align:center;background:var(--panel);color:var(--text);border:1px solid var(--line);
   border-radius:10px;outline:none;letter-spacing:.05em}
@@ -76,8 +80,13 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 .flash{text-align:center;font-weight:600;min-height:20px;margin-top:8px;font-size:14px}
 .flash.ok{color:var(--green)}.flash.no{color:var(--red)}.flash.info{color:var(--accent)}
 .flash-detail{text-align:center;font-size:12px;color:var(--muted);margin-top:4px}
-.challenge-actions{flex-shrink:0;padding:8px 0;display:flex;gap:8px}
-.challenge-actions .btn{flex:1}
+.challenge-actions{flex-shrink:0;padding:8px 0;display:flex;gap:6px;flex-wrap:wrap}
+.challenge-actions .btn{flex:1;min-width:80px;padding:10px 8px;font-size:13px}
+.item-actions{display:flex;gap:4px;margin-top:4px;justify-content:center;flex-wrap:wrap}
+.item-btn{font-size:11px;padding:4px 10px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;color:var(--muted);cursor:pointer}
+.item-btn:active{background:var(--panel)}
+.item-btn:disabled{opacity:.3}
 
 .learn-screen{justify-content:center;align-items:center;text-align:center}
 .learn-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0;width:100%;max-width:340px}
@@ -90,6 +99,14 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 
 .event-screen{justify-content:center;align-items:center;text-align:center}
 .event-screen .icon{font-size:48px;margin-bottom:16px}
+
+.shop-list{flex:1;overflow-y:auto;margin:8px 0}
+.shop-item{display:flex;align-items:center;gap:10px;padding:10px;background:var(--panel);
+  border:1px solid var(--line);border-radius:10px;margin:6px 0}
+.shop-item .info{flex:1}
+.shop-item .name{font-weight:600;font-size:14px}
+.shop-item .desc{font-size:12px;color:var(--muted);margin-top:2px}
+.shop-item .cost{font-size:13px;color:var(--gold);font-weight:600;white-space:nowrap}
 
 .over-screen{justify-content:center;align-items:center;text-align:center}
 .over-screen .big{font-size:24px;font-weight:700;margin-bottom:8px}
@@ -115,7 +132,7 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
   <section class="screen" id="map">
     <div class="map-header">
       <div class="row">
-        <span style="font-weight:600">探索</span>
+        <span style="font-weight:600" id="floorName">大陆 1</span>
         <span class="small muted" id="mapInfo"></span>
       </div>
       <div class="row small" style="margin-top:4px">
@@ -123,6 +140,7 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
         <span style="margin-left:auto">✧ <span id="goldText">0</span></span>
       </div>
       <div class="bar" style="margin-top:4px"><i id="energyBar" style="background:var(--gold)"></i></div>
+      <div class="items-bar" id="itemsBar"></div>
     </div>
     <div class="map-grid" id="mapGrid"></div>
   </section>
@@ -146,6 +164,7 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
   <section class="screen" id="challenge">
     <div class="challenge">
       <div class="terrain-icon" id="challengeIcon">🌊</div>
+      <div class="boss-tag" id="bossTag" style="display:none">⚔ BOSS</div>
       <div class="prompt" id="challengePrompt">水域</div>
       <div class="small muted" id="challengeCn" style="margin-bottom:4px"></div>
       <div class="root-hint" id="challengeRoot" style="display:none"></div>
@@ -155,6 +174,7 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
              autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="拼写单词...">
       <div class="flash" id="challengeFlash"></div>
       <div class="flash-detail" id="challengeDetail"></div>
+      <div class="item-actions" id="challengeItems"></div>
     </div>
     <div class="challenge-actions">
       <button class="btn primary" id="submitBtn"><span class="t">确认（回车）</span></button>
@@ -167,6 +187,17 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
     <h2 id="eventTitle"></h2>
     <p class="muted" id="eventDesc" style="margin:8px 0 24px"></p>
     <div id="eventChoices" style="width:100%;max-width:360px"></div>
+  </section>
+
+  <section class="screen" id="shop">
+    <div style="padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0">
+      <h2>🏪 商店</h2>
+      <p class="small muted">你有 <span id="shopGold">0</span> ✧</p>
+    </div>
+    <div class="shop-list" id="shopList"></div>
+    <div style="flex-shrink:0;padding:8px 0">
+      <button class="btn" id="shopLeaveBtn"><span class="t">离开</span></button>
+    </div>
   </section>
 
   <section class="screen over-screen" id="over">
