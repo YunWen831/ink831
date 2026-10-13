@@ -3,134 +3,78 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<meta name="description" content="言灵 —— 词就是你的魔法。背单词肉鸽。">
+<meta name="description" content="qoder言 —— 在地图上拼单词探索世界。四六级单词肉鸽。">
 <title>qoder言</title>
 <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
 <style>
 :root{
   color-scheme:dark;
   --bg:#0a0e14;--panel:#111820;--panel2:#182030;--line:#1e2d3d;
-  --text:#e0e8f0;--muted:#6b7d8f;--accent:#7ec8e3;--accent2:#c084fc;
-  --gold:#fbbf24;--red:#ef4444;--green:#22c55e;--blue:#3b82f6;
+  --text:#e0e8f0;--muted:#6b7d8f;--accent:#7ec8e3;--gold:#fbbf24;
+  --red:#ef4444;--green:#22c55e;
   --font:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
   --mono:ui-monospace,"Cascadia Mono","Consolas","Courier New",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;overflow:hidden;touch-action:manipulation}
-body{
-  background:var(--bg);color:var(--text);font-family:var(--font);
-  font-size:15px;line-height:1.6;display:flex;flex-direction:column;
-  align-items:center;
-}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6;
+  display:flex;flex-direction:column;align-items:center}
 button{font-family:inherit;font-size:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input{font-family:inherit;font-size:inherit}
 
-.wrap{width:100%;max-width:480px;height:100%;display:flex;flex-direction:column;overflow:hidden;position:relative}
-.screen{display:none;flex-direction:column;height:100%;overflow-y:auto;padding:16px;
-  -webkit-overflow-scrolling:touch}
+.wrap{width:100%;max-width:480px;height:100%;display:flex;flex-direction:column;overflow:hidden}
+.screen{display:none;flex-direction:column;height:100%;overflow-y:auto;padding:12px;-webkit-overflow-scrolling:touch}
 .screen.on{display:flex}
 
-/* 通用组件 */
 .bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:4px;transition:width .3s}
-.bar.hp>i{background:var(--green)}
-.bar.hp.low>i{background:var(--red)}
-.bar.mp>i{background:var(--blue)}
-.bar.xp>i{background:var(--gold)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.muted{color:var(--muted)}
-.small{font-size:13px}
-.tiny{font-size:11px}
-h1{font-size:28px;font-weight:700;letter-spacing:-.02em}
-h2{font-size:18px;font-weight:600}
-.btn{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  width:100%;padding:14px 16px;margin:6px 0;
-  background:var(--panel);border:1px solid var(--line);border-radius:10px;
-  text-align:left;transition:all .15s;
-}
+.muted{color:var(--muted)}.small{font-size:13px}
+h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;margin:6px 0;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;text-align:left;transition:all .15s}
 .btn:active{transform:scale(.98);background:var(--panel2)}
 .btn:disabled{opacity:.4}
-.btn .t{font-weight:600}
-.btn .d{color:var(--muted);font-size:12px;margin-top:2px}
 .btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
-.btn.primary:active{background:#5ab0d0}
-.btn.danger{border-color:var(--red)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0}
-.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;
-  background:var(--panel2);color:var(--muted);margin-right:4px}
-.tag.atk{background:#7f1d1d;color:#fca5a5}
-.tag.def{background:#1e3a5f;color:#93c5fd}
-.tag.heal{background:#14532d;color:#86efac}
-.tag.util{background:#4a1d6e;color:#c4b5fd}
-.tag.status{background:#713f12;color:#fde68a}
 
-/* 标题页 */
-#title{justify-content:center;align-items:center;text-align:center;padding-top:10vh}
+#title{justify-content:center;align-items:center;text-align:center}
 #title h1{font-size:36px;margin-bottom:4px}
-#title .sub{color:var(--muted);margin-bottom:32px;font-size:14px}
-#title .sub b{color:var(--accent);font-weight:600}
+#title .sub{color:var(--muted);margin-bottom:32px}
+#title .sub b{color:var(--accent)}
 #titleBtns{width:100%;max-width:320px}
 
-/* 地牢 */
-.dungeon-header{padding:8px 0;border-bottom:1px solid var(--line);margin-bottom:12px;flex-shrink:0}
-.dungeon-header .row{margin-bottom:6px}
-.floor-name{font-weight:600;font-size:16px}
-.room-desc{
-  flex:1;display:flex;flex-direction:column;justify-content:center;
-  padding:20px 0;text-align:center;
-}
-.room-desc .icon{font-size:48px;margin-bottom:16px}
-.room-desc .text{font-size:15px;line-height:1.8;color:var(--text)}
-.room-desc .text b{color:var(--accent)}
-.room-choices{flex-shrink:0;padding:8px 0}
+.map-header{padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0}
+.map-grid{display:grid;gap:2px;margin:8px auto;grid-template-columns:repeat(8,1fr);width:min(100%,360px);aspect-ratio:1}
+.tile{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;
+  font-size:14px;cursor:pointer;transition:all .15s;border:2px solid transparent;user-select:none}
+.tile:active{transform:scale(.9)}
+.tile.player{border-color:var(--gold);box-shadow:0 0 8px rgba(251,191,36,.5)}
+.tile.adjacent{border-color:rgba(126,200,227,.5)}
+.tile.goal{background:var(--gold)!important;color:#000;font-weight:700}
+.tile-water{background:#1e3a5f}.tile-forest{background:#14532d}
+.tile-mountain{background:#44403c}.tile-desert{background:#78350f}
+.tile-swamp{background:#365314}.tile-plains{background:#1e293b}
+.tile-event{background:#4a1d6e}.tile-treasure{background:#713f12}
 
-/* 战斗 */
-.battle-header{padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0}
-.battle-header .row{margin-bottom:4px}
-.enemy-name{font-weight:600;font-size:16px}
-.enemy-tag{font-size:11px;color:var(--muted);margin-left:6px}
-.battle-scene{
-  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  padding:16px 0;position:relative;overflow:hidden;
-}
-.enemy-display{text-align:center;margin-bottom:20px}
-.enemy-display .emoji{font-size:64px;transition:all .3s}
-.enemy-display .emoji.hit{animation:shake .3s}
-.enemy-display .hp-text{font-family:var(--mono);font-size:13px;color:var(--muted);margin-top:4px}
-.spell-input-area{width:100%;max-width:360px}
-.prompt-box{text-align:center;margin-bottom:12px}
-.prompt-box .cn{font-size:18px;font-weight:600;color:var(--gold)}
-.prompt-box .pos{font-size:12px;color:var(--muted);margin-top:2px}
-.prompt-box .hint{font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:6px;letter-spacing:.2em}
-#spellInput{
-  width:100%;padding:14px;font-family:var(--mono);font-size:20px;text-align:center;
-  background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;
-  outline:none;letter-spacing:.05em;
-}
-#spellInput:focus{border-color:var(--accent)}
-#spellInput.ok{border-color:var(--green);color:var(--green)}
-#spellInput.no{border-color:var(--red);color:var(--red)}
-.battle-actions{flex-shrink:0;padding:8px 0;display:flex;gap:8px}
-.battle-actions .btn{flex:1}
-.flash-msg{text-align:center;font-weight:600;min-height:20px;margin-top:8px;font-size:14px}
-.flash-msg.ok{color:var(--green)}
-.flash-msg.no{color:var(--red)}
-.flash-msg.info{color:var(--accent)}
+.challenge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px}
+.challenge .terrain-icon{font-size:48px;margin-bottom:12px}
+.challenge .prompt{font-size:18px;font-weight:600;color:var(--gold);margin-bottom:4px}
+.challenge .hint{font-family:var(--mono);font-size:14px;color:var(--muted);letter-spacing:.2em;margin-bottom:16px}
+#challengeInput{width:100%;max-width:320px;padding:14px;font-family:var(--mono);font-size:20px;
+  text-align:center;background:var(--panel);color:var(--text);border:1px solid var(--line);
+  border-radius:10px;outline:none;letter-spacing:.05em}
+#challengeInput:focus{border-color:var(--accent)}
+#challengeInput.ok{border-color:var(--green);color:var(--green)}
+#challengeInput.no{border-color:var(--red);color:var(--red)}
+.flash{text-align:center;font-weight:600;min-height:20px;margin-top:8px;font-size:14px}
+.flash.ok{color:var(--green)}.flash.no{color:var(--red)}.flash.info{color:var(--accent)}
+.challenge-actions{flex-shrink:0;padding:8px 0;display:flex;gap:8px}
+.challenge-actions .btn{flex:1}
 
-/* 法术选择 */
-.spell-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
-.spell-card{
-  background:var(--panel);border:1px solid var(--line);border-radius:10px;
-  padding:10px;text-align:center;transition:all .15s;
-}
-.spell-card:active{transform:scale(.96)}
-.spell-card.selected{border-color:var(--accent);background:var(--panel2)}
-.spell-card .word{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--accent)}
-.spell-card .meaning{font-size:11px;color:var(--muted);margin-top:2px}
-.spell-card .cost{font-size:10px;color:var(--blue);margin-top:4px}
+.event-screen{justify-content:center;align-items:center;text-align:center}
+.event-screen .icon{font-size:48px;margin-bottom:16px}
 
-/* 结算 */
 .over-screen{justify-content:center;align-items:center;text-align:center}
 .over-screen .big{font-size:24px;font-weight:700;margin-bottom:8px}
 .over-screen .sub{color:var(--muted);margin-bottom:24px}
@@ -139,194 +83,57 @@ h2{font-size:18px;font-weight:600}
 .stats-grid .stat .val{font-size:24px;font-weight:700;color:var(--accent)}
 .stats-grid .stat .label{font-size:11px;color:var(--muted);margin-top:2px}
 
-/* 法术书 */
-.spellbook-list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.spell-item{
-  display:flex;align-items:center;gap:10px;padding:10px;
-  border-bottom:1px solid var(--line);
-}
-.spell-item .spell-word{font-family:var(--mono);font-weight:600;color:var(--accent);min-width:80px}
-.spell-item .spell-meaning{flex:1;font-size:13px;color:var(--muted)}
-.spell-item .spell-level{font-size:11px;color:var(--gold)}
-
-/* 设置 */
-.settings-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
-.settings-row .label{font-weight:500}
-.toggle{width:44px;height:24px;background:var(--panel2);border-radius:12px;position:relative;cursor:pointer;transition:background .2s}
-.toggle.on{background:var(--accent)}
-.toggle>i{position:absolute;top:2px;left:2px;width:20px;height:20px;background:#fff;border-radius:50%;transition:left .2s}
-.toggle.on>i{left:22px}
-
-/* 动画 */
-@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
-@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-.anim-in{animation:fadeIn .3s ease-out}
-.anim-float{animation:float 2s ease-in-out infinite}
-
-/* 法术特效 */
-.effect-overlay{position:absolute;inset:0;pointer-events:none;z-index:10}
-.effect-fire{background:radial-gradient(circle,rgba(255,100,0,.4),transparent 70%);animation:fadeIn .2s}
-.effect-ice{background:radial-gradient(circle,rgba(100,200,255,.4),transparent 70%);animation:fadeIn .2s}
-.effect-light{background:radial-gradient(circle,rgba(255,255,200,.5),transparent 60%);animation:fadeIn .2s}
-.effect-heal{background:radial-gradient(circle,rgba(100,255,100,.3),transparent 70%);animation:fadeIn .2s}
-.effect-dark{background:radial-gradient(circle,rgba(100,0,200,.4),transparent 70%);animation:fadeIn .2s}
-.effect-shield{border:3px solid rgba(100,200,255,.6);border-radius:50%;animation:pulse .5s}
-
-/* 底部导航 */
-.bottom-nav{
-  display:flex;border-top:1px solid var(--line);flex-shrink:0;
-  background:var(--panel);
-}
-.bottom-nav button{
-  flex:1;padding:10px;text-align:center;font-size:12px;color:var(--muted);
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-}
-.bottom-nav button .nav-icon{font-size:18px}
-.bottom-nav button.active{color:var(--accent)}
-
 footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shrink:0}
-
-/* 单词列表 */
-.wordlist{margin:8px 0 0;padding:0;list-style:none;font-family:var(--mono);font-size:13px}
-.wordlist li{padding:4px 0;border-bottom:1px solid var(--line)}
-.wordlist li:last-child{border-bottom:0}
-.wordlist .cn{color:var(--muted);margin-left:8px}
 </style>
 </head>
 <body>
-
 <div class="wrap">
 
-  <!-- 标题 -->
   <section class="screen on" id="title">
     <h1>qoder言</h1>
-    <p class="sub">词就是你的魔法。<b>拼对即施法。</b></p>
+    <p class="sub">在地图上拼单词，探索未知世界。<b>地形不同，词汇不同。</b></p>
     <div id="titleBtns"></div>
     <p class="small muted" id="titleProgress" style="margin-top:16px"></p>
   </section>
 
-  <!-- 地牢探索 -->
-  <section class="screen" id="dungeon">
-    <div class="dungeon-header">
+  <section class="screen" id="map">
+    <div class="map-header">
       <div class="row">
-        <span class="floor-name" id="floorName">第 1 层</span>
-        <span class="small muted" id="floorInfo"></span>
+        <span style="font-weight:600">探索</span>
+        <span class="small muted" id="mapInfo"></span>
       </div>
-      <div class="row" style="margin-top:4px">
-        <div style="flex:1">
-          <div class="row small" style="margin-bottom:2px">
-            <span>❤ <span id="hpText">100/100</span></span>
-            <span style="margin-left:auto">✦ <span id="mpText">50/50</span></span>
-          </div>
-          <div class="bar hp" id="hpBar"><i></i></div>
-        </div>
-      </div>
-      <div class="row small muted" style="margin-top:4px">
-        <span id="spellCount">法术 0</span>
-        <span style="margin-left:auto" id="goldCount">✧ 0</span>
-      </div>
-    </div>
-    <div class="room-desc" id="roomDesc"></div>
-    <div class="room-choices" id="roomChoices"></div>
-  </section>
-
-  <!-- 战斗 -->
-  <section class="screen" id="battle">
-    <div class="battle-header">
-      <div class="row">
-        <div>
-          <span class="enemy-name" id="enemyName"></span>
-          <span class="enemy-tag" id="enemyTag"></span>
-        </div>
-        <span class="small" id="enemyHpText"></span>
-      </div>
-      <div class="bar hp" id="enemyBar"><i></i></div>
       <div class="row small" style="margin-top:4px">
-        <span>❤ <span id="battleHp"></span></span>
-        <span style="margin-left:auto">✦ <span id="battleMp"></span></span>
+        <span>⚡ <span id="energyText">20/20</span></span>
+        <span style="margin-left:auto">✧ <span id="goldText">0</span></span>
       </div>
+      <div class="bar" style="margin-top:4px"><i id="energyBar" style="background:var(--gold)"></i></div>
     </div>
-    <div class="battle-scene" id="battleScene">
-      <div class="effect-overlay" id="effectOverlay"></div>
-      <div class="enemy-display">
-        <div class="emoji" id="enemyEmoji">👹</div>
-        <div class="hp-text" id="enemyHpDisplay"></div>
-      </div>
-      <div class="spell-input-area">
-        <div class="prompt-box">
-          <div class="cn" id="promptCn"></div>
-          <div class="pos" id="promptPos"></div>
-          <div class="hint" id="promptHint"></div>
-        </div>
-        <input id="spellInput" type="text" autocomplete="off" autocapitalize="off"
-               autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="拼写法术...">
-        <div class="flash-msg" id="flashMsg"></div>
-      </div>
+    <div class="map-grid" id="mapGrid"></div>
+  </section>
+
+  <section class="screen" id="challenge">
+    <div class="challenge">
+      <div class="terrain-icon" id="challengeIcon">🌊</div>
+      <div class="prompt" id="challengePrompt">水域</div>
+      <div class="small muted" id="challengeCn" style="margin-bottom:8px"></div>
+      <div class="hint" id="challengeHint">_ _ _ _</div>
+      <input id="challengeInput" type="text" autocomplete="off" autocapitalize="off"
+             autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="拼写单词...">
+      <div class="flash" id="challengeFlash"></div>
     </div>
-    <div class="battle-actions">
-      <button class="btn primary" id="castBtn"><span class="t">施法（回车）</span></button>
-      <button class="btn danger" id="fleeBtn"><span class="t">逃跑</span></button>
+    <div class="challenge-actions">
+      <button class="btn primary" id="submitBtn"><span class="t">确认（回车）</span></button>
+      <button class="btn" id="skipBtn"><span class="t">绕路</span></button>
     </div>
   </section>
 
-  <!-- 石碑（学新词） -->
-  <section class="screen" id="stele">
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-      <div style="font-size:64px;margin-bottom:16px" class="anim-float">🪨</div>
-      <h2 style="margin-bottom:8px">古老的石碑</h2>
-      <p class="muted small" style="margin-bottom:24px">上面刻着一个失落的言灵</p>
-      <div class="card" style="width:100%;max-width:320px">
-        <div style="font-size:20px;font-weight:600;color:var(--gold)" id="steleCn"></div>
-        <div style="font-size:13px;color:var(--muted);margin-top:4px" id="stelePos"></div>
-        <div style="font-family:var(--mono);font-size:14px;color:var(--muted);margin-top:8px;letter-spacing:.2em" id="steleHint"></div>
-      </div>
-      <input id="steleInput" type="text" autocomplete="off" autocapitalize="off"
-             autocorrect="off" spellcheck="false" enterkeyhint="done"
-             style="width:100%;max-width:320px;padding:14px;font-family:var(--mono);font-size:20px;
-             text-align:center;background:var(--panel);color:var(--text);border:1px solid var(--line);
-             border-radius:10px;outline:none;margin-top:16px;letter-spacing:.05em"
-             placeholder="拼写这个言灵...">
-      <div class="flash-msg" id="steleFlash"></div>
-      <div style="width:100%;max-width:320px;margin-top:16px">
-        <button class="btn primary" id="steleBtn"><span class="t">铭刻（回车）</span></button>
-        <button class="btn" id="steleSkipBtn"><span class="t">跳过</span><span class="d">不学这个词</span></button>
-      </div>
-    </div>
+  <section class="screen event-screen" id="event">
+    <div class="icon" id="eventIcon">🎁</div>
+    <h2 id="eventTitle"></h2>
+    <p class="muted" id="eventDesc" style="margin:8px 0 24px"></p>
+    <div id="eventChoices" style="width:100%;max-width:360px"></div>
   </section>
 
-  <!-- 事件 -->
-  <section class="screen" id="event">
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px">
-      <div style="font-size:48px;margin-bottom:16px" id="eventIcon">🎲</div>
-      <h2 id="eventTitle" style="margin-bottom:8px"></h2>
-      <p class="muted" id="eventDesc" style="margin-bottom:24px"></p>
-      <div id="eventChoices" style="width:100%;max-width:360px"></div>
-    </div>
-  </section>
-
-  <!-- 休息 -->
-  <section class="screen" id="rest">
-    <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
-      <div style="font-size:64px;margin-bottom:16px">🔥</div>
-      <h2 style="margin-bottom:8px">篝火</h2>
-      <p class="muted small" style="margin-bottom:24px">歇一会儿，做一件事</p>
-      <div id="restChoices" style="width:100%;max-width:360px"></div>
-    </div>
-  </section>
-
-  <!-- 商店 -->
-  <section class="screen" id="shop">
-    <div style="flex:1;display:flex;flex-direction:column;padding:8px 0">
-      <h2 style="text-align:center;margin-bottom:4px">流浪商人</h2>
-      <p class="muted small" style="text-align:center;margin-bottom:16px">你有 <span id="shopGold">0</span> ✧</p>
-      <div id="shopItems" style="flex:1;overflow-y:auto"></div>
-      <button class="btn" id="shopLeaveBtn"><span class="t">离开</span></button>
-    </div>
-  </section>
-
-  <!-- 结算 -->
   <section class="screen over-screen" id="over">
     <div class="big" id="overTitle"></div>
     <p class="sub" id="overSub"></p>
@@ -334,46 +141,8 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
     <div id="overBtns" style="width:100%;max-width:360px"></div>
   </section>
 
-  <!-- 法术书 -->
-  <section class="screen" id="spellbook">
-    <div style="padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0">
-      <h2>法术书</h2>
-      <p class="small muted" id="spellbookInfo"></p>
-    </div>
-    <div class="spellbook-list" id="spellbookList"></div>
-    <div style="padding:8px 0;flex-shrink:0">
-      <button class="btn" id="spellbookBack"><span class="t">返回</span></button>
-    </div>
-  </section>
-
-  <!-- 设置 -->
-  <section class="screen" id="settings">
-    <div style="padding:8px 0;border-bottom:1px solid var(--line);flex-shrink:0">
-      <h2>设置</h2>
-    </div>
-    <div style="flex:1">
-      <div class="settings-row">
-        <span class="label">音效</span>
-        <div class="toggle on" id="sndToggle"><i></i></div>
-      </div>
-      <div class="settings-row">
-        <span class="label">发音</span>
-        <div class="toggle on" id="voiceToggle"><i></i></div>
-      </div>
-      <div class="settings-row">
-        <span class="label">词库</span>
-        <span class="muted small" id="dictInfo">CET-4 + CET-6</span>
-      </div>
-    </div>
-    <div style="padding:8px 0;flex-shrink:0">
-      <button class="btn" id="settingsBack"><span class="t">返回</span></button>
-    </div>
-  </section>
-
 </div>
-
 <footer>词库 <a href="https://github.com/skywind3000/ECDICT" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">ECDICT</a>（MIT）· qoder言</footer>
-
 <script src="../vocab/words.js"></script>
 <script src="./game.js"></script>
 </body>
