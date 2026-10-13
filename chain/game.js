@@ -3,6 +3,7 @@
   const $=id=>document.getElementById(id),words=window.CHAIN_WORDS,api=window.WordChain;
   const KEY='codex-chain-learning-v1';
   let profile={},scope='all',difficulty='normal',game,advanceTimer=null,dragging=false,dragMoved=false,toastTimer=null,lastHover=-1;
+  let bookWords=words,bookLimit=80;
   try { const saved=JSON.parse(localStorage.getItem(KEY)||'{}'); if(saved&&typeof saved==='object'&&!Array.isArray(saved)) profile=saved; } catch (_) {}
   const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(profile));}catch(_){toast('当前浏览器无法保存进度，本局仍可继续。');}};
   const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -22,7 +23,7 @@
     if(!game)return;
     $('book-button').disabled=game.phase==='battle'||game.phase==='resolving';
     if(game.phase==='lesson'){
-      $('lesson-cards').innerHTML=game.lesson.map(w=>'<article class="lesson-card"><b>'+w.word+'</b><div class="meaning"><span>'+w.pos+'</span>'+escape(w.meaning)+'</div><p>'+escape(w.example)+'</p><span class="level">CET-'+w.level+'</span></article>').join('');
+      $('lesson-cards').innerHTML=game.lesson.map(w=>'<article class="lesson-card"><b>'+w.word+'</b><div class="meaning"><span>'+w.pos+'</span>'+escape(w.meaning)+'</div>'+(w.example?'<p>'+escape(w.example)+'</p>':w.senses?.length>1?'<p>'+escape(w.senses.slice(1,3).join('；'))+'</p>':'')+'<span class="level">CET-'+w.level+'</span></article>').join('');
       show('lesson');
     } else if(game.phase==='battle'){show('battle');renderBattle(true);}
     else if(game.phase==='upgrade'){
@@ -54,7 +55,7 @@
   }
   function renderPath(){
     const current=Math.min(game.path.length,2);
-    $('prompts').innerHTML=game.targets.map((w,i)=>'<div class="prompt '+(i<game.path.length?'done':i===current?'current':'')+'"><em>'+(i<game.path.length?'✓':i+1)+'</em><span>'+escape(w.meaning)+'</span></div>').join('');
+    $('prompts').innerHTML=game.targets.map((w,i)=>'<div class="prompt '+(i<game.path.length?'done':i===current?'current':'')+'"><em>'+(i<game.path.length?'✓':i+1)+'</em><span>'+escape(w.meaning)+'</span>'+(w.clue?'<small class="word-clue">'+escape(w.pos+' '+w.clue)+'</small>':'')+'</div>').join('');
     $('board').innerHTML=game.board.map((tile,i)=>{
       const target=game.targets.find(w=>w.word===tile.word.word);
       const spell=target?.mode==='spell',guided=target?.mode==='guided',selected=game.path.indexOf(i);
@@ -125,12 +126,24 @@
     const permission=game?.bookHint();
     if(permission?.blocked){toast(permission.message);return;}
     save();
-    const list=game?[...game.pool,...words.filter(w=>!game.pool.some(p=>p.word===w.word))]:words;
-    $('book-list').innerHTML=list.map(w=>{const r=profile[w.word]||{};return '<div class="book-row"><div><strong>'+w.word+'</strong><p>'+w.pos+' '+escape(w.meaning)+' · CET-'+w.level+'</p></div><div class="book-count">词义辨认 '+(r.recognised||0)+' 次<br>独立拼写 '+(r.spelled||0)+' 次</div></div>';}).join('');
+    bookWords=game?[...game.pool,...words.filter(w=>!game.pool.some(p=>p.word===w.word))]:words;
+    bookLimit=80;$('book-search').value='';renderBook();
     $('book').showModal();
   }
+  function renderBook(){
+    const query=$('book-search').value.trim().toLowerCase();
+    const results=query?bookWords.filter(w=>w.word.toLowerCase().includes(query)||w.meaning.includes(query)||(w.aliases||[]).some(a=>a.toLowerCase().includes(query))||(w.senses||[]).some(s=>s.includes(query))):bookWords;
+    $('book-count').textContent='找到 '+results.length+' 条 · 显示 '+Math.min(bookLimit,results.length)+' 条';
+    $('book-list').innerHTML=results.slice(0,bookLimit).map(w=>{const r=profile[w.word]||{};return '<div class="book-row"><div><strong>'+w.word+'</strong><p>'+w.pos+' '+escape(w.meaning)+' · CET-'+w.level+'</p>'+(w.aliases?.length?'<p>也可拼作 '+escape(w.aliases.join(' / '))+'</p>':'')+(w.senses?.length>1?'<p>'+escape(w.senses.slice(1,4).join('；'))+'</p>':'')+'</div><div class="book-count">词义辨认 '+(r.recognised||0)+' 次<br>独立拼写 '+(r.spelled||0)+' 次</div></div>';}).join('');
+    $('book-more').hidden=bookLimit>=results.length;
+  }
+  function scopeCount(){
+    $('scope-count').textContent=(scope==='all'?'四六级':scope==='4'?'四级及派生词':'六级增补及派生词')+' · '+words.filter(w=>scope==='all'||w.level===Number(scope)).length+' 条';
+  }
   $('word-count').textContent=words.length;
-  document.querySelectorAll('[data-scope]').forEach(b=>b.addEventListener('click',()=>{scope=b.dataset.scope;document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope===scope));}));
+  document.querySelectorAll('[data-scope]').forEach(b=>b.addEventListener('click',()=>{scope=b.dataset.scope;document.querySelectorAll('[data-scope]').forEach(b=>b.classList.toggle('active',b.dataset.scope===scope));scopeCount();}));
+  $('book-search').addEventListener('input',()=>{bookLimit=80;renderBook();});
+  $('book-more').addEventListener('click',()=>{bookLimit+=80;renderBook();});
   document.querySelectorAll('[data-difficulty]').forEach(b=>b.addEventListener('click',()=>{
     difficulty=b.dataset.difficulty;
     document.querySelectorAll('[data-difficulty]').forEach(b=>b.classList.toggle('active',b.dataset.difficulty===difficulty));
@@ -165,5 +178,5 @@
   $('endless-button').addEventListener('click',()=>{if(game?.continueEndless()){save();render();}});
   $('home-link').addEventListener('click',e=>{if(location.pathname.includes('/_game_dev/')){e.preventDefault();home();}});
   window.addEventListener('resize',drawLine);
-  home();
+  $('start-button').disabled=false;scopeCount();home();
 })();

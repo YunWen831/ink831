@@ -7,6 +7,7 @@
   };
   const freshRecord = () => ({exposures:0,attempts:0,recognised:0,spelled:0,hints:0,errors:0,lastSeen:0,due:0});
   const recordFor = (profile, word) => profile[word] || (profile[word]=freshRecord());
+  const normaliseAnswer=value=>String(value).normalize('NFKC').trim().toLowerCase().replace(/[’‘]/g,"'").replace(/[‐‑‒–—]/g,'-').replace(/\s+/g,' ');
   const RELICS = [
     {id:'edge',name:'磨刀石',mark:'✦',group:'attack',desc:'每次连词额外造成 5 点伤害。',max:8},
     {id:'spark',name:'连锁闪电',mark:'ϟ',group:'attack',desc:'每次连词追加 6 点闪电伤害。'},
@@ -89,7 +90,7 @@
     modeFor(w,index) {
       const record=recordFor(this.profile,w.word);
       if (record.attempts===0) return 'guided';
-      if (index===2 && record.recognised>=2) return 'spell';
+      if (index===2 && record.recognised>=2 && w.word.replace(/[^A-Za-zÀ-ÿ]/g,'').length>=3) return 'spell';
       return 'recognise';
     }
     newTurn() {
@@ -177,7 +178,7 @@
     spell(value) {
       if(!this.spellReady||this.phase!=='battle') return {type:'ignore'};
       const target=this.targets[2];
-      if(value.trim().toLowerCase()!==target.word) {
+      if(![target.word,...(target.aliases||[])].map(normaliseAnswer).includes(normaliseAnswer(value))) {
         this.assisted[2]=true;this.state.mistakes++;
         const r=recordFor(this.profile,target.word);r.errors++;r.due=this.now()+60*1000;
         return this.penalise(target,`正确拼写是 ${target.word}（${target.meaning}）。`);

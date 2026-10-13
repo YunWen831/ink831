@@ -7,10 +7,10 @@
   <meta name="description" content="codex连：连英文单词，构筑你的地牢冒险。">
   <title>codex连</title>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2">
-  <script defer src="./words.js?v=2"></script>
-  <script defer src="./engine.js?v=2"></script>
-  <script defer src="./game.js?v=2"></script>
+  <link rel="stylesheet" href="./style.css?v=3">
+  <script defer src="./words.js?v=3"></script>
+  <script defer src="./engine.js?v=3"></script>
+  <script defer src="./game.js?v=3"></script>
 </head>
 <body>
   <main id="app" class="wrap">
@@ -22,11 +22,12 @@
       <p class="intro">把记住的单词，连成你的力量。</p>
       <div class="how"><span>看中文</span><i>→</i><span>连英文</span><i>→</i><span>选升级</span></div>
       <p id="run-rule" class="run-rule">熟词答错扣 3 血，同回合错两次，敌人直接行动。<br>每场战斗 2 次提示；初见新词免费引导。</p>
-      <div class="scope" aria-label="学习范围"><button data-scope="all" class="active">四六级</button><button data-scope="4">四级</button><button data-scope="6">六级</button></div>
+      <div class="scope" aria-label="学习范围"><button data-scope="all" class="active">四六级</button><button data-scope="4">四级</button><button data-scope="6">六级增补</button></div>
+      <p id="scope-count" class="small"></p>
       <div class="scope difficulty" aria-label="战斗难度"><button data-difficulty="normal" class="active">标准</button><button data-difficulty="hard">挑战</button></div>
-      <button id="start-button" class="primary">进入地牢 <span>↗</span></button>
-      <p id="progress" class="small"></p>
-      <p class="footnote">24 层 · 3 位首领 · 通关开启无尽<br>试玩词库 <span id="word-count"></span> 词 · 回合制</p>
+      <button id="start-button" class="primary" disabled>进入地牢 <span>↗</span></button>
+      <p id="progress" class="small">正在载入四六级词库…</p>
+      <p class="footnote">24 层 · 3 位首领 · 通关开启无尽<br>题库 <span id="word-count"></span> 条 · 含大纲主词、派生词与拼写变体</p>
     </section>
     <section id="lesson" class="screen" hidden>
       <div class="eyebrow">发现新词</div><h2>先认识，再出发。</h2><p class="small">第一次连到这些词时，格子上会保留中文。</p>
@@ -53,7 +54,7 @@
     <section id="upgrade" class="screen" hidden><div class="eyebrow">房间已清空</div><h2>带走一种力量。</h2><p id="upgrade-status" class="small"></p><p class="small">三选一，效果自动生效。相同升级可以叠加。</p><div id="upgrade-cards" class="upgrade-cards"></div><p class="footnote">过关恢复生命，学习记录会保留。</p></section>
     <section id="end" class="screen" hidden><div class="end-symbol" id="end-symbol">✦</div><div class="eyebrow" id="end-label"></div><h2 id="end-title"></h2><p id="end-detail" class="small"></p><div id="end-stats" class="end-stats"></div><div id="end-words" class="end-words"></div><button id="endless-button" class="primary wide" hidden>保留构筑，继续无尽 ↗</button><button id="again-button" class="primary">再来一局 ↗</button><button id="back-button" class="quiet wide">回到首页</button></section>
   </main>
-  <dialog id="book"><div class="dialog-head"><h2>词册</h2><button id="book-close" class="quiet" aria-label="关闭词册">✕</button></div><p class="small">独立回忆与看过提示分别记录。多义词按这里的义项练习。</p><div id="book-list"></div></dialog>
+  <dialog id="book"><div class="dialog-head"><h2>词册</h2><button id="book-close" class="quiet" aria-label="关闭词册">✕</button></div><p class="small">独立回忆与看过提示分别记录。多义词按这里的义项练习。</p><input id="book-search" type="search" placeholder="搜索英文或中文词义" aria-label="搜索词册"><p id="book-count" class="small"></p><div id="book-list"></div><button id="book-more" class="quiet wide">再显示 80 条</button><a class="source-link" href="./word-sources.json" target="_blank" rel="noopener noreferrer">词库来源</a></dialog>
   <div id="toast" role="status"></div>
 </body>
 </html>
