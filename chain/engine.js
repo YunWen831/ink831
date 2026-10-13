@@ -8,6 +8,7 @@
   const freshRecord = () => ({exposures:0,attempts:0,recognised:0,spelled:0,hints:0,errors:0,lastSeen:0,due:0});
   const recordFor = (profile, word) => profile[word] || (profile[word]=freshRecord());
   const normaliseAnswer=value=>String(value).normalize('NFKC').trim().toLowerCase().replace(/[’‘]/g,"'").replace(/[‐‑‒–—]/g,'-').replace(/\s+/g,' ');
+  const canSpell=w=>w.word.replace(/[^A-Za-zÀ-ÿ]/g,'').length>=3;
   const RELICS = [
     {id:'edge',name:'磨刀石',mark:'✦',group:'attack',desc:'每次连词额外造成 5 点伤害。',max:8},
     {id:'spark',name:'连锁闪电',mark:'ϟ',group:'attack',desc:'每次连词追加 6 点闪电伤害。'},
@@ -27,7 +28,7 @@
     {id:'spring',name:'清泉',mark:'≈',group:'rest',desc:'立即恢复 16 点生命，占用本次升级机会。',max:Infinity},
     {id:'growth',name:'远征之刃',mark:'➶',group:'attack',desc:'每次连词额外造成 3 点伤害，可以不断叠加。',max:Infinity}
   ];
-  const TOTAL_FLOORS=24,CHAPTERS=['苔纸回廊','灰烬书库','遗忘深渊'];
+  const TOTAL_FLOORS=24,INITIAL_NEW=6,WORDS_PER_FLOOR=2,ACTIVE_WORDS=12,CHAPTERS=['苔纸回廊','灰烬书库','遗忘深渊'];
   const ENEMIES=[
     {name:'墨团',hp:32,attack:6,trait:'plain'},
     {name:'藏书守卫',hp:39,attack:7,trait:'armor'},
@@ -49,16 +50,17 @@
       this.phase='home'; this.scope='all'; this.state=null;
     }
     start(scope='all',difficulty='normal') {
-      this.scope=scope; this.recent={};this.difficulty=difficulty==='hard'?'hard':'normal';
+      this.scope=scope; this.recent={};this.practiceCounts={};this.reviewNeeded=new Set();this.recalled=new Set();this.difficulty=difficulty==='hard'?'hard':'normal';
       this.available=this.words.filter(w=>scope==='all'||w.level===Number(scope));
       if (this.available.length<3) throw new Error('词库至少需要三个词');
       const unknown=shuffle(this.available.filter(w=>!this.profile[w.word]?.exposures),this.rng);
       const old=shuffle(this.available.filter(w=>this.profile[w.word]?.exposures),this.rng)
         .sort((a,b)=>(this.profile[a.word].due||0)-(this.profile[b.word].due||0));
-      const initialNew=unknown.slice(0,4);
-      this.pool=[...old.slice(0,6),...initialNew];
+      const initialNew=unknown.slice(0,INITIAL_NEW),initialOld=old.slice(0,6);
+      this.pool=[...initialOld,...initialNew];
       if (this.pool.length<3) this.pool=this.available.slice(0,3);
       this.newQueue=unknown.slice(initialNew.length);
+      this.reviewQueue=old.slice(initialOld.length);
       const maxHp=this.difficulty==='hard'?64:72,hintLimit=this.difficulty==='hard'?1:2,penalty=this.difficulty==='hard'?4:3;
       this.state={hp:maxHp,maxHp,shield:0,floor:1,round:0,turn:0,relics:{},burn:0,lastDamage:0,
         totalFloors:TOTAL_FLOORS,endless:false,hintLimit,penalty,roomHints:hintLimit,turnMistakes:0,failedTurns:0,mistakeDamage:0,
@@ -90,15 +92,28 @@
     modeFor(w,index) {
       const record=recordFor(this.profile,w.word);
       if (record.attempts===0) return 'guided';
-      if (index===2 && record.recognised>=2 && w.word.replace(/[^A-Za-zÀ-ÿ]/g,'').length>=3) return 'spell';
+      if (index===2 && record.recognised>=2 && canSpell(w)) return 'spell';
       return 'recognise';
+    }
+    reviewPriority(w) {
+      if(this.reviewNeeded.has(w.word))return 0;
+      if(!this.profile[w.word]?.attempts)return 1;
+      if(this.recalled.has(w.word)||(!canSpell(w)&&this.practiceCounts[w.word]>=3))return 4;
+      return this.profile[w.word]?.recognised>=2?2:3;
     }
     newTurn() {
       if (this.phase!=='battle') return;
       this.state.turn++; this.state.round++;
-      let candidates=shuffle(this.pool,this.rng);
-      candidates.sort((a,b)=>(this.recent[a.word]??-99)-(this.recent[b.word]??-99));
-      this.targets=candidates.slice(0,3).map((w,i)=>({...w,mode:this.modeFor(w,i)}));
+      const candidates=shuffle(this.pool,this.rng);
+      const unseen=candidates.filter(w=>!this.profile[w.word]?.attempts);
+      const reviews=candidates.filter(w=>this.profile[w.word]?.attempts);
+      reviews.sort((a,b)=>{
+        const justSeen=w=>this.recent[w.word]===this.state.turn-1?1:0;
+        return justSeen(a)-justSeen(b)||this.reviewPriority(a)-this.reviewPriority(b)||(this.practiceCounts[b.word]||0)-(this.practiceCounts[a.word]||0)||(this.recent[a.word]??-99)-(this.recent[b.word]??-99);
+      });
+      // 新词占前两格，最后一格留给回忆；开局没有熟词时才使用三个新词。
+      const fresh=unseen.slice(0,reviews.length?2:3);
+      this.targets=[...fresh,...reviews.slice(0,3-fresh.length)].map((w,i)=>({...w,mode:this.modeFor(w,i)}));
       this.assisted=this.targets.map(w=>w.mode==='guided');
       this.path=[]; this.warpUsed=false; this.spellReady=false; this.spellingValidated=false;
       this.state.turnMistakes=0;this.state.suppression=0;this.assistanceUsed=false;
@@ -147,6 +162,7 @@
         const revealed=this.targets.findIndex(w=>w.word===tile.word.word);
         if(revealed>=0) this.assisted[revealed]=true;
         const r=recordFor(this.profile,target.word); r.errors++; r.due=this.now()+60*1000;
+        this.reviewNeeded.add(target.word);
         this.state.mistakes++;
         return this.penalise(target,`${tile.word.word} 是“${tile.word.meaning}”；目标是 ${target.word}（${target.meaning}）。`);
       }
@@ -166,7 +182,7 @@
       const index=Math.min(this.path.length,2);
       const target=this.targets[index],free=target.mode==='guided';
       if(!free&&this.state.roomHints<=0)return {blocked:true,message:'本场提示已用完。'};
-      if(!free){this.state.roomHints--;this.assistanceUsed=true;}
+      if(!free){this.state.roomHints--;this.assistanceUsed=true;this.reviewNeeded.add(target.word);}
       this.assisted[index]=true;
       recordFor(this.profile,target.word).hints++;
       this.state.hints++;
@@ -181,6 +197,7 @@
       if(![target.word,...(target.aliases||[])].map(normaliseAnswer).includes(normaliseAnswer(value))) {
         this.assisted[2]=true;this.state.mistakes++;
         const r=recordFor(this.profile,target.word);r.errors++;r.due=this.now()+60*1000;
+        this.reviewNeeded.add(target.word);
         return this.penalise(target,`正确拼写是 ${target.word}（${target.meaning}）。`);
       }
       this.spellingValidated=true;
@@ -274,7 +291,9 @@
         const record=recordFor(this.profile,w.word);
         if(!record.exposures) s.newWords.add(w.word);
         record.exposures++;record.attempts++;record.lastSeen=this.now();this.recent[w.word]=s.turn;
-        if(!this.assisted[i]&&w.mode==='spell') {record.spelled++;s.independentSpells++;record.due=this.now()+24*60*60*1000;}
+        this.practiceCounts[w.word]=(this.practiceCounts[w.word]||0)+1;
+        if(!this.assisted[i]&&w.mode!=='guided')this.reviewNeeded.delete(w.word);
+        if(!this.assisted[i]&&w.mode==='spell') {record.spelled++;s.independentSpells++;this.recalled.add(w.word);record.due=this.now()+24*60*60*1000;}
         else if(!this.assisted[i]&&w.mode==='recognise') {record.recognised++;record.due=this.now()+4*60*60*1000;}
         else record.due=this.now()+2*60*1000;
         s.touches++;s.practised.add(w.word);
@@ -321,12 +340,14 @@
       return true;
     }
     prepareFloor(floor) {
-      const count=floor===5?2:floor>1&&floor%8===1?4:0;
-      const incoming=this.newQueue.splice(0,count);
+      const incoming=this.newQueue.splice(0,WORDS_PER_FLOOR);
+      incoming.push(...this.reviewQueue.splice(0,WORDS_PER_FLOOR-incoming.length));
       if(incoming.length){
-        const retained=this.pool.sort((a,b)=>((this.profile[a.word]?.spelled||0)+(this.profile[a.word]?.recognised||0))-((this.profile[b.word]?.spelled||0)+(this.profile[b.word]?.recognised||0))).slice(0,14-incoming.length);
-        this.pool=[...retained,...incoming];this.lesson=incoming;this.pendingFloor=floor;this.phase='lesson';
-      }else this.enterFloor(floor);
+        const retained=[...this.pool].sort((a,b)=>this.reviewPriority(a)-this.reviewPriority(b)||(this.practiceCounts[b.word]||0)-(this.practiceCounts[a.word]||0)||(this.recent[b.word]??-99)-(this.recent[a.word]??-99)).slice(0,ACTIVE_WORDS-incoming.length);
+        this.pool=[...retained,...incoming];
+      }
+      this.lesson=incoming.filter(w=>!this.profile[w.word]?.exposures);this.pendingFloor=floor;
+      if(this.lesson.length)this.phase='lesson';else this.enterFloor(floor);
     }
     continueEndless() {
       if(this.phase!=='victory')return false;

@@ -16,13 +16,15 @@
     clearTimeout(advanceTimer);game=null;$('book-button').disabled=false;show('home');
     const practised=Object.values(profile).filter(r=>r.attempts>0).length;
     const recalled=Object.values(profile).reduce((sum,r)=>sum+(r.spelled||0),0);
-    $('progress').textContent=practised?'已练习 '+practised+' 个词 · 独立拼写 '+recalled+' 次':'每局少量新词，反复遇见；没有倒计时。';
+    $('progress').textContent=practised?'已练习 '+practised+' 个词 · 独立拼写 '+recalled+' 次':'每层加入 2 个新词，穿插复习；没有倒计时。';
   }
   function start(){clearTimeout(advanceTimer);game=new api.Game(words,profile);game.start(scope,difficulty);render();}
   function render(){
     if(!game)return;
     $('book-button').disabled=game.phase==='battle'||game.phase==='resolving';
     if(game.phase==='lesson'){
+      $('lesson-status').textContent='第 '+game.pendingFloor+' 层 · 本次 '+game.lesson.length+' 个新词 · 本局已练 '+game.state.practised.size+' 个词';
+      $('lesson-button').textContent=game.pendingFloor===1?'看过了，进入地牢 ↗':'继续到第 '+game.pendingFloor+' 层 ↗';
       $('lesson-cards').innerHTML=game.lesson.map(w=>'<article class="lesson-card"><b>'+w.word+'</b><div class="meaning"><span>'+w.pos+'</span>'+escape(w.meaning)+'</div>'+(w.example?'<p>'+escape(w.example)+'</p>':w.senses?.length>1?'<p>'+escape(w.senses.slice(1,3).join('；'))+'</p>':'')+'<span class="level">CET-'+w.level+'</span></article>').join('');
       show('lesson');
     } else if(game.phase==='battle'){show('battle');renderBattle(true);}
@@ -37,6 +39,7 @@
     const chapter=api.CHAPTERS[Math.floor((s.floor-1)/8)%3];
     $('floor-label').textContent=(s.endless?'无尽 '+(s.floor-api.TOTAL_FLOORS):chapter+' '+s.floor+' / '+api.TOTAL_FLOORS)+(e.elite?' · 精英':e.boss?' · 首领':'');
     $('hero-hp').textContent='生命 '+s.hp+' / '+s.maxHp+(s.shield?' · 护盾 '+s.shield:'');
+    $('learning-status').textContent='本局已练 '+s.practised.size+' 个词 · 见过新词 '+s.newWords.size+' 个 · 独立拼写 '+s.independentSpells+' 次';
     $('hero-bar').style.width=s.hp/s.maxHp*100+'%';
     $('enemy-name').textContent=e.name;$('enemy-hp').textContent=e.hp+' / '+e.maxHp;
     $('enemy-bar').style.width=e.hp/e.maxHp*100+'%';
@@ -116,7 +119,7 @@
     const s=game.state,win=game.phase==='victory';
     $('end-symbol').textContent=win?'✦':'↺';$('end-label').textContent=win?'地牢已通关':'本次探险结束';
     $('end-title').textContent=win?'词语，是你的力量。':'下次，带着记忆回来。';
-    $('end-detail').textContent='抵达第 '+s.floor+' 层 · 失误 '+s.mistakes+' 次 · 连词中断 '+s.failedTurns+' 次';
+    $('end-detail').textContent='抵达第 '+s.floor+' 层 · 见过新词 '+s.newWords.size+' 个 · 失误 '+s.mistakes+' 次 · 连词中断 '+s.failedTurns+' 次';
     $('endless-button').hidden=!win;
     $('end-stats').innerHTML='<div class="stat"><b>'+s.practised.size+'</b><span>练习词数</span></div><div class="stat"><b>'+s.touches+'</b><span>连词练习</span></div><div class="stat"><b>'+s.independentSpells+'</b><span>独立拼写</span></div>';
     $('end-words').innerHTML=[...s.practised].map(word=>{const w=words.find(w=>w.word===word);return '<span>'+w.word+' · '+escape(w.meaning)+'</span>';}).join('');

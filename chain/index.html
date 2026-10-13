@@ -7,10 +7,10 @@
   <meta name="description" content="codex连：连英文单词，构筑你的地牢冒险。">
   <title>codex连</title>
   <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=3">
+  <link rel="stylesheet" href="./style.css?v=4">
   <script defer src="./words.js?v=3"></script>
-  <script defer src="./engine.js?v=3"></script>
-  <script defer src="./game.js?v=3"></script>
+  <script defer src="./engine.js?v=4"></script>
+  <script defer src="./game.js?v=4"></script>
 </head>
 <body>
   <main id="app" class="wrap">
@@ -27,16 +27,17 @@
       <div class="scope difficulty" aria-label="战斗难度"><button data-difficulty="normal" class="active">标准</button><button data-difficulty="hard">挑战</button></div>
       <button id="start-button" class="primary" disabled>进入地牢 <span>↗</span></button>
       <p id="progress" class="small">正在载入四六级词库…</p>
-      <p class="footnote">24 层 · 3 位首领 · 通关开启无尽<br>题库 <span id="word-count"></span> 条 · 含大纲主词、派生词与拼写变体</p>
+      <p class="footnote">24 层 · 每层持续换词 · 通关开启无尽<br>题库 <span id="word-count"></span> 条 · 含大纲主词、派生词与拼写变体</p>
     </section>
     <section id="lesson" class="screen" hidden>
-      <div class="eyebrow">发现新词</div><h2>先认识，再出发。</h2><p class="small">第一次连到这些词时，格子上会保留中文。</p>
+      <div class="eyebrow">发现新词</div><h2>先认识，再出发。</h2><p id="lesson-status" class="small"></p><p class="small">第一次连到这些词时，格子上会保留中文；之后穿插旧词复习。</p>
       <div id="lesson-cards" class="lesson-grid"></div>
       <button id="lesson-button" class="primary">看过了，进入地牢 ↗</button>
     </section>
     <section id="battle" class="screen" hidden>
       <div class="status"><span id="floor-label"></span><span id="hero-hp"></span></div>
       <div class="hp-track"><i id="hero-bar"></i></div>
+      <p id="learning-status" class="learning-status"></p>
       <div class="enemy-panel">
         <div id="enemy-art" class="enemy-art" aria-hidden="true"><div class="little-orb"><span>● ●</span><i>⌣</i></div><b id="damage-float"></b></div>
         <div class="enemy-info"><div class="enemy-title"><h2 id="enemy-name"></h2><span id="enemy-hp"></span></div><div class="enemy-track"><i id="enemy-bar"></i></div><p id="enemy-intent"></p></div>
