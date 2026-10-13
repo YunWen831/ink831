@@ -28,10 +28,7 @@ header { display: flex; justify-content: space-between; align-items: center; pad
 .github { font-size: 13px; color: var(--muted); }
 .github span { margin-left: 5px; }
 .github:hover { color: var(--text); }
-main { padding: 65px 0 80px; }
-.intro { margin-bottom: 30px; }
-h1 { font-size: 28px; font-weight: 550; letter-spacing: -.035em; margin: 0 0 10px; }
-.intro p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.8; }
+main { padding: 40px 0 60px; }
 .projects { display: grid; gap: 18px; }
 .project {
   display: grid;
@@ -65,9 +62,7 @@ footer { padding: 23px 0 35px; border-top: 1px solid var(--line); font-size: 11p
   .page { padding: 0 24px; }
   header { padding: 32px 0 24px; }
   .name { font-size: 22px; }
-  main { padding: 43px 0 54px; }
-  h1 { font-size: 25px; }
-  .intro { margin-bottom: 24px; }
+  main { padding: 30px 0 44px; }
   .project { grid-template-columns: 1fr auto; gap: 0 16px; padding: 12px; }
   .project-image { grid-column: 1 / -1; }
   .project-copy { padding: 20px 8px 8px; }
