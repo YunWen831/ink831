@@ -11,7 +11,8 @@
     if (typeof value !== 'string' || !value.trim()) return null;
     try {
       const url = new URL(value, location.href);
-      return ['https:', 'http:'].includes(url.protocol) ? url : null;
+      // 放行 file: —— 否则本地双击打开 index.html 时，整个作品列表都不渲染
+      return ['https:', 'http:', 'file:'].includes(url.protocol) ? url : null;
     } catch (_) { return null; }
   };
   if (Array.isArray(window.YUNWEN_PROJECTS)) {
