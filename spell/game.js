@@ -299,7 +299,10 @@
       items: { potion: 1, hint: 1, skip: 0, shield: 0 },
       shieldActive: false,
       ghosts: [],
-      stats: { steps: 0, answered: 0, correct: 0, events: 0, newThisRun: 0, bosses: 0, ghostsKilled: 0 },
+      terrainScore: { water: 0, forest: 0, mountain: 0, desert: 0, swamp: 0, plains: 0 },
+      lastRoot: null,
+      comboCount: 0,
+      stats: { steps: 0, answered: 0, correct: 0, events: 0, newThisRun: 0, bosses: 0, ghostsKilled: 0, combos: 0 },
       over: false
     };
     usedWords = {};
@@ -510,6 +513,26 @@
       }
       f.className = 'flash ok'; detail.textContent = senses(w);
       $('challengeInput').className = 'ok'; say(want); sfxOk();
+
+      R.terrainScore[CH.terrain]++;
+      if (R.terrainScore[CH.terrain] % 5 === 0) {
+        transformMapTerrain(CH.terrain);
+      }
+
+      var currentRoot = (w.rt && w.rt.length) ? w.rt[0] : null;
+      if (currentRoot && currentRoot === R.lastRoot) {
+        R.comboCount++;
+        if (R.comboCount >= 2) {
+          var bonus = R.comboCount * 2;
+          R.gold += bonus;
+          R.stats.combos++;
+          f.textContent += ' · 词族连击×' + R.comboCount + ' +' + bonus + '✧';
+          showWordFamily(w);
+        }
+      } else {
+        R.comboCount = 1;
+      }
+      R.lastRoot = currentRoot;
     } else {
       if (R.shieldActive) { R.shieldActive = false; f.textContent = '护盾挡住了！正确：' + want; f.className = 'flash info'; }
       else {
@@ -523,6 +546,8 @@
       var twin = (w.cf || []).indexOf(typed) >= 0;
       if (twin) { var tw = BY[typed]; detail.textContent = '你拼的 ' + typed + (tw ? '（'+senses(tw)+'）' : '') + ' ≠ ' + want + '（' + senses(w) + '）'; }
       $('challengeInput').className = 'no'; say(want); sfxBad();
+      R.comboCount = 0;
+      R.lastRoot = null;
     }
     $('submitBtn').disabled = true; $('skipBtn').disabled = true; $('challengeItems').innerHTML = '';
     save();
@@ -569,6 +594,31 @@
     else confuseEl.style.display = 'none';
     $('challengeItems').innerHTML = '';
     show('challenge'); $('challengeInput').focus();
+  }
+
+  function transformMapTerrain(terrain) {
+    var changed = 0;
+    for (var y = 0; y < MAP_SIZE && changed < 3; y++) {
+      for (var x = 0; x < MAP_SIZE && changed < 3; x++) {
+        var c = R.map[y][x];
+        if (!c.visited && c.type === 'challenge' && c.terrain !== terrain && Math.random() < 0.3) {
+          c.terrain = terrain;
+          changed++;
+        }
+      }
+    }
+  }
+
+  function showWordFamily(word) {
+    if (!word.rt || !word.rt.length) return;
+    var root = word.rt[0];
+    var family = WORDS.filter(function (w) {
+      return w.rt && w.rt.indexOf(root) >= 0 && w.w !== word.w;
+    }).slice(0, 3);
+    if (family.length) {
+      var names = family.map(function (w) { return w.w; }).join(', ');
+      $('challengeDetail').textContent += ' · 词族：' + names;
+    }
   }
 
   /* =========================================================
@@ -853,6 +903,7 @@
     stats.appendChild(makeStat(R.stats.correct, '答对'));
     stats.appendChild(makeStat(R.stats.bosses || 0, 'Boss'));
     stats.appendChild(makeStat(R.stats.ghostsKilled || 0, '幽灵'));
+    stats.appendChild(makeStat(R.stats.combos || 0, '连击'));
     stats.appendChild(makeStat(R.stats.newThisRun || 0, '新学'));
     stats.appendChild(makeStat(R.gold, '金币'));
     stats.appendChild(makeStat(knownCount(), '总掌握'));
