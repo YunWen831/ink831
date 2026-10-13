@@ -1,0 +1,55 @@
+(function (root) {
+  'use strict';
+  // 样本词形及等级来自此前核阅的官方四六级大纲；这里按一个明确义项练习。
+  const rows = [
+    ['recover','恢复','v.','The town will recover soon.'],
+    ['retain','保留','v.','We retain the original design.'],
+    ['transfer','转移','v.','Transfer the files to this folder.'],
+    ['absorb','吸收','v.','Plants absorb water.'],
+    ['reflect','反射','v.','The mirror reflects light.'],
+    ['reverse','颠倒','v.','Reverse the order of these steps.'],
+    ['consequence','后果','n.','Consider the consequence of your choice.'],
+    ['justice','正义','n.','They fought for justice.'],
+    ['reserve','储备','n.','Keep a reserve of food.'],
+    ['adapt','适应','v.','We adapt to a new environment.'],
+    ['adopt','采用','v.','They adopt a new method.'],
+    ['reduce','减少','v.','We need to reduce waste.'],
+    ['increase','增加','v.','Exercise can increase your energy.'],
+    ['sustain','维持','v.','The team must sustain its effort.'],
+    ['eliminate','消除','v.','We aim to eliminate the risk.'],
+    ['accumulate','积累','v.','Dust can accumulate on the shelf.'],
+    ['deliberate','故意的','adj.','It was a deliberate choice.'],
+    ['reluctant','不情愿的','adj.','She was reluctant to leave.'],
+    ['inevitable','不可避免的','adj.','Some changes are inevitable.'],
+    ['ambiguous','模棱两可的','adj.','The answer was ambiguous.',6],
+    ['integrity','正直','n.','She is a person of integrity.'],
+    ['obstacle','障碍','n.','Fear can be an obstacle.'],
+    ['perspective','视角','n.','Look at it from a new perspective.'],
+    ['dilemma','困境','n.','He faced a difficult dilemma.'],
+    ['precise','精确的','adj.','Please give a precise answer.'],
+    ['temporary','暂时的','adj.','This is a temporary solution.'],
+    ['sufficient','充足的','adj.','We have sufficient time.'],
+    ['vulnerable','易受伤害的','adj.','Young plants are vulnerable to frost.'],
+    ['fluctuate','波动','v.','Prices fluctuate throughout the year.'],
+    ['inhibit','抑制','v.','Fear may inhibit creativity.',6],
+    ['justify','为……提供理由','v.','The results justify the decision.'],
+    ['exaggerate','夸大','v.','Do not exaggerate the problem.'],
+    ['coincide','同时发生','v.','The two events coincide.',6],
+    ['comply','遵守','v.','We must comply with the rules.'],
+    ['eligible','符合资格的','adj.','You are eligible for the scholarship.',6],
+    ['preliminary','初步的','adj.','These are preliminary results.'],
+    ['profound','深刻的','adj.','The experience had a profound effect.'],
+    ['spontaneous','自发的','adj.','The audience gave spontaneous applause.'],
+    ['versatile','多才多艺的','adj.','She is a versatile musician.',6],
+    ['hypothesis','假设','n.','The experiment tests this hypothesis.',6],
+    ['subtle','微妙的','adj.','There is a subtle difference.',6],
+    ['random','随机的','adj.','Choose a random number.',6],
+    ['persist','坚持','v.','Persist in your efforts.'],
+    ['distinguish','区分','v.','We distinguish facts from opinions.'],
+    ['adequate','足够的','adj.','We need adequate preparation.'],
+    ['acquire','获得','v.','Reading helps us acquire knowledge.']
+  ];
+  const words = rows.map(([word,meaning,pos,example,level=4]) => ({word,meaning,pos,example,level}));
+  if (typeof module !== 'undefined' && module.exports) module.exports = words;
+  else root.CHAIN_WORDS = words;
+})(typeof window === 'undefined' ? globalThis : window);

@@ -3,6 +3,14 @@
 // href / image 用相对路径或完整 https 地址，按数组顺序展示。
 window.YUNWEN_PROJECTS = [
   {
+    title: 'codex连',
+    category: 'game',
+    description: '看中文，连英文。用单词闯地牢，组合升级形成你的流派。',
+    href: './chain/index.html',
+    image: './assets/chain-cover.svg',
+    imageAlt: 'codex连：单词连线地牢'
+  },
+  {
     title: '在学校乱逛',
     category: 'game',
     description: '三角色校园怪谈。探索、解谜，找出那场事故背后的线索。',
