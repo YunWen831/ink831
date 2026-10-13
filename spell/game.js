@@ -1,7 +1,7 @@
 'use strict';
 /* =============================================================
-   qoder言 —— 地图探索肉鸽
-   8×8 地图，不同地形考不同类别的四六级单词。
+   qoder言 —— 地图探索肉鸽（增强学习版）
+   新词先学后考，词根提示，形近词警告，间隔复习
    词库：ECDICT（MIT），5,788 词，CET-4 + CET-6
    ============================================================= */
 (function () {
@@ -12,12 +12,11 @@
     return;
   }
 
-  var WORDS = D.words;
+  var WORDS = D.words, ROOTS = D.meta.roots || {};
   var BY = {};
   for (var i = 0; i < WORDS.length; i++) BY[WORDS[i].w] = WORDS[i];
 
   /* ---------- 地形-词汇映射 ---------- */
-  // 按中文释义关键词把词分到地形。一个词只归一个地形（先匹配先赢）。
   var TERRAINS = {
     water:    { icon: '🌊', name: '水域',   cls: 'tile-water',    kw: ['水','河','海','湖','鱼','船','流','湿','雨','潮','波','洋','泉','冰'] },
     forest:   { icon: '🌲', name: '森林',   cls: 'tile-forest',   kw: ['树','林','木','草','花','叶','植物','生长','种子','根','茎'] },
@@ -28,12 +27,10 @@
   };
   var TERRAIN_KEYS = ['water','forest','mountain','desert','swamp','plains'];
 
-  // 预分类：每个地形对应一个词池
   var TERRAIN_WORDS = {};
   (function () {
     var used = {};
     TERRAIN_KEYS.forEach(function (k) { TERRAIN_WORDS[k] = []; });
-    // 按关键词匹配
     TERRAIN_KEYS.forEach(function (k) {
       var keywords = TERRAINS[k].kw;
       WORDS.forEach(function (w) {
@@ -48,7 +45,6 @@
         }
       });
     });
-    // 没匹配到的词全塞 plains 当默认池
     WORDS.forEach(function (w) {
       if (!used[w.w]) TERRAIN_WORDS.plains.push(w);
     });
@@ -60,7 +56,12 @@
   var SAVE_KEY = 'qoder-yan:save';
 
   /* ---------- 存档 ---------- */
-  var Prog = { prof: {}, seen: {}, stats: { runs: 0, answered: 0, correct: 0 } };
+  var Prog = {
+    prof: {},
+    seen: {},      // 见过的词（考过或学过）
+    learned: {},   // 正式学过（通过 learn 界面）
+    stats: { runs: 0, answered: 0, correct: 0, newLearned: 0 }
+  };
   var R = null;
 
   function load() {
@@ -70,18 +71,22 @@
       var o = JSON.parse(raw);
       if (o && o.prog) {
         Prog = o.prog;
-        if (!Prog.stats) Prog.stats = { runs: 0, answered: 0, correct: 0 };
+        if (!Prog.stats) Prog.stats = { runs: 0, answered: 0, correct: 0, newLearned: 0 };
         if (Prog.stats.answered === undefined) Prog.stats.answered = 0;
         if (Prog.stats.correct === undefined) Prog.stats.correct = 0;
+        if (Prog.stats.newLearned === undefined) Prog.stats.newLearned = 0;
+        if (!Prog.learned) Prog.learned = {};
       }
       if (o && o.run && o.run.map) R = o.run;
     } catch (e) {}
   }
   function save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, prog: Prog, run: R })); } catch (e) {}
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 2, prog: Prog, run: R })); } catch (e) {}
   }
   function profOf(w) { return Prog.prof[typeof w === 'string' ? w : w.w] || 0; }
+  function isNew(w) { return !Prog.seen[w.w]; }
   function knownCount() { var n = 0; for (var k in Prog.prof) if (Prog.prof[k] >= 1) n++; return n; }
+  function learnedCount() { var n = 0; for (var k in Prog.learned) n++; return n; }
 
   /* ---------- 界面工具 ---------- */
   var $ = function (id) { return document.getElementById(id); };
@@ -106,6 +111,19 @@
   function senses(w) {
     var s = w.s || [];
     return s.slice(0, 2).join('；');
+  }
+  function getRoots(w) {
+    if (!w.rt || !w.rt.length) return null;
+    var parts = [];
+    w.rt.forEach(function (r) {
+      var raw = ROOTS[r];
+      if (!raw) { parts.push(r); return; }
+      var def;
+      try { def = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { parts.push(r); return; }
+      if (def && def.m) parts.push(r + '(' + def.m + ')');
+      else parts.push(r);
+    });
+    return parts.join(' + ');
   }
 
   /* ---------- 发音 ---------- */
@@ -166,6 +184,7 @@
   function sfxLose() { seq([[330, .13], [262, .13], [196, .26]], 115); }
   function sfxPick() { seq([[784, .06], [1046, .11]], 65); }
   function sfxStep() { tone(440, .05, 'sine', .06); }
+  function sfxLearn() { seq([[523, .08], [659, .08], [784, .12]], 80); }
 
   /* ---------- 编辑距离 ---------- */
   function dist(a, b) {
@@ -188,21 +207,48 @@
     return out.join(' ') + '   (' + word.length + ')';
   }
 
-  /* ---------- 选词 ---------- */
+  /* ---------- 选词（核心改进） ---------- */
   var usedWords = {};
+
+  // 选词策略：
+  // 1. 40% 概率选「没见过的新词」→ 进入 learn 界面先学
+  // 2. 40% 概率选「见过但不熟的词」→ 直接考（复习）
+  // 3. 20% 随机
   function pickWord(terrain) {
     var pool = TERRAIN_WORDS[terrain] || TERRAIN_WORDS.plains;
     if (!pool.length) pool = WORDS;
-    var tries = 0, w;
-    do {
-      w = pool[(Math.random() * pool.length) | 0];
-      tries++;
-    } while (usedWords[w.w] && tries < 100);
-    if (usedWords[w.w]) w = pool[(Math.random() * pool.length) | 0];
-    // 复习优先
-    if (Prog.seen[w.w] && profOf(w.w) < 3 && Math.random() < 0.4) return w;
+
+    var roll = Math.random();
+    var w;
+
+    if (roll < 0.4) {
+      // 优先选新词
+      w = pickFromPool(pool, function (w) { return !Prog.seen[w.w] && !usedWords[w.w]; });
+      if (!w) w = pickFromPool(pool, function (w) { return !usedWords[w.w]; });
+    } else if (roll < 0.8) {
+      // 优先选见过但不熟的词（复习）
+      w = pickFromPool(pool, function (w) { return Prog.seen[w.w] && profOf(w.w) < 3 && !usedWords[w.w]; });
+      if (!w) w = pickFromPool(pool, function (w) { return !usedWords[w.w]; });
+    } else {
+      // 随机
+      var tries = 0;
+      do {
+        w = pool[(Math.random() * pool.length) | 0];
+        tries++;
+      } while (usedWords[w.w] && tries < 100);
+    }
+
+    if (!w) w = pool[(Math.random() * pool.length) | 0];
     usedWords[w.w] = 1;
     return w;
+  }
+
+  function pickFromPool(pool, test) {
+    for (var i = 0; i < 50; i++) {
+      var w = pool[(Math.random() * pool.length) | 0];
+      if (test(w)) return w;
+    }
+    return null;
   }
 
   /* =========================================================
@@ -220,9 +266,12 @@
         } else {
           var roll = Math.random();
           var terrain, type;
-          if (roll < 0.55) {
+          if (roll < 0.45) {
             terrain = TERRAIN_KEYS[(Math.random() * TERRAIN_KEYS.length) | 0];
             type = 'challenge';
+          } else if (roll < 0.58) {
+            terrain = TERRAIN_KEYS[(Math.random() * TERRAIN_KEYS.length) | 0];
+            type = 'discovery'; // 新词发现点
           } else if (roll < 0.72) {
             terrain = TERRAIN_KEYS[(Math.random() * TERRAIN_KEYS.length) | 0];
             type = 'event';
@@ -259,8 +308,8 @@
     var ans = Prog.stats.answered || 0;
     var cor = Prog.stats.correct || 0;
     $('titleProgress').textContent = '已掌握 ' + knownCount() + ' / ' + WORDS.length + ' 词 · ' +
-      '累计答题 ' + ans + ' 次，答对率 ' +
-      (ans ? Math.round(cor / ans * 100) : 0) + '%';
+      '新学 ' + learnedCount() + ' 词 · ' +
+      '答对率 ' + (ans ? Math.round(cor / ans * 100) : 0) + '%';
   }
 
   /* =========================================================
@@ -272,7 +321,7 @@
       px: 0, py: 0,
       energy: MAX_ENERGY,
       gold: 0,
-      stats: { steps: 0, answered: 0, correct: 0, events: 0 },
+      stats: { steps: 0, answered: 0, correct: 0, events: 0, newThisRun: 0 },
       over: false
     };
     usedWords = {};
@@ -314,8 +363,8 @@
           tile.style.opacity = '0.5';
         } else {
           tile.className += ' ' + TERRAINS[cell.terrain].cls;
-          // 事件/宝藏格在未访问时显示特殊图标
-          if (cell.type === 'event') tile.textContent = '？';
+          if (cell.type === 'discovery') tile.textContent = '📖';
+          else if (cell.type === 'event') tile.textContent = '？';
           else if (cell.type === 'treasure') tile.textContent = '✧';
           else if (cell.type === 'rest') tile.textContent = '🔥';
           else tile.textContent = TERRAINS[cell.terrain].icon;
@@ -335,7 +384,7 @@
 
   function isAdj(x, y) {
     var dx = Math.abs(x - R.px), dy = Math.abs(y - R.py);
-    return (dx + dy === 1); // 只允许上下左右
+    return (dx + dy === 1);
   }
 
   function onTileClick(e) {
@@ -351,7 +400,6 @@
     if (R.over) return;
     if (!isAdj(x, y)) return;
     if (R.energy <= 0) {
-      // 没能量了
       return endRun(false, '能量耗尽');
     }
 
@@ -380,7 +428,15 @@
     cell.visited = true;
 
     if (cell.type === 'challenge') {
-      startChallenge(cell.terrain);
+      var w = pickWord(cell.terrain);
+      if (isNew(w)) {
+        startLearn(w, cell.terrain, 'challenge');
+      } else {
+        startChallenge(cell.terrain, w);
+      }
+    } else if (cell.type === 'discovery') {
+      var w = pickWord(cell.terrain);
+      startLearn(w, cell.terrain, 'discovery');
     } else if (cell.type === 'event') {
       startEvent();
     } else if (cell.type === 'treasure') {
@@ -395,12 +451,61 @@
   }
 
   /* =========================================================
+     学习界面（新词先学）
+     ========================================================= */
+  var learnState = null;
+
+  function startLearn(word, terrain, after) {
+    var t = TERRAINS[terrain];
+    learnState = { word: word, terrain: terrain, after: after };
+
+    $('learnIcon').textContent = after === 'discovery' ? '📖' : t.icon;
+    $('learnTitle').textContent = after === 'discovery' ? '发现新词！' : '遇到生词';
+    $('learnSub').textContent = after === 'discovery' ? '仔细记住这个词' : '先学再考，别慌';
+    $('learnWord').textContent = word.w;
+    $('learnPhonetic').textContent = word.ph || '';
+    $('learnMeaning').textContent = senses(word);
+
+    var rootEl = $('learnRoot');
+    var rootStr = getRoots(word);
+    if (rootStr) {
+      rootEl.textContent = '词根：' + rootStr;
+      rootEl.style.display = 'inline-block';
+    } else {
+      rootEl.style.display = 'none';
+    }
+
+    show('learn');
+    sfxLearn();
+    say(word.w);
+    Prog.seen[word.w] = 1;
+    save();
+  }
+
+  function finishLearn() {
+    if (!learnState) return;
+    var w = learnState.word;
+    Prog.learned[w.w] = 1;
+    Prog.stats.newLearned++;
+    if (R) R.stats.newThisRun++;
+
+    if (learnState.after === 'challenge') {
+      startChallenge(learnState.terrain, w);
+    } else {
+      renderMap();
+      show('map');
+    }
+    learnState = null;
+    save();
+  }
+
+  /* =========================================================
      拼写挑战
      ========================================================= */
   var CH = null;
 
-  function startChallenge(terrain) {
-    var w = pickWord(terrain);
+  function startChallenge(terrain, word) {
+    var w = word || pickWord(terrain);
     var t = TERRAINS[terrain];
     CH = { terrain: terrain, word: w, done: false };
 
@@ -412,8 +517,28 @@
     $('challengeInput').className = '';
     $('challengeFlash').textContent = '';
     $('challengeFlash').className = 'flash';
+    $('challengeDetail').textContent = '';
     $('submitBtn').disabled = false;
     $('skipBtn').disabled = false;
+
+    // 词根提示
+    var rootEl = $('challengeRoot');
+    var rootStr = getRoots(w);
+    if (rootStr && profOf(w.w) < 2) {
+      rootEl.textContent = '词根：' + rootStr;
+      rootEl.style.display = 'block';
+    } else {
+      rootEl.style.display = 'none';
+    }
+
+    // 形近词警告
+    var confuseEl = $('challengeConfuse');
+    if (w.cf && w.cf.length && Prog.seen[w.w]) {
+      confuseEl.textContent = '注意形近词：' + w.cf.slice(0, 2).join(', ');
+      confuseEl.style.display = 'block';
+    } else {
+      confuseEl.style.display = 'none';
+    }
 
     show('challenge');
     $('challengeInput').focus();
@@ -429,9 +554,9 @@
     var typed = input;
     R.stats.answered++;
     Prog.stats.answered++;
-    Prog.seen[w.w] = 1;
 
     var f = $('challengeFlash');
+    var detail = $('challengeDetail');
     var verdict;
 
     if (typed === want) verdict = 'exact';
@@ -443,8 +568,9 @@
       Prog.stats.correct++;
       Prog.prof[w.w] = Math.min(4, profOf(w) + 1);
       R.gold += 3;
-      f.textContent = '正确！' + want + ' · ' + senses(w);
+      f.textContent = '正确！' + want;
       f.className = 'flash ok';
+      detail.textContent = senses(w);
       $('challengeInput').className = 'ok';
       say(want); sfxOk();
     } else if (verdict === 'near') {
@@ -453,13 +579,22 @@
       Prog.prof[w.w] = Math.min(4, profOf(w) + 1);
       f.textContent = '差一点：' + typed + ' → ' + want;
       f.className = 'flash info';
+      detail.textContent = senses(w);
       $('challengeInput').className = 'ok';
       say(want); sfxOk();
     } else {
       Prog.prof[w.w] = Math.max(0, profOf(w) - 1);
       R.energy = Math.max(0, R.energy - 1);
-      f.textContent = '错误。正确：' + want + ' · ' + senses(w);
+      f.textContent = '错误。正确：' + want;
       f.className = 'flash no';
+      detail.textContent = senses(w);
+      // 显示形近词对比
+      var twin = (w.cf || []).indexOf(typed) >= 0;
+      if (twin) {
+        var tw = BY[typed];
+        detail.textContent = '你拼的 ' + typed + (tw ? '（' + senses(tw) + '）' : '') +
+          ' ≠ ' + want + '（' + senses(w) + '）';
+      }
       $('challengeInput').className = 'no';
       say(want); sfxBad();
     }
@@ -473,7 +608,7 @@
       CH = null;
       renderMap();
       show('map');
-    }, 1500);
+    }, 2000);
   }
 
   function skipChallenge() {
@@ -499,10 +634,14 @@
     { icon: '📜', title: '古老卷轴', desc: '卷轴上写满了文字，似乎蕴含知识。',
       choices: [
         { t: '仔细研读', fn: function () {
-          var pool = WORDS;
+          var pool = WORDS.filter(function (w) { return !Prog.seen[w.w]; });
+          if (!pool.length) pool = WORDS;
           var w = pool[(Math.random() * pool.length) | 0];
           Prog.prof[w.w] = Math.min(4, profOf(w) + 1);
           Prog.seen[w.w] = 1;
+          Prog.learned[w.w] = 1;
+          Prog.stats.newLearned++;
+          R.stats.newThisRun++;
           return '学会了 ' + w.w + '（' + senses(w) + '）';
         } },
         { t: '卖掉', fn: function () { R.gold += 12; return '获得了 12 ✧'; } }
@@ -524,6 +663,17 @@
       choices: [
         { t: '拿起指南针', fn: function () { R.energy = Math.min(MAX_ENERGY, R.energy + 6); return '指南针给了你力量 +6 能量'; } },
         { t: '留下', fn: function () { return '继续前进'; } }
+      ] },
+    { icon: '📚', title: '漂浮的魔法书', desc: '一本书在空中翻动，散发着微光。',
+      choices: [
+        { t: '阅读一页', fn: function () {
+          var pool = WORDS.filter(function (w) { return Prog.seen[w.w] && profOf(w.w) < 3; });
+          if (!pool.length) return '没有需要复习的词';
+          var w = pool[(Math.random() * pool.length) | 0];
+          Prog.prof[w.w] = Math.min(4, profOf(w) + 2);
+          return w.w + ' 熟练度 +2（' + senses(w) + '）';
+        } },
+        { t: '合上离开', fn: function () { return '继续前进'; } }
       ] }
   ];
 
@@ -592,6 +742,15 @@
     choices.appendChild(btn('复习错题', '随机 2 个没掌握的词熟练度 +1', function () {
       var pool = [];
       for (var k in Prog.prof) if (Prog.prof[k] < 3) pool.push(k);
+      if (!pool.length) {
+        $('eventDesc').textContent = '没有需要复习的词，真棒！';
+        $('eventChoices').innerHTML = '';
+        $('eventChoices').appendChild(btn('继续', '', function () {
+          renderMap();
+          show('map');
+        }));
+        return;
+      }
       for (var i = pool.length - 1; i > 0; i--) {
         var j = (Math.random() * (i + 1)) | 0;
         var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
@@ -621,8 +780,10 @@
     stats.innerHTML = '';
     stats.appendChild(makeStat(R.stats.steps, '步数'));
     stats.appendChild(makeStat(R.stats.correct, '答对'));
+    stats.appendChild(makeStat(R.stats.newThisRun || 0, '新学'));
     stats.appendChild(makeStat(R.gold, '金币'));
     stats.appendChild(makeStat(knownCount(), '总掌握'));
+    stats.appendChild(makeStat(learnedCount(), '总新学'));
 
     var btns = $('overBtns');
     btns.innerHTML = '';
@@ -647,6 +808,10 @@
 
   $('submitBtn').addEventListener('click', submitChallenge);
   $('skipBtn').addEventListener('click', skipChallenge);
+  $('learnOkBtn').addEventListener('click', finishLearn);
+  $('learnListenBtn').addEventListener('click', function () {
+    if (learnState) say(learnState.word.w);
+  });
   $('challengeInput').addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); submitChallenge(); }
   });

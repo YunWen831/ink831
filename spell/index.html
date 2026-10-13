@@ -11,7 +11,7 @@
   color-scheme:dark;
   --bg:#0a0e14;--panel:#111820;--panel2:#182030;--line:#1e2d3d;
   --text:#e0e8f0;--muted:#6b7d8f;--accent:#7ec8e3;--gold:#fbbf24;
-  --red:#ef4444;--green:#22c55e;
+  --red:#ef4444;--green:#22c55e;--purple:#a78bfa;
   --font:system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
   --mono:ui-monospace,"Cascadia Mono","Consolas","Courier New",monospace;
 }
@@ -29,14 +29,18 @@ input{font-family:inherit;font-size:inherit}
 .bar{height:8px;background:var(--panel2);border-radius:4px;overflow:hidden}
 .bar>i{display:block;height:100%;border-radius:4px;transition:width .3s}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.muted{color:var(--muted)}.small{font-size:13px}
+.muted{color:var(--muted)}.small{font-size:13px}.tiny{font-size:11px}
 h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;margin:6px 0;
   background:var(--panel);border:1px solid var(--line);border-radius:10px;text-align:left;transition:all .15s}
 .btn:active{transform:scale(.98);background:var(--panel2)}
 .btn:disabled{opacity:.4}
 .btn.primary{background:var(--accent);color:#000;border-color:var(--accent)}
+.btn.purple{background:var(--purple);color:#000;border-color:var(--purple)}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:8px 0}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;margin-right:4px}
+.tag.new{background:#1e3a5f;color:#93c5fd}
+.tag.review{background:#713f12;color:#fde68a}
 
 #title{justify-content:center;align-items:center;text-align:center}
 #title h1{font-size:36px;margin-bottom:4px}
@@ -55,12 +59,14 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 .tile-water{background:#1e3a5f}.tile-forest{background:#14532d}
 .tile-mountain{background:#44403c}.tile-desert{background:#78350f}
 .tile-swamp{background:#365314}.tile-plains{background:#1e293b}
-.tile-event{background:#4a1d6e}.tile-treasure{background:#713f12}
+.tile-discovery{background:#4a1d6e}
 
 .challenge{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:16px}
 .challenge .terrain-icon{font-size:48px;margin-bottom:12px}
 .challenge .prompt{font-size:18px;font-weight:600;color:var(--gold);margin-bottom:4px}
-.challenge .hint{font-family:var(--mono);font-size:14px;color:var(--muted);letter-spacing:.2em;margin-bottom:16px}
+.challenge .hint{font-family:var(--mono);font-size:14px;color:var(--muted);letter-spacing:.2em;margin-bottom:8px}
+.challenge .root-hint{font-size:12px;color:var(--purple);margin-bottom:8px;font-family:var(--mono)}
+.challenge .confuse-warn{font-size:12px;color:var(--red);margin-bottom:8px}
 #challengeInput{width:100%;max-width:320px;padding:14px;font-family:var(--mono);font-size:20px;
   text-align:center;background:var(--panel);color:var(--text);border:1px solid var(--line);
   border-radius:10px;outline:none;letter-spacing:.05em}
@@ -69,8 +75,18 @@ h1{font-size:28px;font-weight:700}h2{font-size:18px;font-weight:600}
 #challengeInput.no{border-color:var(--red);color:var(--red)}
 .flash{text-align:center;font-weight:600;min-height:20px;margin-top:8px;font-size:14px}
 .flash.ok{color:var(--green)}.flash.no{color:var(--red)}.flash.info{color:var(--accent)}
+.flash-detail{text-align:center;font-size:12px;color:var(--muted);margin-top:4px}
 .challenge-actions{flex-shrink:0;padding:8px 0;display:flex;gap:8px}
 .challenge-actions .btn{flex:1}
+
+.learn-screen{justify-content:center;align-items:center;text-align:center}
+.learn-card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin:16px 0;width:100%;max-width:340px}
+.learn-word{font-size:28px;font-weight:700;color:var(--accent);font-family:var(--mono);margin-bottom:4px}
+.learn-phonetic{font-size:14px;color:var(--muted);font-family:var(--mono);margin-bottom:12px}
+.learn-meaning{font-size:16px;color:var(--gold);margin-bottom:8px}
+.learn-root{font-size:13px;color:var(--purple);margin-bottom:8px;font-family:var(--mono);
+  background:rgba(167,139,250,.1);padding:6px 12px;border-radius:8px;display:inline-block}
+.learn-btn{margin-top:8px}
 
 .event-screen{justify-content:center;align-items:center;text-align:center}
 .event-screen .icon{font-size:48px;margin-bottom:16px}
@@ -103,7 +119,7 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
         <span class="small muted" id="mapInfo"></span>
       </div>
       <div class="row small" style="margin-top:4px">
-        <span>⚡ <span id="energyText">20/20</span></span>
+        <span>⚡ <span id="energyText">25/25</span></span>
         <span style="margin-left:auto">✧ <span id="goldText">0</span></span>
       </div>
       <div class="bar" style="margin-top:4px"><i id="energyBar" style="background:var(--gold)"></i></div>
@@ -111,15 +127,34 @@ footer{color:var(--muted);font-size:10px;text-align:center;padding:6px;flex-shri
     <div class="map-grid" id="mapGrid"></div>
   </section>
 
+  <section class="screen learn-screen" id="learn">
+    <div style="font-size:48px;margin-bottom:8px" id="learnIcon">📖</div>
+    <h2 id="learnTitle">发现新词</h2>
+    <p class="small muted" id="learnSub">记住这个词，待会要用</p>
+    <div class="learn-card">
+      <div class="learn-word" id="learnWord"></div>
+      <div class="learn-phonetic" id="learnPhonetic"></div>
+      <div class="learn-meaning" id="learnMeaning"></div>
+      <div class="learn-root" id="learnRoot" style="display:none"></div>
+      <button class="btn primary learn-btn" id="learnListenBtn">🔊 听发音</button>
+    </div>
+    <div style="width:100%;max-width:340px">
+      <button class="btn purple" id="learnOkBtn"><span class="t">记住了，继续</span></button>
+    </div>
+  </section>
+
   <section class="screen" id="challenge">
     <div class="challenge">
       <div class="terrain-icon" id="challengeIcon">🌊</div>
       <div class="prompt" id="challengePrompt">水域</div>
-      <div class="small muted" id="challengeCn" style="margin-bottom:8px"></div>
+      <div class="small muted" id="challengeCn" style="margin-bottom:4px"></div>
+      <div class="root-hint" id="challengeRoot" style="display:none"></div>
+      <div class="confuse-warn" id="challengeConfuse" style="display:none"></div>
       <div class="hint" id="challengeHint">_ _ _ _</div>
       <input id="challengeInput" type="text" autocomplete="off" autocapitalize="off"
              autocorrect="off" spellcheck="false" enterkeyhint="done" placeholder="拼写单词...">
       <div class="flash" id="challengeFlash"></div>
+      <div class="flash-detail" id="challengeDetail"></div>
     </div>
     <div class="challenge-actions">
       <button class="btn primary" id="submitBtn"><span class="t">确认（回车）</span></button>
