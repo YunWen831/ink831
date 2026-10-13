@@ -1,76 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YunWen</title>
-<style>
-  :root { color-scheme: light dark; }
-  body {
-    margin: 0; min-height: 100vh;
-    display: grid; place-items: center;
-    padding: 2rem 1.25rem; box-sizing: border-box;
-    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
-    background: #fafaf9; color: #1c1917;
-    -webkit-text-size-adjust: 100%;
-  }
-  .card {
-    width: min(28rem, 100%);
-    /* border-box 不能少：宽度算的是「内容区」，不带上 padding 的话
-       在窄屏上整张卡会往右溢出（一直有这毛病，描述写长了才看出来） */
-    box-sizing: border-box;
-    padding: 2.5rem clamp(1.25rem, 5vw, 2.5rem) 1.75rem;
-    border: 1px solid #e7e5e4;
-    border-radius: 16px;
-  }
-  h1 { margin: 0 0 1.5rem; font-size: 2rem; letter-spacing: .04em; font-weight: 600; }
-
-  .works { margin: 0; padding: 0; list-style: none; border-top: 1px solid #e7e5e4; }
-  .works li { border-bottom: 1px solid #e7e5e4; }
-  .works a {
-    display: block; padding: 1rem .25rem;
-    color: inherit; text-decoration: none;
-  }
-  .works a:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 6px; }
-  .works .nm { display: block; font-size: 1.05rem; font-weight: 600; }
-  .works .nm::after {
-    content: "→"; display: inline-block; margin-left: .5rem;
-    color: #a8a29e; opacity: .45;
-    transition: opacity .15s, transform .15s;
-  }
-  .works a:hover .nm, .works a:focus-visible .nm { text-decoration: underline; text-underline-offset: .25em; }
-  .works a:hover .nm::after, .works a:focus-visible .nm::after { opacity: 1; transform: translateX(3px); }
-  .works .desc { display: block; margin-top: .35rem; color: #78716c; font-size: .875rem; line-height: 1.6; }
-
-  .foot { margin: 1.5rem 0 0; color: #a8a29e; font-size: .8rem; }
-
-  @media (prefers-color-scheme: dark) {
-    body { background: #1c1917; color: #fafaf9; }
-    .card, .works, .works li { border-color: #44403c; }
-    .works .desc { color: #a8a29e; }
-    .works .nm::after { color: #78716c; }
-    .foot { color: #57534e; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .works .nm::after { transition: none; }
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="YunWen 的个人小站，收集自己做的游戏、工具和其他作品。">
+  <title>YunWen</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/home.css">
+  <script src="./assets/projects.js" defer></script>
+  <script src="./assets/home.js" defer></script>
 </head>
 <body>
-  <main class="card">
-    <h1>YunWen</h1>
-
-    <ul class="works">
-      <!-- 加新作品：照抄一个 li，改 nm / desc / href 就行 -->
-      <li>
-        <a href="./campus/">
-          <span class="nm">在学校乱逛</span>
-          <span class="desc">46班空座位答了一声「到」。牢李去旧阅览室辨认熟人的习惯，水哥在放映室还原完整录像，logic测量图纸漏掉的一格。与lg7追查同一场事故，进入三阶段六封锁的纸影Boss战。支持手机、剧情演出、省电画质与自动存档。</span>
+  <a class="skip-link" href="#main">跳到作品</a>
+  <div class="page">
+    <header>
+      <a class="name" href="./">YunWen<span aria-hidden="true">.</span></a>
+      <a class="github" href="https://github.com/YunWen831" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+    </header>
+    <main id="main">
+      <div class="intro"><h1>作品</h1><p>自己做的一些东西，慢慢更新。</p></div>
+      <div class="projects" id="project-list">
+        <a class="project" href="./campus/">
+          <div class="project-image"><img src="./assets/campus-cover.png" alt="校园像素游戏画面" width="1280" height="800"></div>
+          <div class="project-copy"><span class="category">小游戏</span><h2>在学校乱逛</h2><p>三角色校园怪谈。探索、解谜，找出那场事故背后的线索。</p></div>
+          <span class="project-arrow" aria-hidden="true">↗</span>
         </a>
-      </li>
-    </ul>
-
-    <p class="foot">最近更新 2026.10.12</p>
-  </main>
+      </div>
+    </main>
+    <footer>© <span id="year">2026</span> YunWen</footer>
+  </div>
 </body>
 </html>
