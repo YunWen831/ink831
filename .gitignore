@@ -1,0 +1,12 @@
+# Android tools, update signing keys, caches and duplicate build output stay on this computer.
+app-source/y-timetable/.tools/
+app-source/y-timetable/.cache/
+app-source/y-timetable/output/
+app-source/y-timetable/local.properties
+*.jks
+*.keystore
+# Browser verification artifacts are local only.
+output/playwright/
+.playwright-cli/
+Thumbs.db
+.DS_Store

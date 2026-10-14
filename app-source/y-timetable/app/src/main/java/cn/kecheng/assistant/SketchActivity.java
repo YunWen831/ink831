@@ -1,0 +1,50 @@
+package cn.kecheng.assistant;
+
+import android.app.*;
+import android.content.*;
+import android.graphics.*;
+import android.net.Uri;
+import android.os.*;
+import android.util.AtomicFile;
+import android.view.*;
+import android.widget.*;
+import org.json.JSONObject;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
+
+public final class SketchActivity extends Activity {
+ SketchModel model=new SketchModel();Drawing drawing;TextView status;boolean loadFailed;String exportPath="";
+ int dp(float v){return Ui.dp(this,v);}File draftFile(){return new File(getFilesDir(),"drawing-draft.json");}
+ @Override public void onCreate(Bundle state){
+  super.onCreate(state);try{if(draftFile().isFile()){try(InputStream in=new AtomicFile(draftFile()).openRead()){model=SketchModel.read(new JSONObject(MainActivity.readBounded(in,4000000)));}}}catch(Exception e){loadFailed=true;Toast.makeText(this,"涂鸦草稿无法读取，可先导出当前画面，再清空重新绘制",1).show();}
+  if(state!=null)exportPath=state.getString("exportPath","");getWindow().setStatusBarColor(Color.TRANSPARENT);getWindow().setNavigationBarColor(Color.TRANSPARENT);if(Build.VERSION.SDK_INT>=30)getWindow().setDecorFitsSystemWindows(false);if(Build.VERSION.SDK_INT>=29)getWindow().setNavigationBarContrastEnforced(false);getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE|View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN|View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION|View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR|View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+  LinearLayout body=Ui.column(this);body.setBackgroundColor(0xfff3f6f2);setContentView(body);body.setOnApplyWindowInsetsListener((v,i)->{if(Build.VERSION.SDK_INT>=30){android.graphics.Insets inset=i.getInsets(WindowInsets.Type.systemBars()|WindowInsets.Type.displayCutout());body.setPadding(inset.left,inset.top,inset.right,inset.bottom);}else body.setPadding(i.getSystemWindowInsetLeft(),i.getSystemWindowInsetTop(),i.getSystemWindowInsetRight(),i.getSystemWindowInsetBottom());return i;});
+  FrameLayout header=new FrameLayout(this);header.addView(new Ui.Icon(this,"back",this::finish),new FrameLayout.LayoutParams(dp(48),dp(56),Gravity.START));TextView title=Ui.centered(this,"随手涂鸦",20,Ui.INK);FrameLayout.LayoutParams heading=new FrameLayout.LayoutParams(-1,dp(56));heading.leftMargin=dp(54);heading.rightMargin=dp(54);header.addView(title,heading);body.addView(header);
+  LinearLayout controls=Ui.column(this);Ui.pad(controls,16,0,16,8);body.addView(controls);status=Ui.centered(this,"画布会自动暂存，下次可以接着画",12,Ui.MUTED);controls.addView(status);Ui.gap(controls,10);
+  drawing=new Drawing();LinearLayout colors=new LinearLayout(this);int[] palette={Ui.INK,Ui.TEAL,0xffbe737d,0xffcc9a4a,0xff748ac1};String[] names={"墨黑","青绿","莓红","暖黄","蓝紫"};Button[] swatches=new Button[palette.length];
+  for(int i=0;i<palette.length;i++){int index=i;Button b=Ui.button(this,names[i],()->{drawing.color=palette[index];drawing.eraser=false;for(int n=0;n<swatches.length;n++)swatches[n].setText(names[n]+(n==index?" ✓":""));status.setText("画笔："+names[index]);});b.setTextSize(12);b.setTextColor(palette[i]);swatches[i]=b;LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(40),1);if(i>0)lp.leftMargin=dp(5);colors.addView(b,lp);}swatches[0].setText("墨黑 ✓");controls.addView(colors);Ui.gap(controls,8);
+  LinearLayout pens=new LinearLayout(this);Button eraser=Ui.button(this,"橡皮",()->{drawing.eraser=true;status.setText("橡皮：涂过的位置恢复白色");});pens.addView(eraser,new LinearLayout.LayoutParams(dp(62),dp(40)));TextView size=Ui.centered(this,"粗细",12,Ui.MUTED);pens.addView(size,new LinearLayout.LayoutParams(dp(42),dp(40)));SeekBar thickness=new SeekBar(this);thickness.setMax(18);thickness.setProgress(4);thickness.setContentDescription("画笔粗细");thickness.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar b,int p,boolean user){drawing.brush=(p+2)/600f;}public void onStartTrackingTouch(SeekBar b){}public void onStopTrackingTouch(SeekBar b){}});pens.addView(thickness,new LinearLayout.LayoutParams(0,dp(40),1));controls.addView(pens);
+  body.addView(drawing,new LinearLayout.LayoutParams(-1,0,1));LinearLayout footer=Ui.column(this);Ui.pad(footer,16,8,16,12);body.addView(footer);LinearLayout editing=new LinearLayout(this);button(editing,"撤销",()->{model.undo();persist();drawing.invalidate();});button(editing,"清空",()->new AlertDialog.Builder(this).setTitle("清空画布？").setMessage("已经导出的图片和首页背景不会被删除。").setPositiveButton("清空",(d,w)->{model.strokes.clear();loadFailed=false;persist();drawing.invalidate();}).setNegativeButton("取消",null).show());footer.addView(editing);Ui.gap(footer,8);LinearLayout saving=new LinearLayout(this);button(saving,"保存图片",this::export);button(saving,"设为背景",this::background);footer.addView(saving);body.requestApplyInsets();
+ }
+ void button(LinearLayout row,String text,Runnable action){LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,dp(44),1);if(row.getChildCount()>0)lp.leftMargin=dp(8);row.addView(Ui.button(this,text,action),lp);}
+ @Override protected void onPause(){if(drawing!=null)drawing.commit();persist();super.onPause();}
+ @Override public void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("exportPath",exportPath);}
+ void persist(){if(loadFailed)return;AtomicFile file=new AtomicFile(draftFile());FileOutputStream out=null;try{out=file.startWrite();out.write(model.json().toString().getBytes(StandardCharsets.UTF_8));file.finishWrite(out);}catch(Exception e){if(out!=null)file.failWrite(out);if(status!=null)status.setText("草稿暂存失败，请先保存图片");}}
+ File png(File file)throws IOException{drawing.commit();Bitmap b=Bitmap.createBitmap(1080,1440,Bitmap.Config.ARGB_8888);try{Canvas c=new Canvas(b);c.drawColor(Color.WHITE);drawing.paint(c,new RectF(0,0,1080,1440));try(FileOutputStream out=new FileOutputStream(file)){if(!b.compress(Bitmap.CompressFormat.PNG,100,out))throw new IOException("图片保存失败");}return file;}finally{b.recycle();}}
+ void export(){try{File file=png(new File(getCacheDir(),"drawing-export.png"));exportPath=file.getAbsolutePath();startActivityForResult(new Intent(Intent.ACTION_CREATE_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("image/png").putExtra(Intent.EXTRA_TITLE,"涂鸦-"+System.currentTimeMillis()+".png"),40);}catch(Exception e){Toast.makeText(this,"保存失败："+e.getMessage(),1).show();}}
+ void background(){try{File dir=new File(getFilesDir(),"drawings");if(!dir.isDirectory()&&!dir.mkdirs())throw new IOException("无法创建图片目录");String name="drawing-"+UUID.randomUUID()+".png";png(new File(dir,name));setResult(RESULT_OK,new Intent().setData(Uri.parse("content://"+getPackageName()+".drawings/background/"+name)));finish();}catch(Exception e){Toast.makeText(this,"背景保存失败："+e.getMessage(),1).show();}}
+ @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request!=40||result!=RESULT_OK||data==null||data.getData()==null)return;try(InputStream in=new FileInputStream(exportPath);OutputStream out=getContentResolver().openOutputStream(data.getData(),"wt")){if(out==null)throw new IOException("无法写入图片");byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);Toast.makeText(this,"图片已保存到你选择的位置",1).show();}catch(Exception e){Toast.makeText(this,"图片保存失败，请重试",1).show();}}
+ final class Drawing extends View {
+  final Paint p=new Paint(3);SketchModel.Stroke active;int color=Ui.INK;boolean eraser;float brush=.01f;
+  Drawing(){super(SketchActivity.this);setContentDescription("涂鸦画布，用手指绘制");setLayerType(View.LAYER_TYPE_SOFTWARE,null);}
+  RectF paper(){float w=Math.min(getWidth()-dp(24),getHeight()*.75f);float h=w/ .75f;return new RectF((getWidth()-w)/2,(getHeight()-h)/2,(getWidth()+w)/2,(getHeight()+h)/2);}
+  protected void onDraw(Canvas c){c.drawColor(0xffe4ece7);RectF r=paper();p.setColor(Color.WHITE);p.setStyle(Paint.Style.FILL);c.drawRect(r,p);c.save();c.clipRect(r);paint(c,r);c.restore();}
+  void paint(Canvas c,RectF r){for(SketchModel.Stroke stroke:model.strokes)stroke(c,r,stroke);if(active!=null)stroke(c,r,active);}
+  void stroke(Canvas c,RectF r,SketchModel.Stroke s){if(s.points.isEmpty())return;p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(s.width*r.width());p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);p.setColor(s.eraser?Color.WHITE:s.color);Path path=new Path();SketchModel.Point first=s.points.get(0);path.moveTo(r.left+first.x*r.width(),r.top+first.y*r.height());if(s.points.size()==1){p.setStyle(Paint.Style.FILL);c.drawCircle(r.left+first.x*r.width(),r.top+first.y*r.height(),s.width*r.width()/2,p);}else{for(int i=1;i<s.points.size();i++){SketchModel.Point point=s.points.get(i);path.lineTo(r.left+point.x*r.width(),r.top+point.y*r.height());}c.drawPath(path,p);}p.setStyle(Paint.Style.FILL);}
+  void point(float x,float y){RectF r=paper();float px=(x-r.left)/r.width(),py=(y-r.top)/r.height();if(!active.points.isEmpty()){SketchModel.Point last=active.points.get(active.points.size()-1);if(Math.abs(last.x-px)+Math.abs(last.y-py)<.001f)return;}active.point(px,py);}
+  void commit(){if(active!=null){try{model.add(active);}catch(Exception e){Toast.makeText(SketchActivity.this,e.getMessage(),1).show();}active=null;persist();invalidate();}}
+  public boolean onTouchEvent(MotionEvent e){switch(e.getActionMasked()){case MotionEvent.ACTION_DOWN:if(!paper().contains(e.getX(),e.getY()))return false;active=new SketchModel.Stroke(color,eraser?Math.max(.03f,brush*2):brush,eraser);point(e.getX(),e.getY());getParent().requestDisallowInterceptTouchEvent(true);break;case MotionEvent.ACTION_MOVE:if(active!=null){for(int i=0;i<e.getHistorySize();i++)point(e.getHistoricalX(i),e.getHistoricalY(i));point(e.getX(),e.getY());}break;case MotionEvent.ACTION_UP:if(active!=null)point(e.getX(),e.getY());commit();getParent().requestDisallowInterceptTouchEvent(false);performClick();break;case MotionEvent.ACTION_CANCEL:active=null;getParent().requestDisallowInterceptTouchEvent(false);break;}invalidate();return true;}
+  public boolean performClick(){super.performClick();return true;}
+ }
+}

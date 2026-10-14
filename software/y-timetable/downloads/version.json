@@ -1,0 +1,10 @@
+{
+  "apk": "Y-timetable-0.7.0.apk",
+  "minAndroid": "8.0",
+  "sha256": "f5153bd380019c5047d9e253ce4f6772ec539d06fc7a134743808f6eaadc5c74",
+  "name": "Y课表",
+  "version": "0.7.0",
+  "versionCode": 7,
+  "bytes": 123595,
+  "packageName": "cn.kecheng.assistant"
+}

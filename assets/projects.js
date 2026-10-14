@@ -1,7 +1,15 @@
 // 新增作品：在数组中复制一条，改标题、简介、链接、封面即可。
-// category 可选 game（小游戏）、tool（工具）、note（记录）。
+// category 可选 software（软件）、game（游戏）；更多分类在 catalog.js 中添加。
 // href / image 用相对路径或完整 https 地址，按数组顺序展示。
 window.YUNWEN_PROJECTS = [
+  {
+    title: 'Y课表',
+    category: 'software',
+    description: '打开就知道当前与下一节课程。简洁的安卓课表。',
+    href: './software/y-timetable/index.html',
+    image: './assets/y-timetable-cover.svg',
+    imageAlt: 'Y课表软件插画'
+  },
   {
     title: 'codex连',
     category: 'game',

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-label="软件分类插画">
+ <rect width="1280" height="800" fill="#e9eeE5"/>
+ <circle cx="1000" cy="190" r="260" fill="#d9e5d8"/>
+ <rect x="343" y="161" width="502" height="463" rx="38" fill="#c5d2c4"/>
+ <rect x="300" y="121" width="502" height="463" rx="38" fill="#fcfbf4"/>
+ <path d="M300 208h502" stroke="#e1e6da" stroke-width="4"/>
+ <circle cx="345" cy="165" r="9" fill="#cfb376"/><circle cx="377" cy="165" r="9" fill="#a9c4b1"/><circle cx="409" cy="165" r="9" fill="#c5d4c1"/>
+ <rect x="355" y="266" width="148" height="148" rx="32" fill="#188b84"/>
+ <path d="m394 302 35 38 35-38m-35 38v37" fill="none" stroke="#faf5e9" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+ <path d="M547 286h176M547 325h128M547 382h155M355 478h355M355 510h250" stroke="#cedacf" stroke-width="15" stroke-linecap="round"/>
+ <path d="M882 419h91q31 0 31 31v162q0 31-31 31h-91q-31 0-31-31V450q0-31 31-31" fill="#476c50"/>
+ <path d="M878 458h99v132h-99" fill="#e9eee5"/><path d="M913 620h28" stroke="#cedacf" stroke-width="5" stroke-linecap="round"/>
+</svg>

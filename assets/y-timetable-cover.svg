@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-label="Y课表软件插画">
+ <rect width="1280" height="800" fill="#e6efeb"/>
+ <circle cx="1080" cy="80" r="380" fill="#d6e7df"/>
+ <path d="M0 665 235 451 391 597 560 518 770 669 1017 436 1280 615v185H0" fill="#c4d8ce"/>
+ <rect x="237" y="203" width="230" height="230" rx="55" fill="#188b84"/>
+ <path d="M315 259h74q18 0 18 18v96q0 18-18 18h-74q-18 0-18-18v-96q0-18 18-18" fill="#faf5e9"/>
+ <path d="M297 287h110v8H297" fill="#d8eae2"/>
+ <path d="M323 250v24m58-24v24" stroke="#faf5e9" stroke-width="10" stroke-linecap="round"/>
+ <path d="m328 315 24 24 24-24m-24 24v30" fill="none" stroke="#188b84" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+ <text x="535" y="306" fill="#224a43" font-family="system-ui, sans-serif" font-size="92" font-weight="650">Y课表</text>
+ <text x="538" y="380" fill="#648278" font-family="system-ui, sans-serif" font-size="30">课程，一眼就知道。</text>
+ <path d="M543 461h310M543 501h223" stroke="#a9c7b8" stroke-width="12" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-label="游戏分类插画">
+ <rect width="1280" height="800" fill="#e8e6db"/>
+ <circle cx="310" cy="180" r="255" fill="#dbdfce"/>
+ <rect x="308" y="147" width="626" height="425" rx="26" fill="#566349"/>
+ <rect x="337" y="179" width="568" height="317" rx="12" fill="#26392f"/>
+ <path d="M370 462V352h78v-68h112v68h69v-122h89v122h75v110" fill="#688370"/>
+ <path d="M391 460h43v-40h40v40h94v-38h51v38h90v-50h36v50h117" fill="none" stroke="#a4b58a" stroke-width="12"/>
+ <rect x="513" y="365" width="35" height="35" fill="#dcb772"/>
+ <path d="M590 571v51h78v-51M483 649h293" fill="none" stroke="#566349" stroke-width="28" stroke-linecap="round"/>
+ <path d="M786 555c-25 0-46 29-54 71l-9 44c-7 35 26 51 48 25l42-43h83l42 43c22 26 55 10 48-25l-9-44c-8-42-29-71-54-71Z" fill="#faf8ed"/>
+ <path d="M787 591v55m-27-28h54" stroke="#476c50" stroke-width="14" stroke-linecap="round"/><circle cx="922" cy="606" r="10" fill="#cfb376"/><circle cx="943" cy="634" r="10" fill="#a2b798"/>
+</svg>
