@@ -1,0 +1,20 @@
+[Unit]
+Description=Dungeon Mail OpenFrp test tunnel
+After=network-online.target dungeon-mail-test.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rocky
+WorkingDirectory=/home/rocky/dungeon-mail-test
+ExecStart=/home/rocky/dungeon-mail-test/bin/frpc-openfrp --noupdate --disable-log-color --config /home/rocky/dungeon-mail-test/private/openfrp.toml
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

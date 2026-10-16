@@ -136,7 +136,7 @@ $('inviteButton').addEventListener('click',async()=>{
   catch{$('fallbackInvite').hidden=false;$('inviteText').value=url.href;$('inviteText').select();$('inviteMessage').textContent='请复制下面的链接发给朋友。';}
 });
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.1.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,room:room?.roomId||null,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.1.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,room:room?.roomId||null,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制，可以发给开发者。');}
   catch{const blob=URL.createObjectURL(new Blob([data],{type:'text/plain'}));const a=document.createElement('a');a.href=blob;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(blob),1000);toast('诊断已保存为文本。');}
 });
@@ -173,7 +173,7 @@ setInterval(()=>{
 setInterval(()=>{
   if(!room||!online)return;
   if(outgoing.length){const steps=outgoing.splice(0,6);room.send('input',{steps});}
-},50);
+},25);
 setInterval(()=>{
   if(room&&online){lastPing=performance.now();room.send('ping',lastPing);}
 },2000);

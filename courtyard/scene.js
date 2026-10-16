@@ -1,4 +1,5 @@
 import { WORLD, OBSTACLES } from './world.js';
+import { RemoteMotion } from './motion.js';
 
 const map = document.createElement('canvas');
 map.width = WORLD.width; map.height = WORLD.height;
@@ -76,14 +77,13 @@ drawMap();
 export function createScene(canvas, getWorld) {
   const ctx=canvas.getContext('2d');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const positions=new Map();
-  let last=performance.now(),width=960,height=640,dpr=1;
+  const positions=new Map(),motions=new Map();
+  let width=960,height=640,dpr=1;
   new ResizeObserver(()=>{
     const bounds=canvas.getBoundingClientRect();width=bounds.width;height=bounds.height;dpr=Math.min(devicePixelRatio||1,2);
     canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
   }).observe(canvas);
   function frame(now){
-    const dt=Math.min(100,now-last);last=now;
     const world=getWorld();
     const me=world.me;
     const zoom=Math.max(width/WORLD.width,height/WORLD.height,me&&width<600?.85:0);
@@ -95,12 +95,16 @@ export function createScene(canvas, getWorld) {
     for(const [id,p] of world.players){
       const target=id===world.self&&me?{...p,...me}:p;
       const previous=positions.get(id)||{x:target.x,y:target.y};
-      const factor=id===world.self?1:1-Math.exp(-dt/85);
-      const moving=Math.hypot(target.x-previous.x,target.y-previous.y)>.2;
-      const next={x:previous.x+(target.x-previous.x)*factor,y:previous.y+(target.y-previous.y)*factor};
+      let next={x:target.x,y:target.y};
+      if(id!==world.self){
+        let motion=motions.get(id);
+        if(!motion){motion=new RemoteMotion(p,now);motions.set(id,motion);}
+        motion.update(p,now);next=motion.sample(now);
+      }
+      const moving=Math.hypot(next.x-previous.x,next.y-previous.y)>.2;
       positions.set(id,next);people.push({...target,...next,id,moving});
     }
-    for(const id of positions.keys())if(!world.players.has(id))positions.delete(id);
+    for(const id of positions.keys())if(!world.players.has(id)){positions.delete(id);motions.delete(id);}
     people.sort((a,b)=>a.y-b.y);
     for(const p of people){
       const x=Math.round(p.x),y=Math.round(p.y),self=p.id===world.self;
