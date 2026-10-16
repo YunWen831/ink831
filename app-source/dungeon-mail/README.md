@@ -1,22 +1,34 @@
-# 地牢来信 · 联机庭院 0.1
+# 地牢来信 · 公共大厅 0.2
 
 测试页：https://yunwen831.github.io/ink831/courtyard/
 
-本阶段实现俯视庭院联机：昵称、创建房间、六位房间码、邀请链接、同房间移动和表情、连接状态、往返延迟、自动重连与页面刷新恢复。每间最多 8 人。建筑、绘画和跑酷关卡属于后续阶段，当前不包含。
+输入用户名后自动进入唯一的公共大厅。大厅支持文字聊天、16×16 像素材料绘画、共享材料库、建筑放置/拆除及服务器存档。跑酷工坊、地牢邮局提供四人准备房间，可以组队、准备、邀请、房间聊天和返回大厅；完整游戏对局仍未开放。
+
+## 游玩
+
+- WASD / 方向键移动；手机使用左下摇杆。
+- 靠近跑酷工坊、地牢邮局或画室时按 E（手机点互动按钮）。工坊与邮局打开对应的房间列表。
+- Enter 聚焦聊天，输入时不移动角色；Escape 回到地图。公共大厅和各准备房间的聊天隔离，最多保留各自最近 50 条消息，单条 120 字。
+- 点击“画方块”，使用调色板、画笔、橡皮、填色和撤销制作材料。绘画草稿保留在当前浏览器；保存后的材料进入公共材料栏，其他玩家也能使用。
+- 沿广场向南过桥，在两侧虚线草地施工。选择“放置”或“拆除”，点击角色附近 112 世界像素内的位置；墙块会挡路，地砖可走。主路和设施不能建造；玩家所占位置不能新建墙块。
+- “回到广场”可以离开被建筑围住的位置。所有建筑均为公共协作内容，当前没有账号归属或地块权限系统。
+
+默认大厅和准备房间共用一个 Colyseus 连接，玩家以逻辑空间隔离，避免切换空间时重新握手。整个服务最多 50 个连接（包含准备房间和短暂断线保留的位置），准备房间最多 4 人、同时最多 12 间。默认大厅不会因最后一人离开而销毁，也不会在满员时另开一个大厅。
 
 ## 结构
 
-- `../../courtyard/`：GitHub Pages 静态网页。`world.js` 是前后端共用的移动与碰撞规则。
-- `server.js`：Node.js 24 + Colyseus 0.18 后端；服务器校验移动方向、序号和时间预算，房间状态由 Schema 同步。
-- `tunnel.py`：开发用 Cloudflare Quick Tunnel；将分配的公开地址写入部署目录 `run/endpoint.json`。
-- `deploy/`：本次 Rocky Linux 虚拟机的独立 systemd 服务文件。
-- `tests/`：实际 SDK 集成验证，包含房间隔离、非法输入、广播、自动重连、页面恢复、退出和来源限制。
+- `../../courtyard/`：GitHub Pages 静态前端。`world.js` 共用移动、碰撞、建造范围规则；`materials.js` 共用纹理格式与调色板；`art.js` 提供绘画板和纹理渲染。
+- `server.js`：HTTP / WebSocket 入口、来源限制和健康检查。
+- `hall.js`：公共大厅、逻辑房间、玩家、聊天和施工校验。
+- `world-store.js`：材料、建筑的串行原子写入，以及上一版本备份。
+- `tunnel.py` 和 `deploy/`：沿用学校虚拟机的独立 Cloudflare Quick Tunnel 部署。
+- `tests/`：真实 SDK 联机验证、存档、碰撞及远端移动显示回归。
 
-前端 SDK 0.18.5 随页面托管于 `courtyard/vendor/`，不依赖脚本 CDN；保留 MIT 许可证。
+Node.js 24；Colyseus core 0.18.18 / SDK 0.18.5。前端 SDK 随网页托管，保留 MIT 许可证。
 
 ## 本地运行
 
-使用 Node.js 24 或更新的兼容版本，在本目录运行：
+在本目录执行：
 
 ```sh
 npm ci --ignore-scripts
@@ -24,38 +36,42 @@ npm test
 npm start
 ```
 
-后端默认只监听 `127.0.0.1:2567`。将 `courtyard/config.json` 中的 endpoint 改为 `http://127.0.0.1:2567`，然后在仓库根目录启动绑定 `127.0.0.1:4173` 的静态服务器。生产网页需要 HTTPS/WSS 入口。
+后端默认监听 `127.0.0.1:2567`。本地前端使用 `127.0.0.1:4173` 静态服务器，临时将 `courtyard/config.json` 的 endpoint 配置为 `http://127.0.0.1:2567`；提交前恢复线上入口。浏览器验收也可用请求拦截覆盖配置，避免修改仓库中的正式 endpoint。
 
-允许的网页来源通过 `ALLOWED_ORIGINS`（逗号分隔）配置，默认包含 GitHub Pages 及本地 4173 端口。来源限制覆盖匹配 HTTP 接口和 WebSocket 握手；它不替代正式用户认证。测试房间依靠随机房间码邀请，不包含账号或私密内容。
+`ALLOWED_ORIGINS` 为逗号分隔的允许网页来源，默认包含 GitHub Pages 与本地 4173。来源校验覆盖匹配 HTTP 和 WebSocket 握手；每来源 IP 的匹配请求限制为每分钟 120 次，以容纳同一校园出口的玩家。来源限制不替代账号认证。
 
-## 当前部署
+## 存档与部署
 
-游戏独立部署在 `/home/rocky/dungeon-mail-test/`，后端和隧道分别由 `dungeon-mail-test.service`、`dungeon-mail-tunnel.service` 管理，不占用原有的 8080 服务。
+当前继续使用学校虚拟机 `/home/rocky/dungeon-mail-test/`：
+
+- `dungeon-mail-test.service`：游戏后端。
+- `dungeon-mail-tunnel.service`：原 Cloudflare 临时公网入口。
+- `DATA_DIR=/home/rocky/dungeon-mail-test/data`：独立于源码的持久目录。
+
+首次更新 0.2 前创建该目录并设为 rocky 可写，再安装更新后的后端 service。`ProtectHome=read-only` 下，只有 `ReadWritePaths` 指定的数据目录可以写入。
 
 ```sh
-systemctl status dungeon-mail-test dungeon-mail-tunnel
-journalctl -u dungeon-mail-test -n 50 --no-pager
-journalctl -u dungeon-mail-tunnel -n 50 --no-pager
+sudo install -d -o rocky -g rocky -m 750 /home/rocky/dungeon-mail-test/data
+sudo systemctl daemon-reload
+sudo systemctl restart dungeon-mail-test
 ```
 
-服务在开机后启动、异常退出后自动重启。校园网网关的联网状态仍依赖学校网络。房间仅驻留内存，后端重启会结束现有测试房间；玩家短暂掉线会保留身份和位置 60 秒。
+不要将存档上传到 GitHub，也不要用候选环境的测试数据覆盖线上存档。更新源码只同步 `courtyard/` 和 `app-source/dungeon-mail/`，保留部署根目录中的 data。
 
-## 更新临时入口
+`world.json` 保存自绘材料和公共建筑；成功通知在磁盘原子替换完成后发出。`world.json.bak` 保存上一次写入。服务器重启后加载这些内容；若存档损坏则拒绝启动，避免默默覆盖用户作品。材料库当前最多 128 件自绘材料，建筑区有 154 个可编辑格，默认 4 件材料不占自绘额度。
 
-Quick Tunnel 仅用于开发测试，无可用性保证。隧道进程重新启动后会分配新域名；不能把 systemd 自动重启当成固定域名承诺。
+玩家位置、准备房间和聊天历史暂驻内存；服务器重启后重新进入大厅，材料与建筑仍在。掉线 60 秒内或刷新页面会尝试恢复当前身份、位置和空间。浏览器只保存昵称、绘画草稿、材料选择和当前标签页的重连令牌，诊断不包含令牌和聊天内容。
 
-1. 读取 `/home/rocky/dungeon-mail-test/run/endpoint.json`。
-2. 将其中的公开 endpoint、updatedAt、temporary 更新到 `courtyard/config.json`。
-3. 提交并发布 GitHub Pages。前端会重新读取配置，已经结束的房间需要重新创建。
+原 8080 服务不受影响。后端重启会结束当前内存房间；Quick Tunnel 无需随后端一起重启。
 
-GitHub 密钥和校园网密码均不存放于游戏源码，也不为自动更新配置而复制到服务器。当前继续使用已验证可联机的 Cloudflare Quick Tunnel 入口。
+## 临时公网入口
 
-## 验证
+继续使用 `courtyard/config.json` 中的原 Cloudflare Quick Tunnel。临时入口会随隧道进程重新启动而更换，没有可用性保证；后端更新请只重启后端。
 
-先运行 `npm test` 验证服务行为，再在真实浏览器中验证创建/加入、同步移动、刷新恢复、移动布局与摇杆、网络中断恢复。独立校外手机流量测试需要实际设备参与；桌面移动模拟不等于手机真机验收。
+若隧道确实重启：读取部署根目录 `run/endpoint.json`，更新 config.json 并发布 GitHub Pages。GitHub 密钥和校园网密码不保存于游戏源码。
 
-### 0.1.1 同步显示调整
+## 验证范围
 
-客户端每 25 ms 发送积累的输入（最高 40 条/秒，仍在服务器 45 条/秒限制内）。其他玩家使用 20 ms 的短纠正平滑，依据确认的移动步估计方向，最多预估前方 60 ms 的位置；停止收到更新后回到最后确认位置，碰撞规则和服务器判定保持一致。它减少显示拖后，不能消除公网线路延迟。
+`npm test` 覆盖同一默认大厅、四人房间上限与聊天隔离、非法移动、跨空间输入拒绝、自动重连、页面会话恢复、绘画与施工同步、磁盘保存、墙块/地砖碰撞、通道保护、玩家防压、并发存档、原移动平滑及 50 个 SDK 连接的容量检查。
 
-`motion.test.js` 覆盖持续移动的显示滞后、更新中断、重复状态、停止收敛、障碍和重连纠正。测试中的显示误差对比是可控输入下的算法结果，不能当作真实网络延迟改善幅度。
+浏览器另验输入名字即入厅、聊天按纯文本显示、输入时不移动、绘画保存、跨玩家材料与建筑显示、放置/拆除、刷新恢复、设施互动、房间准备/邀请/返回、手机布局、摇杆和掉线重连。SDK 容量测试不是跨运营商 50 人实机验收，原公网线路的延迟仍存在。

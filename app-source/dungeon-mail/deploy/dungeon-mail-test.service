@@ -12,6 +12,8 @@ ExecStart=/home/rocky/dungeon-mail-test/node-v24.22.0-linux-x64/bin/node server.
 Environment=NODE_ENV=production
 Environment=HOST=127.0.0.1
 Environment=PORT=2567
+Environment=DATA_DIR=/home/rocky/dungeon-mail-test/data
+ReadWritePaths=/home/rocky/dungeon-mail-test/data
 Restart=always
 RestartSec=5
 TimeoutStopSec=20

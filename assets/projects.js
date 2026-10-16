@@ -13,7 +13,7 @@ window.YUNWEN_PROJECTS = [
   {
     title: '地牢来信 · 联机庭院',
     category: 'game',
-    description: '创建庭院，寄一个链接给朋友。支持手机与电脑的公网联机试玩。',
+    description: '输入名字进入公共大厅。和朋友聊天、绘制方块、一起建造，再去工坊组队。',
     href: './courtyard/index.html',
     image: './assets/courtyard-cover.svg',
     imageAlt: '地牢来信：两位旅人在庭院里交换一封信'

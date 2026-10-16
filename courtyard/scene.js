@@ -1,5 +1,6 @@
-import { WORLD, OBSTACLES } from './world.js';
-import { RemoteMotion } from './motion.js';
+import { WORLD, OBSTACLES, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH } from './world.js?v=0.2.0';
+import { RemoteMotion } from './motion.js?v=0.2.0';
+import { texture } from './art.js?v=0.2.0';
 
 const map = document.createElement('canvas');
 map.width = WORLD.width; map.height = WORLD.height;
@@ -26,7 +27,7 @@ function house(x,y,w,h) {
   rect(x+w-25,y-41,12,25,'#9b8a6c');rect(x+w-28,y-44,18,6,'#bbaa83');
 }
 function drawMap() {
-  rect(0,0,960,640,'#b8cb98');
+  rect(0,0,WORLD.width,WORLD.height,'#b8cb98');
   for(let y=0;y<640;y+=16)for(let x=0;x<960;x+=16){const n=noise(x,y);if(n>.35)rect(x+3,y+6,2+n*6,2,n>.72?'#aabd86':'#c3d3a4');}
   rect(38,44,884,551,'#bdcf9a');
   rect(318,59,324,524,'#d5d3a6');rect(54,242,852,136,'#d5d3a6');
@@ -71,6 +72,17 @@ function drawMap() {
   }
   for(const [x,y,s] of [[103,307,1],[850,307,1],[80,102,1.1],[880,100,1.1],[83,551,.9],[877,548,.9]])tree(x,y,s);
   for(let x=270;x<700;x+=58){rect(x,560,25,13,'#b3bc93');rect(x+3,558,21,10,'#d3d2ad');}
+  // A protected bridge leads to the communal construction meadow.
+  rect(432,582,96,68,'#a38d65');rect(440,582,80,68,'#d2bd8b');
+  for(let y=584;y<650;y+=10)rect(439,y,82,2,'#a18f64');
+  rect(33,646,14,262,'#a5b586');rect(913,646,14,262,'#a5b586');
+  rect(48,907,864,13,'#a5b586');rect(434,650,92,255,'#d6d3aa');rect(442,650,76,255,'#e1d9b3');
+  for(const x of [64,544]){rect(x,640,352,224,'#c8d3a5');g.strokeStyle='#8da37066';g.setLineDash([5,6]);g.strokeRect(x+.5,640.5,351,223);g.setLineDash([]);}
+  for(let i=0;i<90;i++){const x=66+noise(i,111)*828,y=654+noise(i,99)*235;if(x>425&&x<535)continue;rect(x,y,3,2,i%2?'#b6c694':'#d3dcb5');}
+  for(const [x,y,s] of [[86,895,.8],[868,896,.8],[73,680,.65],[886,675,.65]])tree(x,y,s);
+  rect(463,650,34,8,'#b19465');rect(465,654,4,17,'#9d845c');rect(491,654,4,17,'#9d845c');
+  rect(470,631,22,20,'#f3e8c5');rect(474,635,6,6,'#bd8165');rect(482,640,6,6,'#87a77a');
+  g.fillStyle='#71805a';g.textAlign='center';g.font='11px "Microsoft YaHei",sans-serif';g.fillText('公共建筑区 · 西草地',240,885);g.fillText('公共建筑区 · 东草地',720,885);
 }
 drawMap();
 
@@ -79,6 +91,7 @@ export function createScene(canvas, getWorld) {
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const positions=new Map(),motions=new Map();
   let width=960,height=640,dpr=1;
+  let view={zoom:1,cameraX:0,cameraY:0};
   new ResizeObserver(()=>{
     const bounds=canvas.getBoundingClientRect();width=bounds.width;height=bounds.height;dpr=Math.min(devicePixelRatio||1,2);
     canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
@@ -89,8 +102,30 @@ export function createScene(canvas, getWorld) {
     const zoom=Math.max(width/WORLD.width,height/WORLD.height,me&&width<600?.85:0);
     const cameraX=Math.max(0,Math.min(WORLD.width-width/zoom,(me?.x??480)-width/zoom/2));
     const cameraY=Math.max(0,Math.min(WORLD.height-height/zoom,(me?.y??320)-height/zoom/2));
+    view={zoom,cameraX,cameraY};
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,width,height);ctx.imageSmoothingEnabled=false;
     ctx.scale(zoom,zoom);ctx.translate(-cameraX,-cameraY);ctx.drawImage(map,0,0);
+    if(world.space==='lobby'){
+      if(world.tool==='place'||world.tool==='remove'){
+        ctx.strokeStyle='#738d5430';ctx.lineWidth=.6;
+        for(let row=20;row<=26;row++)for(let col=2;col<=27;col++)if(isBuildCell(col,row))ctx.strokeRect(col*TILE_SIZE,row*TILE_SIZE,TILE_SIZE,TILE_SIZE);
+      }
+      for(const tile of world.tiles.values()){
+        const image=texture(world.materials.get(tile.material));if(!image)continue;
+        const x=tile.col*TILE_SIZE,y=tile.row*TILE_SIZE;
+        if(tile.solid){ctx.fillStyle='#4d60342d';ctx.fillRect(x+3,y+5,TILE_SIZE,TILE_SIZE);}
+        ctx.fillStyle=tile.solid?'#c6cfaa':'#ccd7ad';ctx.fillRect(x,y,TILE_SIZE,TILE_SIZE);ctx.drawImage(image,x,y,TILE_SIZE,TILE_SIZE);
+        if(tile.solid){ctx.fillStyle='#334b3324';ctx.fillRect(x,y+TILE_SIZE-4,TILE_SIZE,4);ctx.strokeStyle='#faf2d75c';ctx.strokeRect(x+.5,y+.5,TILE_SIZE-1,TILE_SIZE-1);}
+      }
+      for(const f of FACILITIES){
+        ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const tw=ctx.measureText(f.name).width;
+        ctx.fillStyle=world.nearFacility===f.id?'#fff6d8':'#f6f4dfdf';ctx.fillRect(f.x-tw/2-9,f.y-59,tw+18,21);ctx.fillStyle='#526e43';ctx.fillText(f.name,f.x,f.y-44);
+      }
+      if(world.hover&&me&&(world.tool==='place'||world.tool==='remove')){
+        const {col,row}=world.hover,valid=isBuildCell(col,row)&&Math.hypot(me.x-(col+.5)*TILE_SIZE,me.y-(row+.5)*TILE_SIZE)<=BUILD_REACH;
+        ctx.fillStyle=valid?'#f2f2c53d':'#d47e6a30';ctx.fillRect(col*TILE_SIZE,row*TILE_SIZE,TILE_SIZE,TILE_SIZE);ctx.strokeStyle=valid?'#faf8d3':'#ba7765';ctx.lineWidth=2;ctx.strokeRect(col*TILE_SIZE+1,row*TILE_SIZE+1,TILE_SIZE-2,TILE_SIZE-2);
+      }
+    }
     const people=[];
     for(const [id,p] of world.players){
       const target=id===world.self&&me?{...p,...me}:p;
@@ -99,13 +134,16 @@ export function createScene(canvas, getWorld) {
       if(id!==world.self){
         let motion=motions.get(id);
         if(!motion){motion=new RemoteMotion(p,now);motions.set(id,motion);}
-        motion.update(p,now);next=motion.sample(now);
+        motion.update(p,now);next=motion.sample(now,world.space==='lobby'?world.tiles:undefined);
       }
       const moving=Math.hypot(next.x-previous.x,next.y-previous.y)>.2;
       positions.set(id,next);people.push({...target,...next,id,moving});
     }
     for(const id of positions.keys())if(!world.players.has(id)){positions.delete(id);motions.delete(id);}
     people.sort((a,b)=>a.y-b.y);
+    const labelRects=[],ownPerson=people.find(p=>p.id===world.self);
+    ctx.font='11px "Microsoft YaHei",sans-serif';
+    if(ownPerson){const w=ctx.measureText(ownPerson.name+' · 你').width+12;labelRects.push({x:ownPerson.x-w/2,y:ownPerson.y-55,w,h:17});}
     for(const p of people){
       const x=Math.round(p.x),y=Math.round(p.y),self=p.id===world.self;
       const bounce=p.moving&&!reduced?Math.round(Math.sin(now/90)*1.5):0;
@@ -119,12 +157,21 @@ export function createScene(canvas, getWorld) {
       ctx.fillStyle='#444d3c';ctx.fillRect(1,-25,2,3);ctx.fillRect(6,-25,2,3);ctx.fillStyle='#d2ae85';ctx.fillRect(4,-20,3,2);
       ctx.fillStyle='#efdfb2';ctx.fillRect(-7,-16,14,3);ctx.fillRect(-5,-12,3,6);
       ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const label=p.name+(self?' · 你':'');const tw=ctx.measureText(label).width;
-      ctx.fillStyle=self?'#f8f6e9ee':'#fcf9e4d9';ctx.fillRect(-tw/2-6,-55,tw+12,17);ctx.fillStyle='#45573f';ctx.fillText(label,0,-43);
+      let labelY=-55,showLabel=true;
+      if(!self){
+        const collision=()=>labelRects.some(r=>x-tw/2-6<r.x+r.w&&x+tw/2+6>r.x&&y+labelY<r.y+r.h&&y+labelY+17>r.y);
+        for(let i=0;i<3&&collision();i++)labelY-=19;
+        showLabel=!collision();if(showLabel)labelRects.push({x:x-tw/2-6,y:y+labelY,w:tw+12,h:17});
+      }
+      if(showLabel){ctx.fillStyle=self?'#f8f6e9ee':'#fcf9e4d9';ctx.fillRect(-tw/2-6,labelY,tw+12,17);ctx.fillStyle='#45573f';ctx.fillText(label,0,labelY+12);}
       const emote=world.emotes.get(p.id);
-      if(emote&&now-emote<2300){ctx.fillStyle='#fffbe9';ctx.fillRect(14,-42,32,23);ctx.fillRect(14,-21,5,5);ctx.fillStyle='#9c7853';ctx.font='bold 12px sans-serif';ctx.fillText('嗨!',30,-26);}
+      const speech=world.speech?.get(p.id);
+      if(speech&&now-speech.at<5500){const text=Array.from(speech.text).slice(0,19).join('')+(Array.from(speech.text).length>19?'…':'');ctx.font='11px "Microsoft YaHei",sans-serif';const w=ctx.measureText(text).width;ctx.fillStyle='#fffbeef2';ctx.fillRect(-w/2-8,labelY-25,w+16,20);ctx.fillRect(-2,labelY-6,5,4);ctx.fillStyle='#53684a';ctx.fillText(text,0,labelY-11);}
+      else if(emote&&now-emote<2300){ctx.fillStyle='#fffbe9';ctx.fillRect(14,-42,32,23);ctx.fillRect(14,-21,5,5);ctx.fillStyle='#9c7853';ctx.font='bold 12px sans-serif';ctx.fillText('嗨!',30,-26);}
       ctx.restore();
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
+  return {pointAt(clientX,clientY){const box=canvas.getBoundingClientRect();return {x:(clientX-box.left)/view.zoom+view.cameraX,y:(clientY-box.top)/view.zoom+view.cameraY};}};
 }

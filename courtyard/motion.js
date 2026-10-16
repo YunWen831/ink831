@@ -1,4 +1,4 @@
-import { WORLD, move } from './world.js';
+import { WORLD, move } from './world.js?v=0.2.0';
 
 // Use acknowledged simulation time for direction, since packets can arrive
 // together after a tunnel stall. This never changes authoritative game state.
@@ -26,7 +26,7 @@ export class RemoteMotion {
     this.latest = { ...player };
     this.receivedAt = now;
   }
-  sample(now) {
+  sample(now, tiles) {
     const age = Math.max(0, now - this.receivedAt);
     // Predict at most 60 ms (9.36 world pixels), then settle at the last
     // confirmed position if updates stop. No extra snapshot buffering delay.
@@ -34,7 +34,7 @@ export class RemoteMotion {
     let target = { x: this.latest.x, y: this.latest.y };
     for (let remaining = ahead; remaining > 0; remaining -= WORLD.stepMs) {
       const fraction = Math.min(remaining, WORLD.stepMs) / WORLD.stepMs;
-      target = move(target, this.velocity.x / WORLD.speed * fraction, this.velocity.y / WORLD.speed * fraction);
+      target = move(target, this.velocity.x / WORLD.speed * fraction, this.velocity.y / WORLD.speed * fraction, tiles);
     }
     const dt = Math.min(100, Math.max(0, now - this.renderedAt));
     this.renderedAt = now;
