@@ -1,0 +1,29 @@
+[Unit]
+Description=Dungeon Mail public courtyard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/dungeon-mail/app/app-source/dungeon-mail
+ExecStart=/home/ubuntu/dungeon-mail/node-v24.22.0-linux-x64/bin/node server.js
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=2567
+Environment=DATA_DIR=/home/ubuntu/dungeon-mail/data
+ReadWritePaths=/home/ubuntu/dungeon-mail/data
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+MemoryMax=1G
+TasksMax=128
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

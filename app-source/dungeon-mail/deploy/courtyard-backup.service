@@ -1,0 +1,14 @@
+[Unit]
+Description=Back up Courtyard materials and buildings
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+ExecStart=/usr/bin/python3 /home/ubuntu/dungeon-mail/app/app-source/dungeon-mail/deploy/backup-world.py
+ReadWritePaths=/home/ubuntu/dungeon-mail/backups
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+UMask=0077

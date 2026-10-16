@@ -1,0 +1,17 @@
+{
+	default_sni 82.157.83.81
+}
+
+82.157.83.81 {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+			profile shortlived
+		}
+	}
+
+	reverse_proxy 127.0.0.1:2567 {
+		# Always overwrite the client-supplied value used by the backend limiter.
+		header_up CF-Connecting-IP {remote_host}
+	}
+}

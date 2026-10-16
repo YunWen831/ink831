@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Courtyard world backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+Unit=courtyard-backup.service
+
+[Install]
+WantedBy=timers.target

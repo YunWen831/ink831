@@ -21,7 +21,7 @@
 - `server.js`：HTTP / WebSocket 入口、来源限制和健康检查。
 - `hall.js`：公共大厅、逻辑房间、玩家、聊天和施工校验。
 - `world-store.js`：材料、建筑的串行原子写入，以及上一版本备份。
-- `tunnel.py` 和 `deploy/`：沿用学校虚拟机的独立 Cloudflare Quick Tunnel 部署。
+- `deploy/`：腾讯云后端、Caddy HTTPS 和每日存档备份配置。`tunnel.py` 与旧 test/tunnel service 仅保留为历史部署参考。
 - `tests/`：真实 SDK 联机验证、存档、碰撞及远端移动显示回归。
 
 Node.js 24；Colyseus core 0.18.18 / SDK 0.18.5。前端 SDK 随网页托管，保留 MIT 许可证。
@@ -42,18 +42,29 @@ npm start
 
 ## 存档与部署
 
-当前继续使用学校虚拟机 `/home/rocky/dungeon-mail-test/`：
+当前公网后端部署于腾讯云北京轻量应用服务器，Ubuntu 26.04 LTS、2 核 4GB、6Mbps。前端继续由 GitHub Pages 托管，后端入口为 `https://82.157.83.81`：
 
-- `dungeon-mail-test.service`：游戏后端。
-- `dungeon-mail-tunnel.service`：原 Cloudflare 临时公网入口。
-- `DATA_DIR=/home/rocky/dungeon-mail-test/data`：独立于源码的持久目录。
+- `/home/ubuntu/dungeon-mail/app/`：只同步游戏源码。
+- `/home/ubuntu/dungeon-mail/node-v24.22.0-linux-x64/`：已验证的 Node.js 运行时。
+- `courtyard.service`：游戏后端，仅监听 `127.0.0.1:2567`。
+- `caddy.service`：公网 HTTPS/WSS，配置为 `deploy/Caddyfile`。
+- `DATA_DIR=/home/ubuntu/dungeon-mail/data`：独立于源码的持久目录。
+- `courtyard-backup.timer`：每日 UTC 04:00 后随机延迟至多 15 分钟保存 gzip 快照，保留最近 14 个日期。
+- `/home/ubuntu/dungeon-mail/backups/`：每日快照和迁移备份；机器外另保留一份迁移备份。每日同机快照不等同于异地灾备。
 
-首次更新 0.2 前创建该目录并设为 rocky 可写，再安装更新后的后端 service。`ProtectHome=read-only` 下，只有 `ReadWritePaths` 指定的数据目录可以写入。
+新机器先准备运行时、依赖和真实存档，再安装 service。`ProtectHome=read-only` 下，游戏后端只有 `ReadWritePaths` 指定的数据目录可写；备份任务只可写备份目录。
 
 ```sh
-sudo install -d -o rocky -g rocky -m 750 /home/rocky/dungeon-mail-test/data
+sudo install -d -o ubuntu -g ubuntu -m 700 /home/ubuntu/dungeon-mail/data /home/ubuntu/dungeon-mail/backups
+# 在 app-source/dungeon-mail 目录执行
+sudo install -m 644 deploy/courtyard*.service deploy/courtyard-backup.timer /etc/systemd/system/
+sudo install -m 644 deploy/Caddyfile /etc/caddy/Caddyfile
+sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl daemon-reload
-sudo systemctl restart dungeon-mail-test
+sudo systemctl enable --now courtyard courtyard-backup.timer caddy
+# 后续源码更新
+sudo systemctl restart courtyard
+sudo systemctl reload caddy
 ```
 
 不要将存档上传到 GitHub，也不要用候选环境的测试数据覆盖线上存档。更新源码只同步 `courtyard/` 和 `app-source/dungeon-mail/`，保留部署根目录中的 data。
@@ -62,16 +73,22 @@ sudo systemctl restart dungeon-mail-test
 
 玩家位置、准备房间和聊天历史暂驻内存；服务器重启后重新进入大厅，材料与建筑仍在。掉线 60 秒内或刷新页面会尝试恢复当前身份、位置和空间。浏览器只保存昵称、绘画草稿、材料选择和当前标签页的重连令牌，诊断不包含令牌和聊天内容。
 
-原 8080 服务不受影响。后端重启会结束当前内存房间；Quick Tunnel 无需随后端一起重启。
+后端重启会结束当前内存房间，玩家需要重新进入；材料和建筑不丢失。切换主机时也不会迁移玩家连接、位置、准备房间或内存聊天历史。
 
-## 临时公网入口
+## 公网与证书
 
-继续使用 `courtyard/config.json` 中的原 Cloudflare Quick Tunnel。临时入口会随隧道进程重新启动而更换，没有可用性保证；后端更新请只重启后端。
+云防火墙放行 TCP 80 和 TCP 443。80 用于 ACME HTTP 验证和 HTTPS 跳转，443 用于网页的 HTTPS/WSS；不要公开 2567 或 Caddy 管理端口 2019。
 
-若隧道确实重启：读取部署根目录 `run/endpoint.json`，更新 config.json 并发布 GitHub Pages。GitHub 密钥和校园网密码不保存于游戏源码。
+Caddy 使用 Let's Encrypt 的 `shortlived` profile 签发受信任的 IP 证书，并自动续期；无需另买证书或域名。IP 证书有效期较短，需保持 Caddy 运行和 TCP 80 可访问。`default_sni` 解决客户端通过 IP 连接不发送 SNI 的情况。Caddy 必须支持 ACME profile 和 IP 证书（本次使用官方稳定仓库 2.11.7）。
+
+反向代理覆盖 `CF-Connecting-IP` 为实际连接来源，复用后端的每 IP 限流；不信任客户端自行提交的这个头。后端只能从本机访问。
+
+部署检查：`curl https://82.157.83.81/health`、`systemctl status courtyard caddy courtyard-backup.timer`。证书私钥、SSH 私钥、真实存档、玩家内容和迁移归档不得上传 GitHub。
+
+原学校虚拟机在最后核对时 SSH 和隧道同时不可达；用户确认备份后没有新编辑，因此采用已校验的完整迁移备份。旧游戏服务和隧道尚未确认停用，恢复 SSH 后应停止并禁用这两个旧服务，保留迁移前存档。学校原有 8080 服务独立运行。
 
 ## 验证范围
 
 `npm test` 覆盖同一默认大厅、四人房间上限与聊天隔离、非法移动、跨空间输入拒绝、自动重连、页面会话恢复、绘画与施工同步、磁盘保存、墙块/地砖碰撞、通道保护、玩家防压、并发存档、原移动平滑及 50 个 SDK 连接的容量检查。
 
-浏览器另验输入名字即入厅、聊天按纯文本显示、输入时不移动、绘画保存、跨玩家材料与建筑显示、放置/拆除、刷新恢复、设施互动、房间准备/邀请/返回、手机布局、摇杆和掉线重连。SDK 容量测试不是跨运营商 50 人实机验收，原公网线路的延迟仍存在。
+浏览器另验输入名字即入厅、聊天按纯文本显示、输入时不移动、绘画保存、跨玩家材料与建筑显示、放置/拆除、刷新恢复、设施互动、房间准备/邀请/返回、手机布局、摇杆和掉线重连。SDK 容量测试不是 6Mbps 公网下的 50 人实机验收；实际延迟和容量取决于玩家线路及同步流量。
