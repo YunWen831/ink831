@@ -47,7 +47,7 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.3.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.4.0' }));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({
   gracefullyShutdown: false,

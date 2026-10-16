@@ -1,7 +1,9 @@
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.3.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.3.0';
-import { createScene } from './scene.js?v=0.3.0';
-import { createPainter, preview } from './art.js?v=0.3.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.4.0';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.4.0';
+import { createScene } from './scene.js?v=0.4.0';
+import { createPainter, preview } from './art.js?v=0.4.0';
+import { createPractice } from './parkour.js?v=0.4.0';
+import { bubbleDuration } from './chat.js?v=0.4.0';
 
 const $=id=>document.getElementById(id);
 const keys=new Set(),players=new Map(),tiles=new Map(),emotes=new Map(),speech=new Map();
@@ -11,7 +13,8 @@ const params=new URLSearchParams(location.search);
 let room=null,endpoint='',ready=false,busy=false,online=false,space='lobby',epoch=0,spaces=[],facilityMode='parkour',spaceBusy=false;
 let predicted=null,pending=[],outgoing=[],seq=0,resetPrediction=true,reconnects=0,lastPong=0,latency=null;
 let joystick={x:0,y:0},rosterSignature='',toastTimer=0,checkTask=null,tool='walk',hover=null,nearFacility=null,invitationShown=false;
-let selectedId=store.get('dungeon-mail-material')||'stone',lastChat=0,spaceUiSignature='';
+let selectedId=store.get('dungeon-mail-material')||'stone',lastChat=-Infinity,spaceUiSignature='';
+let practicing=false,mapWasHidden=false;
 function log(message){events.push({at:new Date().toISOString(),message});if(events.length>30)events.shift();}
 function toast(message){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,3500);}
 function status(kind,label,hint){$('connectionStatus').dataset.state=kind;$('connectionStatus').textContent=label;$('networkHint').textContent=hint;$('worldDot').classList.toggle('online',kind==='online');}
@@ -56,13 +59,14 @@ function updateSpaceUI(){
   $('chatTitle').textContent=inLobby?'聊天':'小队聊天';
   const url=new URL(location.href);if(inLobby)url.searchParams.delete('room');else url.searchParams.set('room',space);if(url.href!==location.href)history.replaceState(null,'',url);
   controls();
+  if(practicing){$('spaceTitle').textContent='跑酷练习';$('roomsButton').hidden=true;$('homeButton').hidden=true;}
 }
 function applyState(state){
   if(!room||!state?.players)return;const own=state.players.get(room.sessionId);if(!own)return;
   const changed=space!==own.space||epoch!==own.epoch,previousSpace=space;
   if(resetPrediction||changed){
     space=own.space;epoch=own.epoch;seq=own.ack;pending=[];outgoing=[];resetPrediction=false;resetInput();
-    if(changed){spaceBusy=false;setTool('walk');hover=null;speech.clear();emotes.clear();$('spacesDialog').close();if(previousSpace!==space)renderChat();}
+    if(changed){spaceBusy=false;setTool('walk');hover=null;speech.clear();emotes.clear();$('spacesDialog').close();if(previousSpace!==space){if(previousSpace!=='lobby')histories.delete(previousSpace);renderChat();}}
   }
   tiles.clear();state.tiles?.forEach((b,key)=>tiles.set(key,{col:b.col,row:b.row,material:b.material,solid:b.solid}));
   players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready});});
@@ -73,7 +77,7 @@ function applyState(state){
 function addChat(message,animate=true){
   const history=histories.get(message.space)||[];if(history.some(m=>m.id===message.id))return;
   history.push(message);if(history.length>50)history.shift();histories.set(message.space,history);
-  if(message.space===space){renderChat();if(animate)speech.set(message.sender,{text:message.text,at:performance.now()});}
+  if(message.space===space){renderChat();if(animate)speech.set(message.sender,{text:message.text,at:performance.now(),sentAt:message.at});}
 }
 function renderChat(){
   const container=$('chatMessages'),oldScroll=container.scrollTop,wasNearBottom=container.scrollHeight-container.scrollTop-container.clientHeight<45;
@@ -103,7 +107,7 @@ function renderRooms(){
 function openFacility(id){
   if(!room||!online||space!=='lobby')return;resetInput();
   if(id==='art'){openPaint();return;}
-  facilityMode=id;$('facilityTitle').textContent=id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent='2～4 人 · 完整关卡待开放';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
+  facilityMode=id;$('practiceEntry').hidden=id!=='parkour';$('facilityTitle').textContent=id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent='2～4 人 · 对局待开放';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
 }
 function attach(joined){
   joined.reconnection.minUptime=0;room=joined;online=true;lastPong=performance.now();resetPrediction=true;pending=[];outgoing=[];predicted=null;space='lobby';epoch=0;spaceBusy=false;
@@ -114,6 +118,11 @@ function attach(joined){
   joined.onMessage('space:launch',()=>{if(room===joined){spaceBusy=false;controls();updateSpaceUI();}});
   joined.onMessage('emote',data=>{if(room===joined&&typeof data?.id==='string')emotes.set(data.id,performance.now());});
   joined.onMessage('chat',data=>{if(room===joined)addChat(data);});
+  joined.onMessage('chat:prune',data=>{
+    if(room!==joined||typeof data?.cutoff!=='number')return;
+    for(const [id,history] of histories)histories.set(id,history.filter(m=>m.at>data.cutoff));
+    for(const [id,item] of speech)if(item.sentAt<=data.cutoff)speech.delete(id);renderChat();
+  });
   joined.onMessage('spaces',data=>{if(room!==joined)return;spaces=data;renderRooms();updateSpaceUI();});
   joined.onMessage('content',data=>{
     if(room!==joined)return;for(const material of data.materials)materials.set(material.id,material);spaces=data.spaces;histories.set(data.space,data.history);selectMaterial(materials.has(selectedId)?selectedId:'stone');renderRooms();if(data.space===space)renderChat();updateSpaceUI();
@@ -129,6 +138,7 @@ function attach(joined){
   applyState(joined.state);room.send('hello');$('world').focus({preventScroll:true});
 }
 function cleanup(){
+  if(practicing)leavePractice();
   room=null;online=false;predicted=null;pending=[];outgoing=[];space='lobby';epoch=0;spaces=[];spaceBusy=false;spaceUiSignature='';players.clear();tiles.clear();emotes.clear();speech.clear();histories.clear();resetInput();rosterSignature='';setTool('walk');
   for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
   document.body.classList.remove('in-world');$('loginOverlay').hidden=false;$('peopleCard').hidden=true;$('roomCard').hidden=true;$('roomsButton').hidden=false;$('homeButton').hidden=false;$('connectionShade').hidden=true;$('touchControls').hidden=true;$('interactButton').hidden=true;$('coordinates').textContent='';$('worldCount').textContent='';$('spaceTitle').textContent='大厅';$('spaceBadge').textContent='';$('chatTitle').textContent='聊天';
@@ -138,7 +148,7 @@ function friendly(error){const message=String(error?.message||error);if(/full|lo
 async function enter(){
   if(busy||room)return;const name=$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:3}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:4}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -150,7 +160,7 @@ async function checkEndpoint(){
       if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('invalid endpoint');
       if(!globalThis.Colyseus)throw Error('client unavailable');
       const health=await fetch(url.origin+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!health.ok)throw Error('health unavailable');const data=await health.json();
-      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.3.'))throw Error('server updating');
+      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.4.'))throw Error('server updating');
       endpoint=url.origin;ready=true;if(!wasInRoom)status('ready','入口可用','输入用户名，就能进入大家共同的大厅。');log('endpoint ready');
     }catch(error){if(!wasInRoom)status('error','暂不可用','入口暂时不可用或正在更新，请稍后重新检查。');else toast('入口检查未通过，当前连接继续保留。');log('endpoint check failed '+error.message);}finally{controls();}
   })();try{await checkTask;}finally{checkTask=null;}
@@ -186,6 +196,7 @@ $('waveButton').addEventListener('click',wave);$('touchWave').addEventListener('
 const movementKeys=new Set(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright']);
 window.addEventListener('keydown',event=>{
   if(!room||!online||spaceBusy||document.querySelector('dialog[open]')||/INPUT|TEXTAREA|BUTTON|SELECT/.test(event.target.tagName)||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(practicing){if(event.key==='Enter'){event.preventDefault();$('chatBody').hidden=false;$('chatInput').focus();}return;}
   const key=event.key.toLowerCase();if(movementKeys.has(key)){event.preventDefault();keys.add(key);}else if(event.key==='Enter'){event.preventDefault();$('chatBody').hidden=false;$('chatToggle').textContent='−';$('chatToggle').setAttribute('aria-expanded','true');$('chatInput').focus();}else if(key==='e'&&nearFacility&&!event.repeat){event.preventDefault();openFacility(nearFacility);}else if(event.code==='Space'){event.preventDefault();if(!event.repeat)wave();}
 });
 window.addEventListener('keyup',event=>keys.delete(event.key.toLowerCase()));window.addEventListener('blur',resetInput);document.addEventListener('visibilitychange',resetInput);
@@ -193,7 +204,7 @@ const joystickElement=$('joystick');let pointer=null;
 function touchMove(event){if(pointer!==event.pointerId)return;const box=joystickElement.getBoundingClientRect(),radius=box.width/2-18;let x=event.clientX-box.left-box.width/2,y=event.clientY-box.top-box.height/2;const distance=Math.hypot(x,y);if(distance>radius){x=x/distance*radius;y=y/distance*radius;}joystick=distance<7?{x:0,y:0}:{x:x/radius,y:y/radius};$('joystickKnob').style.transform=`translate(${x}px,${y}px)`;}
 joystickElement.addEventListener('pointerdown',event=>{event.preventDefault();pointer=event.pointerId;joystickElement.setPointerCapture(pointer);touchMove(event);});joystickElement.addEventListener('pointermove',touchMove);for(const name of ['pointerup','pointercancel','lostpointercapture'])joystickElement.addEventListener(name,()=>{pointer=null;resetInput();});
 setInterval(()=>{
-  if(!room||!online||!predicted||spaceBusy||document.hidden||document.querySelector('dialog[open]')||pending.length>150)return;
+  if(practicing||!room||!online||!predicted||spaceBusy||document.hidden||document.querySelector('dialog[open]')||pending.length>150)return;
   const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joystick.x,dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joystick.y;if(!dx&&!dy)return;
   const norm=Math.max(1,Math.hypot(dx,dy)),step={seq:++seq,dx:dx/norm,dy:dy/norm};predicted=move(predicted,step.dx,step.dy,space==='lobby'?tiles:undefined);pending.push(step);outgoing.push(step);
 },WORLD.stepMs);
@@ -201,12 +212,24 @@ setInterval(()=>{if(room&&online&&!spaceBusy&&outgoing.length)room.send('input',
 setInterval(()=>{if(room&&online)room.send('ping',performance.now());},2000);
 setInterval(()=>{
   if(predicted&&room)$('coordinates').textContent=`${Math.round(predicted.x)}, ${Math.round(predicted.y)}`;
-  nearFacility=room&&online&&space==='lobby'&&predicted?FACILITIES.find(f=>Math.hypot(f.x-predicted.x,f.y-predicted.y)<76)?.id||null:null;
+  for(const [id,item] of speech)if(performance.now()-item.at>=bubbleDuration(item.text))speech.delete(id);
+  nearFacility=!practicing&&room&&online&&space==='lobby'&&predicted?FACILITIES.find(f=>Math.hypot(f.x-predicted.x,f.y-predicted.y)<76)?.id||null:null;
   $('interactButton').hidden=!nearFacility;if(nearFacility)$('interactButton').lastElementChild.textContent='进入'+FACILITIES.find(f=>f.id===nearFacility).name;
   $('areaLabel').textContent=space!=='lobby'?'小队':'大厅';
   if(room&&online&&performance.now()-lastPong>9000)status('reconnecting','响应较慢','暂时没有收到服务器响应，正在等待恢复。');
 },150);
-const scene=createScene($('world'),()=>({players,tiles,materials,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility}));
+const scene=createScene($('world'),()=>({players,tiles,materials,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,practicing}));
+const practice=createPractice($('parkourWorld'),{stick:()=>joystick,online:()=>online,color:()=>players.get(room?.sessionId)?.color,speech:()=>speech.get(room?.sessionId)});
+function leavePractice(){
+  practice.stop();practicing=false;resetInput();document.body.classList.remove('in-practice');$('world').hidden=false;$('parkourWorld').hidden=true;$('practiceHud').hidden=true;$('toolbelt').hidden=false;$('minimap').hidden=mapWasHidden;
+  $('roomsButton').hidden=space!=='lobby';$('homeButton').hidden=space!=='lobby';$('mapButton').hidden=false;$('spaceTitle').textContent=space==='lobby'?'大厅':'小队';$('practiceJump').hidden=true;$('practiceDash').hidden=true;$('touchWave').hidden=false;setTool('walk');$('world').focus({preventScroll:true});
+}
+$('practiceEntry').addEventListener('click',()=>{
+  if(!room||!online||space!=='lobby')return;
+  $('spacesDialog').close();resetInput();outgoing=[];setTool('walk');practicing=true;mapWasHidden=$('minimap').hidden;document.body.classList.add('in-practice');$('world').hidden=true;$('parkourWorld').hidden=false;$('practiceHud').hidden=false;$('toolbelt').hidden=true;$('minimap').hidden=true;
+  $('roomsButton').hidden=true;$('homeButton').hidden=true;$('mapButton').hidden=true;$('interactButton').hidden=true;$('spaceTitle').textContent='跑酷练习';$('toolHint').textContent='Space / Z 跳 · Shift / X 冲 · R 重试';$('touchWave').hidden=true;$('practiceJump').hidden=false;$('practiceDash').hidden=false;$('practiceCheckpoint').value='0';practice.start();
+});
+$('practiceBack').addEventListener('click',leavePractice);
 function mapCell(event){const point=scene.pointAt(event.clientX,event.clientY);return {col:Math.floor(point.x/TILE_SIZE),row:Math.floor(point.y/TILE_SIZE)};}
 let buildPointer=null,lastBuildAt=0,lastBuildKey='';
 function construct(event){
@@ -229,7 +252,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.3.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.4.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

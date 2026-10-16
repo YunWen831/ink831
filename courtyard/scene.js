@@ -1,6 +1,8 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.3.0';
-import { RemoteMotion } from './motion.js?v=0.3.0';
-import { texture } from './art.js?v=0.3.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.4.0';
+import { RemoteMotion } from './motion.js?v=0.4.0';
+import { texture } from './art.js?v=0.4.0';
+import { drawBubbles } from './bubbles.js?v=0.4.0';
+import { bubbleDuration } from './chat.js?v=0.4.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -54,8 +56,7 @@ export function createScene(canvas,getWorld){
     if(!self){const collision=()=>labels.some(r=>x-tw/2-5<r.x+r.w&&x+tw/2+5>r.x&&y+labelY<r.y+r.h&&y+labelY+16>r.y);for(let i=0;i<3&&collision();i++)labelY-=18;showLabel=!collision();if(showLabel)labels.push({x:x-tw/2-5,y:y+labelY,w:tw+10,h:16});}
     if(showLabel){ctx.fillStyle=self?'#fbfcefef':'#fcfae6ce';ctx.fillRect(-tw/2-5,labelY,tw+10,16);ctx.fillStyle='#435c40';ctx.fillText(label,0,labelY+11);}
     const speech=world.speech?.get(p.id),emote=world.emotes.get(p.id);
-    if(speech&&now-speech.at<5500){const chars=Array.from(speech.text),text=chars.slice(0,19).join('')+(chars.length>19?'…':'');const w=ctx.measureText(text).width;ctx.fillStyle='#fffceff2';ctx.fillRect(-w/2-7,labelY-24,w+14,19);ctx.fillStyle='#4a6547';ctx.fillText(text,0,labelY-11);}
-    else if(emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(12,-44,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',25,-30);}
+    if((!speech||now-speech.at>=bubbleDuration(speech.text))&&emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(12,-44,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',25,-30);}
     ctx.restore();
   }
   function minimap(world,cameraX,cameraY,visibleW,visibleH,now){
@@ -69,6 +70,7 @@ export function createScene(canvas,getWorld){
     for(const [id,p] of world.players){const point=id===world.self&&world.me?world.me:p;miniCtx.beginPath();miniCtx.fillStyle=id===world.self?'#fff9df':p.color;miniCtx.arc(point.x*sx,point.y*sy,id===world.self?2.6:1.6,0,Math.PI*2);miniCtx.fill();}
   }
   function frame(now){
+    if(getWorld().practicing){requestAnimationFrame(frame);return;}
     const world=getWorld(),me=world.me,zoom=width<600?.92:Math.min(1.2,Math.max(1,width/1050));
     const visibleW=width/zoom,visibleH=height/zoom;
     const cameraX=Math.max(0,Math.min(WORLD.width-visibleW,(me?.x??480)-visibleW/2));
@@ -106,6 +108,7 @@ export function createScene(canvas,getWorld){
     people.sort((a,b)=>a.y-b.y);const labels=[],own=people.find(p=>p.id===world.self);ctx.font='11px "Microsoft YaHei",sans-serif';
     if(own){const w=ctx.measureText(own.name+' · 你').width+10;labels.push({x:own.x-w/2,y:own.y-53,w,h:16});}
     for(const p of people)drawPerson(p,poses.get(p.id),p.id===world.self,now,labels,world);
+    drawBubbles(ctx,people.map(p=>({...p,...(world.speech.get(p.id)||{text:'',at:-Infinity})})),now,{x:cameraX,y:cameraY,w:visibleW,h:visibleH},world.self);
     minimap(world,cameraX,cameraY,visibleW,visibleH,now);requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

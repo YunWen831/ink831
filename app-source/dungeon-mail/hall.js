@@ -4,6 +4,8 @@ import { Room } from '@colyseus/core';
 import { schema, t } from '@colyseus/schema';
 import { WORLD, COLORS, move, spawn, isBuildCell, tileKey, TILE_SIZE, BUILD_REACH, overlapsTile, PARTY } from '../../courtyard/world.js';
 import { partyStatus } from '../../courtyard/party.js';
+import { CHAT_SWEEP_MS } from '../../courtyard/chat.js';
+import { ChatHistory } from './chat-history.js';
 import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
 
@@ -27,7 +29,7 @@ export class Courtyard extends Room {
   autoDispose=false;
   state=new HallState();
   spaces=new Map();
-  histories=new Map();
+  chatHistory=new ChatHistory();
   collisionTiles=new Map();
   reserved=new Set();
   ownsLobby=false;
@@ -35,6 +37,8 @@ export class Courtyard extends Room {
   onCreate(){
     if(active)throw new Error('大厅暂时已满，请稍后再试');
     active=true;this.ownsLobby=true;this.roomId='courtyard';
+    // One global cutoff also clears cached lobby history while a player is in a party.
+    this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
     for(const tile of worldStore.data.tiles){const key=tileKey(tile.col,tile.row);this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
     this.onMessage('hello',client=>this.content(client));
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
@@ -59,7 +63,7 @@ export class Courtyard extends Room {
       if(!player||!text)return;
       if(!this.allow(client,'chat',1000)){this.notice(client,'发言稍微慢一点，等一秒再发送。');return;}
       const message={id:randomUUID(),sender:client.sessionId,name:player.name,color:player.color,text,at:Date.now(),space:player.space};
-      const history=this.histories.get(player.space)||[];history.push(message);if(history.length>50)history.shift();this.histories.set(player.space,history);
+      this.chatHistory.add(player.space,message);
       this.sendSpace(player.space,'chat',message);
     });
     this.onMessage('spaces:list',client=>client.send('spaces',this.roomList()));
@@ -116,7 +120,7 @@ export class Courtyard extends Room {
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
   content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
-    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.histories.get(player.space)||[],space:player.space});
+    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),space:player.space});
   }
   transfer(client,destination){
     const player=this.state.players.get(client.sessionId),old=player.space;
@@ -127,7 +131,7 @@ export class Courtyard extends Room {
   tidy(id){
     if(id==='lobby')return;
     const members=this.members(id),space=this.spaces.get(id);
-    if(!members.length){this.spaces.delete(id);this.histories.delete(id);}
+    if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);}
     else if(space){
       if(!members.some(([key])=>key===space.host))space.host=members[0][0];
       space.phase='forming';for(const [,member] of members)member.ready=false;
@@ -159,7 +163,7 @@ export class Courtyard extends Room {
       this.notice(client,'建筑保存失败，请稍后再试。','build');
     }finally{this.reserved.delete(key);}
   }
-  onAuth(client,options){if(typeof options?.name!=='string'||!cleanText(options.name,12))throw new Error('请先输入用户名');if(options.clientVersion!==3)throw new Error('页面已更新，请刷新后进入');return true;}
+  onAuth(client,options){if(typeof options?.name!=='string'||!cleanText(options.name,12))throw new Error('请先输入用户名');if(options.clientVersion!==4)throw new Error('页面已更新，请刷新后进入');return true;}
   onJoin(client,options){
     const index=this.state.players.size,player=new Player();
     player.name=cleanText(options.name,12);player.color=COLORS[index%COLORS.length];Object.assign(player,spawn(index,this.collisionTiles));
@@ -168,5 +172,5 @@ export class Courtyard extends Room {
   onDrop(client){const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
   onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
-  onDispose(){if(this.ownsLobby)active=false;}
+  onDispose(){clearInterval(this.chatSweep);if(this.ownsLobby)active=false;}
 }

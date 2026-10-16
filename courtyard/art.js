@@ -1,4 +1,4 @@
-import { SWATCHES, decodePixels, encodePixels } from './materials.js?v=0.3.0';
+import { SWATCHES, decodePixels, encodePixels } from './materials.js?v=0.4.0';
 
 const textures=new Map();
 export function texture(material){

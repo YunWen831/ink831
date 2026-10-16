@@ -1,4 +1,4 @@
-import { WORLD, move } from './world.js?v=0.3.0';
+import { WORLD, move } from './world.js?v=0.4.0';
 
 // Use acknowledged simulation time for direction, since packets can arrive
 // together after a tunnel stall. This never changes authoritative game state.
