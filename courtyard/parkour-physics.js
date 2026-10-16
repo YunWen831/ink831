@@ -3,7 +3,17 @@ export const BODY={w:16,h:24};
 export const intersects=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
 const approach=(v,target,amount)=>v<target?Math.min(target,v+amount):Math.max(target,v-amount);
 const body=s=>({x:s.x,y:s.y,...BODY});
-const hits=(s,level,dx=0,dy=0)=>level.solids.some(r=>intersects({...body(s),x:s.x+dx,y:s.y+dy},r));
+const buckets=new WeakMap();
+function nearby(rects,box){
+  let cache=buckets.get(rects);
+  if(!cache||cache.length!==rects.length){
+    const grid=new Map();for(const r of rects)for(let y=Math.floor(r.y/64);y<=Math.floor((r.y+r.h)/64);y++)for(let x=Math.floor(r.x/64);x<=Math.floor((r.x+r.w)/64);x++){const key=x+','+y;let cell=grid.get(key);if(!cell)grid.set(key,cell=[]);cell.push(r);}
+    cache={length:rects.length,grid};buckets.set(rects,cache);
+  }
+  const found=new Set();for(let y=Math.floor(box.y/64);y<=Math.floor((box.y+box.h)/64);y++)for(let x=Math.floor(box.x/64);x<=Math.floor((box.x+box.w)/64);x++)for(const r of cache.grid.get(x+','+y)||[])found.add(r);
+  return found;
+}
+const hits=(s,level,dx=0,dy=0)=>{const box={...body(s),x:s.x+dx,y:s.y+dy};for(const r of nearby(level.solids,box))if(intersects(box,r))return true;return false;};
 export function createParkourState(level,checkpoint=0){
   const p=level.checkpoints[checkpoint];
   return {x:p.x,y:p.y,vx:0,vy:0,facing:1,grounded:false,coyote:0,buffer:0,dashBuffer:0,dash:1,dashTime:0,wallLock:0,checkpoint,deaths:0,time:0,dead:0,finished:false,crystals:[]};
@@ -14,7 +24,7 @@ export function respawn(s,level){
 }
 function axis(s,amount,key,level){
   s[key]+=amount;
-  for(const r of level.solids){
+  for(const r of nearby(level.solids,body(s))){
     if(!intersects(body(s),r))continue;
     if(key==='x'){s.x=amount>0?r.x-BODY.w:r.x+r.w;s.vx=0;}
     else {s.y=amount>0?r.y-BODY.h:r.y+r.h;s.vy=0;if(amount>0)s.grounded=true;}
@@ -24,7 +34,7 @@ function axis(s,amount,key,level){
 export function stepParkour(s,input,dt,level){
   if(s.finished)return;
   s.time+=dt;
-  s.crystals=s.crystals.map(t=>Math.max(0,t-dt));
+  s.crystals=s.crystals.map(t=>Math.max(0,(t||0)-dt));
   if(s.dead>0){s.dead-=dt;if(s.dead<=0)respawn(s,level);return;}
   s.grounded=hits(s,level,0,.5);
   if(s.grounded){s.coyote=.10;if(s.dashTime<=0)s.dash=1;}else s.coyote=Math.max(0,s.coyote-dt);
@@ -52,10 +62,11 @@ export function stepParkour(s,input,dt,level){
   }
   s.grounded=false;
   axis(s,s.vx*dt,'x',level);axis(s,s.vy*dt,'y',level);
+  s.wallSide=hits(s,level,-1,0)?-1:hits(s,level,1,0)?1:0;
   s.x=Math.max(0,Math.min(level.width-BODY.w,s.x));
   if(s.grounded&&s.dashTime<=0)s.dash=1;
   const hurt={x:s.x+3,y:s.y+2,w:BODY.w-6,h:BODY.h-4};
-  if(s.y>level.height+40||level.hazards.some(r=>intersects(hurt,r))){s.deaths++;s.dead=.18;s.dashTime=0;return;}
+  if(s.y>level.height+40||[...nearby(level.hazards,hurt)].some(r=>intersects(hurt,r))){s.deaths++;s.dead=.18;s.dashTime=0;return;}
   for(let i=s.checkpoint+1;i<level.checkpoints.length;i++)if(intersects(body(s),level.checkpoints[i].trigger))s.checkpoint=i;
   level.crystals.forEach((c,index)=>{if(!s.crystals[index]&&intersects(body(s),{x:c.x-12,y:c.y-12,w:24,h:24})){s.dash=1;s.crystals[index]=.9;}});
   if(intersects(body(s),level.goal))s.finished=true;

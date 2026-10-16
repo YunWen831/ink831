@@ -53,6 +53,11 @@ test('building on the old spawn moves arrivals to free ground without removing t
   const tiles=new Map([['15,12',{col:15,row:12,material:'stone',solid:true}]]),point=spawn(0,tiles);
   assert.ok(canStand(point.x,point.y,tiles));assert.notDeepEqual(point,{x:480,y:414});assert.equal(tiles.size,1);
 });
+test('high-resolution materials survive atomic save and reload alongside legacy art',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'dungeon-hires-'));
+  try{const store=await new WorldStore(directory).load();await store.createMaterial('旧作','9'.repeat(256),'甲');for(const size of [32,64])await store.createMaterial(size+'像素','0080ffff'.repeat(size*size),'乙');const saved=await new WorldStore(directory).load();assert.deepEqual(saved.data.materials.map(m=>m.pixels.length),[256,8192,32768]);assert.equal(decodePixels(saved.data.materials[2].pixels)[4095],'0080ffff');}
+  finally{assert.equal(dirname(resolve(directory)),resolve(tmpdir()));await rm(directory,{recursive:true,force:true});}
+});
 
 test('launch rules allow two, three or four ready players and reject solo, extra, offline and unready players',()=>{
   const ready=()=>({ready:true,connected:true});

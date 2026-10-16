@@ -13,5 +13,5 @@ export const PRACTICE_LEVEL={
   checkpoints:[checkpoint(64,616,'起步'),checkpoint(708,616,'蹬墙'),checkpoint(1010,372,'冲刺'),checkpoint(1752,372,'连跳'),checkpoint(2370,348,'终点前')],
   crystals:[{x:1584,y:340},{x:2268,y:360}],
   goal:rect(2720,324,32,48),
-  signs:[{x:70,y:550,text:'Space / Z · 跳'},{x:708,y:535,text:'贴墙 · 再跳'},{x:1050,y:320,text:'方向 + Shift / X · 冲刺'},{x:1545,y:260,text:'晶石 · 补充冲刺'},{x:1760,y:320,text:'连起来试试'}]
+  signs:[{x:70,y:550,text:'Z · 跳'},{x:708,y:535,text:'贴墙 · 再跳'},{x:1050,y:320,text:'方向 + X · 冲刺'},{x:1545,y:260,text:'晶石 · 补充冲刺'},{x:1760,y:320,text:'连起来试试'}]
 };

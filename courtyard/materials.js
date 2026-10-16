@@ -19,6 +19,12 @@ BUILTIN_MATERIALS.push(
   {id:'water',name:'水面',author:'庭院',pixels:rgbPattern((x,y)=>y%6===0&&x%8<5?'#b5e4e1':'#6eafa9')},
 );
 
+export const CLASSIC_SWATCHES = [
+  '#000000','#ffffff','#ff0000','#ff8000','#ffff00','#00ff00','#00ffff','#0000ff',
+  '#8000ff','#ff00ff','#ff0080','#800000','#804000','#808000','#008000','#008080',
+  '#000080','#400080','#800080','#808080','#c0c0c0','#ff8080','#ffbf80','#ffff80',
+  '#bfff80','#80ffbf','#80ffff','#80bfff','#8080ff','#bf80ff','#ff80ff','#ff80bf',
+];
 export const SWATCHES = [
   '#ffffff','#f3f0e6','#ddd9cc','#b9b7ad','#90938e','#656c66','#414944','#202925',
   '#fff1d0','#ead5a7','#ceb087','#ae8b63','#896748','#674936','#49352d','#2c2422',
@@ -34,11 +40,22 @@ export function decodePixels(pixels) {
   if (/^[0-9a-f]{256}$/.test(pixels)) return Array.from(pixels,c=>{
     const hex=PALETTE[parseInt(c,16)].slice(1);return hex.length===8?hex:hex+'ff';
   });
-  if (/^[0-9a-f]{2048}$/.test(pixels)) return pixels.match(/.{8}/g);
+  if ([2048,8192,32768].includes(pixels.length)&&/^[0-9a-f]+$/.test(pixels)) return pixels.match(/.{8}/g);
   return null;
 }
 export const encodePixels = pixels => pixels.join('');
+export const MATERIAL_SIZES=[16,32,64];
+export function materialSize(pixels){return pixels?.length===256?16:[2048,8192,32768].includes(pixels?.length)?Math.sqrt(pixels.length/8):0;}
+export function resizePixels(pixels,size){
+  const old=Math.sqrt(pixels.length);if(!MATERIAL_SIZES.includes(old)||!MATERIAL_SIZES.includes(size))throw Error('Unsupported drawing size');
+  return Array.from({length:size*size},(_,i)=>pixels[Math.floor(Math.floor(i/size)*old/size)*old+Math.floor(i%size*old/size)]);
+}
+const validity=new Map();
 export const validPixels = pixels => {
-  const decoded=decodePixels(pixels);
-  return !!decoded&&decoded.some(color=>color.slice(6)!=='00');
+  if(typeof pixels!=='string'||!materialSize(pixels))return false;
+  if(validity.has(pixels))return validity.get(pixels);
+  let valid=false;
+  if(pixels.length===256)valid=/^[0-9a-f]{256}$/.test(pixels)&&/[^0]/.test(pixels);
+  else if(/^[0-9a-f]+$/.test(pixels))for(let i=6;i<pixels.length;i+=8)if(pixels.slice(i,i+2)!=='00'){valid=true;break;}
+  if(validity.size>=256)validity.delete(validity.keys().next().value);validity.set(pixels,valid);return valid;
 };

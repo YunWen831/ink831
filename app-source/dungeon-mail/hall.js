@@ -6,6 +6,8 @@ import { WORLD, COLORS, move, spawn, isBuildCell, tileKey, TILE_SIZE, BUILD_REAC
 import { partyStatus } from '../../courtyard/party.js';
 import { CHAT_SWEEP_MS } from '../../courtyard/chat.js';
 import { ChatHistory } from './chat-history.js';
+import { ParkourMatch } from './parkour-match.js';
+import { MaterialUpload } from './material-upload.js';
 import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
 
@@ -33,17 +35,20 @@ export class Courtyard extends Room {
   collisionTiles=new Map();
   reserved=new Set();
   ownsLobby=false;
+  matches=new Map();
 
   onCreate(){
     if(active)throw new Error('大厅暂时已满，请稍后再试');
     active=true;this.ownsLobby=true;this.roomId='courtyard';
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
+    this.matchTick=setInterval(()=>{for(const match of this.matches.values())match.tick();},1000/60).unref();
     for(const tile of worldStore.data.tiles){const key=tileKey(tile.col,tile.row);this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
-    this.onMessage('hello',client=>this.content(client));
+    this.onMessage('hello',client=>{this.content(client);const p=this.state.players.get(client.sessionId);this.matches.get(p?.space)?.open(client.sessionId);});
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
     this.onMessage('input',(client,data)=>{
       const player=this.state.players.get(client.sessionId);
+      if(this.matches.has(player?.space))return;
       if(!player?.connected||data?.space!==player.space||data.epoch!==player.epoch||!Array.isArray(data.steps)||data.steps.length>6)return;
       const now=performance.now(),user=client.userData;
       user.credit=Math.min(400,user.credit+now-user.creditAt);user.creditAt=now;
@@ -88,26 +93,61 @@ export class Courtyard extends Room {
     this.onMessage('home',client=>{const player=this.state.players.get(client.sessionId);if(player?.space==='lobby'&&this.allow(client,'home',3000)){Object.assign(player,spawn(0,this.collisionTiles));player.epoch++;}});
     this.onMessage('space:ready',client=>{
       const player=this.state.players.get(client.sessionId);if(!player||player.space==='lobby')return;
+      if(this.matches.has(player.space))return;
       player.ready=!player.ready;const space=this.spaces.get(player.space);if(space)space.phase='forming';this.broadcastRooms();
     });
     this.onMessage('space:start',client=>{
       const player=this.state.players.get(client.sessionId),space=this.spaces.get(player?.space);
       if(!space||space.host!==client.sessionId){this.notice(client,'由房主开始。','space');return;}
+      const match=this.matches.get(space.id);
+      if(match){if(!match.launch(id=>this.state.players.get(id)?.connected))this.notice(client,'需要 2～4 人在线，并各自通关自己的地图。','space');else this.sendSpace(space.id,'space:launch',{id:space.id,type:space.type,phase:match.phase});this.broadcastRooms();return;}
       if(!partyStatus(this.members(space.id).map(([,p])=>p),space.phase).canStart){this.notice(client,'需要 2～4 人在线并全部准备。','space');return;}
-      // The launch gate is shared by the future game modes. No unfinished game
-      // is presented as playable: the party waits for its level implementation.
-      space.phase='waiting-for-level';this.broadcastRooms();
+      if(space.type==='parkour'){
+        const match=new ParkourMatch(this.members(space.id).map(([id,p])=>({id,name:p.name,color:p.color})),{changed:()=>this.broadcastRooms(),send:(id,type,data)=>{const target=this.clients.find(c=>c.sessionId===id);if(target)target.send(type,data);}});
+        this.matches.set(space.id,match);space.phase='building';for(const [id] of this.members(space.id))match.open(id);
+      }else space.phase='waiting-for-level';
+      this.broadcastRooms();
       this.sendSpace(space.id,'space:launch',{id:space.id,type:space.type,phase:space.phase});
     });
     this.onMessage('material:create',async(client,data)=>{
       if(!this.state.players.has(client.sessionId))return;
       if(!this.allow(client,'material',2500)){this.notice(client,'保存得太快了，请稍等一下。','material');return;}
-      try{
-        const material=await worldStore.createMaterial(data?.name,data?.pixels,this.state.players.get(client.sessionId).name);
-        this.broadcast('material',{...material,creator:client.sessionId});
-      }catch(error){this.notice(client,error.code?'材料暂时保存失败，请稍后再试。':error.message,'material');}
+      await this.saveMaterial(client,data);
+    });
+    this.onMessage('material:begin',(client,data)=>{
+      client.userData.upload=null;
+      if(!this.state.players.has(client.sessionId)||!this.allow(client,'material',2500)){this.notice(client,'保存得太快了，请稍等一下。','material');return;}
+      try{client.userData.upload=new MaterialUpload(data?.name,data?.length);}catch(error){client.userData.upload=null;this.notice(client,error.message,'material');}
+    });
+    this.onMessage('material:chunk',(client,data)=>{
+      if(!client.userData.upload)return;
+      try{client.userData.upload.append(data?.index,data?.pixels);}catch(error){client.userData.upload=null;this.notice(client,error.message,'material');}
+    });
+    this.onMessage('material:finish',async client=>{
+      const upload=client.userData.upload;client.userData.upload=null;if(!upload)return;
+      try{await this.saveMaterial(client,{name:upload.name,pixels:upload.finish()});}catch(error){this.notice(client,error.message,'material');}
     });
     this.onMessage('build',(client,data)=>this.build(client,data));
+    const ownMatch=client=>this.matches.get(this.state.players.get(client.sessionId)?.space);
+    this.onMessage('parkour:map',(client,data)=>{
+      const match=ownMatch(client);if(!match||match.phase!=='building')return;if(!this.allow(client,'parkourEdit',100)){match.workshop(client.sessionId);return;}
+      try{match.edit(client.sessionId,data?.cells);}catch{this.notice(client,'地图数据无效，请重新编辑。','parkour');}
+    });
+    this.onMessage('parkour:verify',(client,data)=>{const match=ownMatch(client);if(!match||!this.allow(client,'parkourVerify',500))return;if(!match.verify(client.sessionId,data?.revision))this.notice(client,'请先保存最新地图。','parkour');});
+    this.onMessage('parkour:input',(client,data)=>ownMatch(client)?.input(client.sessionId,data));
+    this.onMessage('parkour:invalidate',client=>ownMatch(client)?.invalidate(client.sessionId));
+    this.onMessage('parkour:edit',client=>ownMatch(client)?.stop(client.sessionId));
+    this.onMessage('parkour:reset',client=>{
+      const p=this.state.players.get(client.sessionId),s=this.spaces.get(p?.space),match=ownMatch(client);
+      if(!s||s.host!==client.sessionId||!match||!['building','results'].includes(match.phase))return;
+      this.matches.delete(s.id);s.phase='forming';for(const [,p] of this.members(s.id))p.ready=false;
+      this.sendSpace(s.id,'parkour:closed',{});this.broadcastRooms();
+    });
+  }
+  async saveMaterial(client,data){
+    const player=this.state.players.get(client.sessionId);if(!player)return;
+    try{const material=await worldStore.createMaterial(data?.name,data?.pixels,player.name);this.broadcast('material',{...material,creator:client.sessionId});}
+    catch(error){this.notice(client,error.code?'材料暂时保存失败，请稍后再试。':error.message,'material');}
   }
   allow(client,key,interval){
     const now=performance.now(),previous=client.userData.times[key]??-Infinity;
@@ -116,7 +156,7 @@ export class Courtyard extends Room {
   notice(client,text,action=''){client.send('notice',{text,action});}
   members(space){return [...this.state.players.entries()].filter(([,p])=>p.space===space);}
   sendSpace(space,type,message){for(const client of this.clients)if(this.state.players.get(client.sessionId)?.space===space)client.send(type,message);}
-  roomList(){return [...this.spaces.values()].map(space=>({...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase)}));}
+  roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {})};});}
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
   content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
@@ -131,10 +171,11 @@ export class Courtyard extends Room {
   tidy(id){
     if(id==='lobby')return;
     const members=this.members(id),space=this.spaces.get(id);
-    if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);}
+    const match=this.matches.get(id);if(match)for(const key of match.drafts.keys())if(!members.some(([id])=>id===key))match.remove(key);
+    if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);this.matches.delete(id);}
     else if(space){
       if(!members.some(([key])=>key===space.host))space.host=members[0][0];
-      space.phase='forming';for(const [,member] of members)member.ready=false;
+      if(!match){space.phase='forming';for(const [,member] of members)member.ready=false;}
     }
   }
   async build(client,data){
@@ -163,14 +204,14 @@ export class Courtyard extends Room {
       this.notice(client,'建筑保存失败，请稍后再试。','build');
     }finally{this.reserved.delete(key);}
   }
-  onAuth(client,options){if(typeof options?.name!=='string'||!cleanText(options.name,12))throw new Error('请先输入用户名');if(options.clientVersion!==4)throw new Error('页面已更新，请刷新后进入');return true;}
+  onAuth(client,options){if(typeof options?.name!=='string'||!cleanText(options.name,12))throw new Error('请先输入用户名');if(options.clientVersion!==5)throw new Error('页面已更新，请刷新后进入');return true;}
   onJoin(client,options){
     const index=this.state.players.size,player=new Player();
     player.name=cleanText(options.name,12);player.color=COLORS[index%COLORS.length];Object.assign(player,spawn(index,this.collisionTiles));
     client.userData={credit:200,creditAt:performance.now(),times:{}};this.state.players.set(client.sessionId,player);
   }
-  onDrop(client){const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
+  onDrop(client){client.userData.upload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
   onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
-  onDispose(){clearInterval(this.chatSweep);if(this.ownsLobby)active=false;}
+  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);if(this.ownsLobby)active=false;}
 }
