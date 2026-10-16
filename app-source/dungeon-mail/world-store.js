@@ -2,11 +2,11 @@ import { mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { BUILTIN_MATERIALS, validPixels } from '../../courtyard/materials.js';
-import { isBuildCell, tileKey } from '../../courtyard/world.js';
+import { isBuildCell, tileKey, MAX_TILES } from '../../courtyard/world.js';
 
 export const cleanText = (value, length) => typeof value === 'string' ? Array.from(value.replace(/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,length).join('') : '';
 export function validateWorld(data) {
-  if (data?.version!==1 || !Array.isArray(data.materials) || !Array.isArray(data.tiles) || data.materials.length>128 || data.tiles.length>154) throw new Error('Invalid world save');
+  if (data?.version!==1 || !Array.isArray(data.materials) || !Array.isArray(data.tiles) || data.materials.length>128 || data.tiles.length>MAX_TILES) throw new Error('Invalid world save');
   const ids=new Set(BUILTIN_MATERIALS.map(m=>m.id));
   for(const m of data.materials){
     if(!/^[a-z0-9-]{8,40}$/.test(m.id)||ids.has(m.id)||!validPixels(m.pixels)||!cleanText(m.name,12)||m.name.length>24||typeof m.author!=='string'||m.author.length>24)throw new Error('Invalid material in save');

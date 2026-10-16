@@ -12,10 +12,10 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms));let child,directory;
 async function until(check,timeout=8000){const start=Date.now();while(!check()){if(Date.now()-start>timeout)throw Error('Condition timed out');await delay(25);}}
 function listen(room){
   room.messages={};
-  for(const type of ['emote','pong','content','spaces','chat','material','notice','build:saved']){room.messages[type]=[];room.onMessage(type,data=>room.messages[type].push(data));}
+  for(const type of ['emote','pong','content','spaces','chat','material','notice','build:saved','space:launch']){room.messages[type]=[];room.onMessage(type,data=>room.messages[type].push(data));}
   room.reconnection.minUptime=0;rooms.push(room);return room;
 }
-async function enter(name){const room=listen(await new Client(endpoint).joinOrCreate('courtyard',{name}));await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
+async function enter(name){const room=listen(await new Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:3}));await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
 async function walkTo(room,x,y){
   let seq=room.state.players.get(room.sessionId).ack;
   for(let batch=0;batch<100;batch++){
@@ -32,7 +32,7 @@ async function walkTo(room,x,y){
 }
 before(async()=>{
   if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
-  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.2.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
+  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.3.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
 });
 after(async()=>{
   await Promise.all(rooms.filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));
@@ -42,7 +42,7 @@ after(async()=>{
 
 test('one shared lobby, logical room isolation, chat, authoritative input and reconnection',async()=>{
   const a=await enter('甲');
-  await assert.rejects(new Client(endpoint).create('courtyard',{name:'不能另开大厅'}));
+  await assert.rejects(new Client(endpoint).create('courtyard',{clientVersion:3,name:'不能另开大厅'}));
   const b=await enter('乙'),c=await enter('丙');
   assert.equal(a.roomId,b.roomId);assert.equal(b.roomId,c.roomId);
   await until(()=>a.state.players.size===3);assert.equal(a.state.players.get(a.sessionId).space,'lobby');
@@ -64,14 +64,14 @@ test('one shared lobby, logical room isolation, chat, authoritative input and re
   await a.leave();await c.leave();await delay(150);
 });
 
-test('painted textures and shared building save to disk, collide correctly and protect players and roads',async()=>{
+test('RGB artwork and unrestricted building persist, collide correctly and never cover players',async()=>{
   const a=await enter('画砖的人'),b=await enter('看建筑的人');
-  a.send('material:create',{name:'测试花砖',pixels:'9'.repeat(256)});await until(()=>b.messages.material.length===1);const material=b.messages.material[0];assert.equal(material.author,'画砖的人');
+  a.send('material:create',{name:'测试花砖',pixels:'12ab34ff'.repeat(256)});await until(()=>b.messages.material.length===1);const material=b.messages.material[0];assert.equal(material.author,'画砖的人');
   await walkTo(a,480,a.state.players.get(a.sessionId).y);await walkTo(a,480,680);
   a.send('build',{col:12,row:21,material:material.id,solid:true});await until(()=>b.state.tiles.get('12,21')?.solid===true);await until(()=>a.messages['build:saved'].length>0);
   if(directory){const saved=JSON.parse(await readFile(join(directory,'world.json'),'utf8'));assert.ok(saved.materials.some(m=>m.id===material.id));assert.ok(saved.tiles.some(t=>t.col===12&&t.row===21));}
   let seq=a.state.players.get(a.sessionId).ack;for(let batch=0;batch<5;batch++){const own=a.state.players.get(a.sessionId);a.send('input',{space:'lobby',epoch:own.epoch,steps:Array.from({length:5},()=>({seq:++seq,dx:-1,dy:0}))});await delay(105);}await until(()=>a.state.players.get(a.sessionId).ack===seq);assert.ok(a.state.players.get(a.sessionId).x>=426);
-  await delay(220);a.send('build',{col:15,row:21,material:'wood',solid:true});await until(()=>a.messages.notice.some(m=>/公共通道/.test(m.text)));assert.equal(b.state.tiles.has('15,21'),false);
+  await delay(220);a.send('build',{col:15,row:21,material:'wood',solid:false});await until(()=>b.state.tiles.has('15,21'));assert.equal(b.state.tiles.get('15,21').solid,false);
   await delay(220);a.send('build',{col:12,row:21,material:null,solid:false});await until(()=>!b.state.tiles.has('12,21'));
   await delay(220);a.send('build',{col:12,row:21,material:material.id,solid:false});await until(()=>b.state.tiles.get('12,21')?.solid===false);await walkTo(a,400,688);
   await delay(220);a.send('build',{col:12,row:21,material:material.id,solid:true});await until(()=>a.messages.notice.some(m=>/站着/.test(m.text)));assert.equal(b.state.tiles.get('12,21').solid,false);
@@ -87,10 +87,30 @@ test('four-person rooms reject an extra member and delete themselves when empty'
   for(let i=0;i<4;i++)await group[i].leave();await until(()=>group[4].messages.spaces.at(-1)?.every(s=>s.id!==space));await group[4].leave();
 });
 
+test('only the host can launch a ready party of two, three or four, with no fake playable level',async()=>{
+  for(const count of [2,3,4]){
+    const group=[];for(let i=0;i<count;i++)group.push(await enter(`队伍${count}-${i}`));
+    const host=group[0];host.send('space:create',{type:'parkour',title:`${count}人小队`});await until(()=>host.state.players.get(host.sessionId).space!=='lobby');
+    const id=host.state.players.get(host.sessionId).space;
+    host.send('space:start');await until(()=>host.messages.notice.some(m=>/2～4/.test(m.text)));
+    for(let i=1;i<count;i++)group[i].send('space:join',{id});
+    await until(()=>group.every(r=>r.state.players.get(r.sessionId).space===id));
+    for(const room of group)room.send('space:ready');
+    await until(()=>host.messages.spaces.at(-1)?.find(s=>s.id===id)?.canStart);
+    group[1].send('space:start');await until(()=>group[1].messages.notice.some(m=>/房主/.test(m.text)));
+    host.send('space:start');await until(()=>group.every(r=>r.messages['space:launch'].length===1));
+    assert.equal(host.messages['space:launch'][0].phase,'waiting-for-level');
+    assert.equal(host.messages.spaces.at(-1).find(s=>s.id===id).canStart,false);
+    host.send('space:ready');await until(()=>host.messages.spaces.at(-1)?.find(s=>s.id===id)?.phase==='forming');
+    await Promise.all(group.map(r=>r.leave()));await delay(100);
+  }
+});
+
 test('HTTP origin restrictions and invalid transport-room IDs remain enforced',async()=>{
   assert.equal((await fetch(endpoint+'/health',{headers:{Origin:'https://unrelated.example'}})).status,403);
-  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({name:'not allowed'})})).status,403);
-  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{name:'不存在'}));
+  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({clientVersion:3,name:'not allowed'})})).status,403);
+  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{clientVersion:3,name:'不存在'}));
+  await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{name:'旧页面'}),/刷新/);
 });
 
 test('all 50 player slots share one lobby, keep exchanging input, and a 51st cannot fork another lobby',async()=>{
@@ -98,7 +118,7 @@ test('all 50 player slots share one lobby, keep exchanging input, and a 51st can
   try{
     await until(()=>group.every(r=>r.state.players.size===50));
     assert.equal(new Set(group.map(r=>r.roomId)).size,1);
-    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{name:'第51位'}));
+    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{clientVersion:3,name:'第51位'}));
     const sequences=group.map(()=>0);
     for(let frame=0;frame<40;frame++){
       for(let i=0;i<group.length;i++){

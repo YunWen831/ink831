@@ -41,13 +41,14 @@ test('stalled updates have bounded prediction, duplicate state does not extend i
   assert.deepEqual(motion.velocity, { x: 0, y: 0 });
 });
 
-test('prediction respects obstacles, caps corrupt velocity and resets after reconnect corrections', () => {
-  const motion = new RemoteMotion(player(408, 300), 0);
-  motion.update(player(411.12, 300, 1), 20);
+test('prediction respects constructed walls, caps corrupt velocity and resets after reconnect corrections', () => {
+  const tiles=new Map([['14,9',{col:14,row:9,material:'stone',solid:true}]]);
+  const motion = new RemoteMotion(player(431, 300), 0);
+  motion.update(player(435.16, 300, 1), 20);
   for (let now = 30; now <= 140; now += 10) {
-    const point = motion.sample(now);
-    assert.ok(canStand(point.x, point.y), 'prediction must not enter the fountain');
-    assert.ok(point.x < 415);
+    const point = motion.sample(now,tiles);
+    assert.ok(canStand(point.x, point.y,tiles), 'prediction must not enter a constructed wall');
+    assert.ok(point.x <= 438);
   }
   motion.update(player(300, 400, 0), 160);
   assert.deepEqual(motion.sample(160), { x: 300, y: 400 });

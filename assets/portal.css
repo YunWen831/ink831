@@ -18,4 +18,5 @@
 .details-grid ul, .details-grid ol { padding-left: 20px; margin: 0; }
 .small-links { display: flex; flex-wrap: wrap; gap: 22px; margin-top: 28px; color: var(--accent); font-size: 12px; }
 .small-links a { text-decoration: underline; text-underline-offset: 4px; }
+.download-help{margin-top:28px;color:var(--muted);font-size:13px}.download-help>summary{cursor:pointer}.download-help .details-grid{margin-top:22px}
 @media(max-width:600px) { .categories h2 { font-size: 26px; } .app-icon { width: 76px; height: 76px; border-radius: 19px; } .download-hero { gap: 18px; padding-top: 6px; } .download-hero h1 { font-size: 30px; } .download-hero p { font-size: 13px; } .download-card { padding: 24px; } .download-button { width: 100%; } .details-grid { grid-template-columns: 1fr; gap: 28px; } }
