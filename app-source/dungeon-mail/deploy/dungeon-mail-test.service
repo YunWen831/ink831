@@ -1,0 +1,27 @@
+[Unit]
+Description=Dungeon Mail multiplayer courtyard test
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rocky
+Group=rocky
+WorkingDirectory=/home/rocky/dungeon-mail-test/app/app-source/dungeon-mail
+ExecStart=/home/rocky/dungeon-mail-test/node-v24.22.0-linux-x64/bin/node server.js
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=2567
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+MemoryMax=768M
+TasksMax=128
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

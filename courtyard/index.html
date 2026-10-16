@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f2e9">
+  <meta name="description" content="地牢来信的第一座联机庭院。创建房间，寄一个链接给朋友，在这里碰个面。">
+  <title>联机庭院 · 地牢来信</title>
+  <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./vendor/colyseus.js" defer></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="返回 YunWen 作品集">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none"><path d="M4 7h20v15H4z" stroke="currentColor" stroke-width="1.5"/><path d="m4 7 10 9L24 7M4 22l7-8m13 8-7-8" stroke="currentColor" stroke-width="1.5"/><path d="M18 3v6m-3-3h6" stroke="currentColor" stroke-width="1.5"/></svg></span>
+        <span>地牢来信<span class="brand-en">DUNGEON MAIL</span></span>
+      </a>
+      <nav><a href="../games/index.html">← 游戏目录</a><span class="edition">PLAYTEST 001</span></nav>
+    </header>
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <div><p class="eyebrow"><span></span> 第一站 / 联机庭院</p><h1 id="page-title">先在这里，<em>碰个面。</em></h1><p class="intro-copy">寄一个链接给朋友。在同一个小世界里，开始下一场冒险。</p></div>
+        <div class="intro-stamp" aria-hidden="true"><span>LET'S MEET</span><svg viewBox="0 0 44 44" fill="none"><path d="M9 28V15l13-7 13 7v13l-13 8-13-8Z" stroke="currentColor" stroke-width="1.4"/><path d="m9 15 13 8 13-8M22 23v13" stroke="currentColor" stroke-width="1.4"/><path d="M17 17v-5m10 5v-5" stroke="currentColor" stroke-width="1.4"/></svg><span>EST. 2026</span></div>
+      </section>
+
+      <div class="play-layout">
+        <section class="world-card" aria-label="联机庭院">
+          <div class="world-toolbar"><div><span class="live-dot" id="worldDot"></span><strong>来信庭院</strong><span class="world-label">小小的见面地点</span></div><span class="world-count" id="worldCount">等待旅人</span></div>
+          <div class="arena" id="arena">
+            <canvas id="world" width="960" height="640" tabindex="0" aria-label="庭院地图。进入房间后，使用方向键、WASD 或触屏摇杆移动。"></canvas>
+            <div class="map-label"><span>01</span> THE COURTYARD</div>
+            <div class="empty-hint" id="emptyHint"><span class="hint-spark">✦</span><p>一座庭院，一封邀请。</p><span>创建或加入房间，就能在这里走动</span></div>
+            <div class="connection-shade" id="connectionShade" hidden><span class="spinner"></span><strong>正在找回连接…</strong><span>为你保留位置，最长等待 60 秒</span></div>
+            <div class="touch-controls" id="touchControls" hidden>
+              <div class="joystick" id="joystick" role="group" aria-label="移动摇杆"><div class="joystick-cross"></div><div class="joystick-knob" id="joystickKnob"></div></div>
+              <button class="wave-control" id="touchWave" aria-label="向朋友打招呼">嗨<span>打招呼</span></button>
+            </div>
+          </div>
+          <div class="world-footer"><span class="desktop-help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>或方向键移动</span><span class="help-divider"></span><kbd>空格</kbd><span>打招呼</span></span><span class="mobile-help">拖动左下摇杆移动 · 右下打招呼</span><output id="coordinates" aria-label="我的位置">还没有进入房间</output></div>
+        </section>
+
+        <aside class="side-panel" aria-label="房间与连接">
+          <section class="join-card" id="joinCard">
+            <p class="section-kicker">A PLACE FOR FRIENDS</p><h2 id="joinTitle">带上你的名字</h2><p class="muted" id="joinDescription">不用注册，朋友打开链接就能加入。</p>
+            <form id="createForm"><label for="nickname">你的昵称</label><input id="nickname" name="nickname" maxlength="12" placeholder="例如：寄信的旅人" autocomplete="nickname" required><button class="primary-button" id="createButton" type="submit">创建一个庭院 <span aria-hidden="true">↗</span></button></form>
+            <div class="form-divider"><span>已有朋友在等你？</span></div>
+            <form id="joinForm"><label for="roomInput">房间码</label><div class="join-row"><input id="roomInput" name="room" maxlength="6" placeholder="6 位房间码" inputmode="text" autocapitalize="characters" autocomplete="off" spellcheck="false" aria-describedby="formMessage" required><button id="joinButton" type="submit" class="secondary-button">加入</button></div></form>
+            <p id="formMessage" class="form-message" role="status" aria-live="polite"></p>
+          </section>
+          <section class="room-card" id="roomCard" hidden>
+            <p class="section-kicker">YOUR LITTLE COURTYARD</p><div class="room-heading"><h2>朋友在这里</h2><button id="leaveButton" class="text-button">离开</button></div>
+            <div class="room-ticket"><span>房间码</span><strong id="roomCode">------</strong><span>最多 8 位旅人</span></div>
+            <button class="primary-button" id="inviteButton">复制邀请链接 <span aria-hidden="true">↗</span></button>
+            <p class="invite-message" id="inviteMessage" role="status" aria-live="polite">把链接发给朋友，一起进来走走。</p>
+            <label class="fallback-invite" id="fallbackInvite" hidden>长按复制邀请链接<input id="inviteText" readonly></label>
+            <div class="roster-heading"><h3>庭院里的旅人</h3><span id="rosterCount">0 / 8</span></div>
+            <ul class="player-list" id="playerList"></ul>
+            <button class="wave-button" id="waveButton">✦ 向大家打个招呼</button>
+          </section>
+          <section class="network-card" aria-label="网络状态">
+            <div class="network-heading"><h3>连接状态</h3><span id="connectionStatus" class="status-pill" data-state="checking">检查中</span></div>
+            <div class="network-metrics"><div><span>消息往返</span><strong id="latency">—<small> ms</small></strong></div><div><span>重连成功</span><strong id="reconnects">0<small> 次</small></strong></div></div>
+            <p id="networkHint">正在检查联机入口。</p><div class="network-actions"><button id="retryButton" class="text-button">重新检查</button><button id="diagnosticsButton" class="text-button">复制诊断</button></div>
+          </section>
+        </aside>
+      </div>
+
+      <section class="postscript"><div class="postscript-icon" aria-hidden="true">✳</div><div><h2>从一次见面，慢慢长成一个世界。</h2><p>这里是地牢来信的联机试玩庭院。先和朋友碰面，建筑、传送门与自制关卡会在后续版本到来。</p></div><span class="version">v0.1 · 联机测试</span></section>
+      <details class="test-notes"><summary>关于这次试玩</summary><p>你和朋友可以使用不同 Wi-Fi 或手机流量。短暂断网后会尝试重连，并保留位置 60 秒。当前使用临时公网入口，入口变更时需要更新测试配置；服务器重启后，测试房间会结束。</p><p>若连接失败，请点击“重新检查”，或将“复制诊断”的内容发给开发者。推荐在系统浏览器中打开。本次试玩不包含建筑存档和跑酷关卡。</p></details>
+    </main>
+    <footer class="page-footer"><a href="../index.html">YunWen · 软件与游戏</a><span>把下一次冒险，寄给朋友。</span><a href="https://github.com/YunWen831/ink831" target="_blank" rel="noopener">GitHub ↗</a></footer>
+  </div>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

@@ -11,6 +11,14 @@ window.YUNWEN_PROJECTS = [
     imageAlt: 'Y课表软件插画'
   },
   {
+    title: '地牢来信 · 联机庭院',
+    category: 'game',
+    description: '创建庭院，寄一个链接给朋友。支持手机与电脑的公网联机试玩。',
+    href: './courtyard/index.html',
+    image: './assets/courtyard-cover.svg',
+    imageAlt: '地牢来信：两位旅人在庭院里交换一封信'
+  },
+  {
     title: 'codex连',
     category: 'game',
     description: '看中文，连英文。用单词闯地牢，组合升级形成你的流派。',
