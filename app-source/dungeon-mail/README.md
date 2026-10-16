@@ -48,13 +48,7 @@ Quick Tunnel 仅用于开发测试，无可用性保证。隧道进程重新启�
 2. 将其中的公开 endpoint、updatedAt、temporary 更新到 `courtyard/config.json`。
 3. 提交并发布 GitHub Pages。前端会重新读取配置，已经结束的房间需要重新创建。
 
-GitHub 密钥、校园网密码和隧道账号凭据均不存放于游戏源码，也不为自动更新配置而复制到服务器。后续可将此入口替换为固定域名的 Cloudflare Tunnel 或经过测试的固定中转节点。
-
-## 测试 OpenFrp 入口
-
-可使用官方 Linux amd64 客户端及 `deploy/dungeon-mail-openfrp.service`。客户端使用 `--config` 指定配置文件；此发行版的 `-c` 不表示配置路径。私有配置保存在 `/home/rocky/dungeon-mail-test/private/openfrp.toml`，目录权限 700、文件权限 600，不加入 Git。客户端版本和下载来源另记录在部署目录 `openfrp-client.json`。
-
-隧道转发目标是 `127.0.0.1:2567`。登录成功后，还需要从外网验证 `/health`、匹配接口和 WebSocket 消息；仅端口连通不能作为可用性验收。GitHub Pages 使用 HTTPS，正式替换入口前必须提供浏览器信任的 HTTPS/WSS 证书。普通 TCP 映射或默认自签名 AutoTLS 证书不满足此要求。验证完成前保持现有 `config.json`。
+GitHub 密钥和校园网密码均不存放于游戏源码，也不为自动更新配置而复制到服务器。当前继续使用已验证可联机的 Cloudflare Quick Tunnel 入口。
 
 ## 验证
 
