@@ -1,6 +1,6 @@
-import { AVATAR_DIRECTIONS,avatarTemplate,validAvatar } from './avatar-data.js?v=0.7.0';
-import { CLASSIC_SWATCHES,SWATCHES } from './materials.js?v=0.7.0';
-import { createColorPicker } from './color-picker.js?v=0.7.0';
+import { AVATAR_DIRECTIONS,avatarTemplate,validAvatar } from './avatar-data.js?v=0.8.0';
+import { CLASSIC_SWATCHES,SWATCHES } from './materials.js?v=0.8.0';
+import { createColorPicker } from './color-picker.js?v=0.8.0';
 
 const images=new Map();
 export function avatarImage(data,direction='down',frame=0){

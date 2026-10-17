@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {join,resolve,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
-import {randomUUID} from 'node:crypto';
-import {LevelStore,isVerified} from '../level-store.js';
+import {randomUUID,createHash} from 'node:crypto';
+import {LevelStore,isVerified,MAP_RULESET} from '../level-store.js';
 import {canonicalMap,emptyMap,MAP_COLS} from '../../../courtyard/parkour-map.js';
 import {selectionBetween,copySelection,pasteSelection,eraseSelection} from '../../../courtyard/map-edit.js';
 
@@ -34,4 +34,14 @@ test('selection copy/paste and erasing clip to editable cells while preserving c
   assert.equal(eraseSelection(cells,selection)[10*48+8],'0');const clipped=pasteSelection(cells,stamp,3,21);assert.equal(clipped[21*48+3],'0');assert.equal(clipped[22*48+3],'1');
   assert.equal(selectionBetween({c:-10,r:-10},{c:2,r:1}),null);assert.equal(copySelection(cells,null),null);
   const many=pasteSelection(cells,{width:40,height:2,rows:['3'.repeat(40),'3'.repeat(40)]},4,5);assert.equal([...many].filter(c=>c==='3').length,32);
+});
+test('previous-version map files and layouts remain loadable while completion proofs require revalidation',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'courtyard-legacy-levels-'));
+  try{
+    const owner=randomUUID(),store=new LevelStore(directory),cells=canonicalMap(emptyMap());const saved=await store.save(owner,{title:'旧作品',cells},true);
+    const previous={...saved,proof:'parkour-1:'+createHash('sha256').update(cells).digest('hex')};delete previous.verified;
+    assert.notEqual(MAP_RULESET,'parkour-1');await writeFile(store.path(owner),JSON.stringify({version:1,maps:[previous]}));
+    const loaded=await store.get(owner,saved.id);assert.equal(loaded.cells,cells);assert.equal(loaded.verified,false);assert.equal((await store.list(owner))[0].verified,false);
+    const verified=await store.save(owner,{id:saved.id,version:1,title:'旧作品',cells},true);assert.ok(verified.verified);assert.equal(verified.cells,cells);
+  }finally{assert.equal(dirname(resolve(directory)),resolve(tmpdir()));await rm(directory,{recursive:true,force:true});}
 });

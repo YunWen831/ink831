@@ -1,10 +1,10 @@
-import { PRACTICE_LEVEL } from './parkour-level.js?v=0.7.0';
-import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.7.0';
-import { drawBubbles } from './bubbles.js?v=0.7.0';
-import { drawRunner } from './parkour-avatar.js?v=0.7.0';
-import { drawCourse,drawSky } from './parkour-scene.js?v=0.7.0';
+import { PRACTICE_LEVEL,MECHANISM_LEVEL } from './parkour-level.js?v=0.8.0';
+import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.8.0';
+import { drawBubbles } from './bubbles.js?v=0.8.0';
+import { drawRunner } from './parkour-avatar.js?v=0.8.0';
+import { drawCourse,drawSky } from './parkour-scene.js?v=0.8.0';
+import {unpackState as copy} from './parkour-state.js?v=0.8.0';
 
-const copy=s=>{const crystals=[...(s.crystals||[])];for(const [index,time] of s.crystalCharges||[])crystals[index]=time;return {...s,crystals};};
 export function createPractice(canvas,options){
   const ctx=canvas.getContext('2d'),keys=new Set(),$=id=>document.getElementById(id),poses=new Map();
   let active=false,level=PRACTICE_LEVEL,state=createParkourState(level),last=0,accumulator=0,jump=false,dash=false,reset=false,touchJump=false,width=960,height=640,dpr=1,paused=false;
@@ -26,10 +26,13 @@ export function createPractice(canvas,options){
   function button(id,isJump){const element=$(id);element.addEventListener('pointerdown',event=>{event.preventDefault();if(!active)return;element.setPointerCapture(event.pointerId);if(isJump){jump=true;touchJump=true;}else dash=true;canvas.focus({preventScroll:true});});for(const type of ['pointerup','pointercancel','lostpointercapture'])element.addEventListener(type,()=>{if(isJump)touchJump=false;});}
   button('practiceJump',true);button('practiceDash',false);
   $('practiceRestart').addEventListener('click',()=>{if(network)reset=true;else state=createParkourState(level);canvas.focus({preventScroll:true});});
+  function practiceCourse(){level=$('practiceCourse').value==='mechanisms'?MECHANISM_LEVEL:PRACTICE_LEVEL;$('practiceCheckpoint').replaceChildren(...level.checkpoints.map((p,i)=>Object.assign(document.createElement('option'),{value:String(i),textContent:p.name})));state=createParkourState(level);clear();canvas.focus({preventScroll:true});}
+  $('practiceCourse').addEventListener('change',()=>{if(!network)practiceCourse();});
   $('practiceCheckpoint').addEventListener('change',()=>{if(network)return;state=createParkourState(level,Number($('practiceCheckpoint').value));clear();canvas.focus({preventScroll:true});});
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
   $('spectateTarget').addEventListener('change',event=>followId=event.target.value);
   function render(now,elapsed){
+    $('practiceCourse').hidden=!!network;
     const watching=network?.kind==='race'&&serverFinished&&phase==='racing',available=watching?peers.filter(p=>p.id!==options.self()&&!p.finished):[];
     if(!available.some(p=>p.id===followId))followId=available[0]?.id||'';
     const target=watching&&available.find(p=>p.id===followId),signature=JSON.stringify(available.map(p=>[p.id,p.name]));
@@ -38,7 +41,7 @@ export function createPractice(canvas,options){
     $('spectateTarget').value=followId;
     const zoom=width<600?.95:Math.min(1.45,width/760),vw=width/zoom,vh=height/zoom;
     const focus=target||state,cameraX=Math.max(0,Math.min(Math.max(0,level.width-vw),focus.x-vw*.35)),cameraY=Math.max(0,Math.min(Math.max(0,level.height-vh),focus.y-vh*.58));
-    ctx.setTransform(dpr,0,0,dpr,0,0);drawSky(ctx,width,height,cameraX);ctx.save();ctx.scale(zoom,zoom);ctx.translate(-cameraX,-cameraY);ctx.imageSmoothingEnabled=false;drawCourse(ctx,level,now,reduced,state.crystals);
+    ctx.setTransform(dpr,0,0,dpr,0,0);drawSky(ctx,width,height,cameraX);ctx.save();ctx.scale(zoom,zoom);ctx.translate(-cameraX,-cameraY);ctx.imageSmoothingEnabled=false;drawCourse(ctx,level,now,reduced,target?.mechanisms?.crystals||state.crystals,target?.mechanisms||state);
     for(const peer of peers){
       if(peer.id===options.self())continue;const old=poses.get(peer.id)||peer,target={...peer,x:peer.x+Math.max(-10,Math.min(10,peer.vx*.025)),y:peer.y};
       const t=Math.hypot(old.x-peer.x,old.y-peer.y)>96?1:1-Math.exp(-elapsed/.05),pose={...peer,x:old.x+(target.x-old.x)*t,y:old.y+(target.y-old.y)*t};poses.set(peer.id,pose);
@@ -81,9 +84,9 @@ export function createPractice(canvas,options){
     }requestAnimationFrame(frame);
   }requestAnimationFrame(frame);
   return {
-    start(){network=null;serverFinished=false;followId='';level=PRACTICE_LEVEL;state=createParkourState(level);active=true;phase='';trail=[];clear();last=performance.now();canvas.focus({preventScroll:true});},
+    start(){network=null;serverFinished=false;followId='';practiceCourse();active=true;phase='';trail=[];clear();last=performance.now();canvas.focus({preventScroll:true});},
     run(data){const resuming=active&&network?.id===data.id;network={id:data.id,kind:data.kind,players:new Map(data.players.map(p=>[p.id,p]))};level=data.level;state=copy(data.state);serverFinished=!!data.state.finished;if(!resuming)followId='';seq=data.ack||0;pending=[];outgoing=[];poses.clear();peers=[];phase=data.phase;startsAt=data.startsAt;verified=!!data.verified;active=true;trail=[];if(!resuming)clear();else accumulator=0;last=performance.now();canvas.focus({preventScroll:true});},
-    reconcile(data){if(!active||!network||data.id!==network.id)return;serverFinished=!!data.state.finished;phase=data.phase;startsAt=data.startsAt;clockOffset=data.serverNow-Date.now();peers=data.racers.map(([id,x,y,vx,vy,flags,facing,checkpoint])=>({...network.players.get(id),id,x,y,vx,vy,facing,checkpoint,grounded:!!(flags&1),dash:flags&2?1:0,dashTime:flags&4?.1:0,dead:flags&8?.1:0,finished:!!(flags&16),wallSide:flags&32?-1:flags&64?1:0}));results=data.results;pending=pending.filter(p=>p.seq>data.ack);state=copy(data.state);for(const p of pending){if(p.input.reset){state.deaths++;respawn(state,level);}stepParkour(state,p.input,STEP,level);}},
+    reconcile(data){if(!active||!network||data.id!==network.id)return;serverFinished=!!data.state.finished;phase=data.phase;startsAt=data.startsAt;clockOffset=data.serverNow-Date.now();peers=data.racers.map(([id,x,y,vx,vy,flags,facing,checkpoint])=>({...network.players.get(id),id,x,y,vx,vy,facing,checkpoint,grounded:!!(flags&1),dash:flags&2?1:0,dashTime:flags&4?.1:0,dead:flags&8?.1:0,finished:!!(flags&16),wallSide:flags&32?-1:flags&64?1:0}));for(const [id,packed] of data.mechanismPeers||[]){const peer=peers.find(p=>p.id===id);if(peer)peer.mechanisms=copy(packed);}results=data.results;pending=pending.filter(p=>p.seq>data.ack);state=copy(data.state);for(const p of pending){if(p.input.reset){state.deaths++;respawn(state,level);}stepParkour(state,p.input,STEP,level);}},
     verified(){verified=true;},stop(){active=false;network=null;pending=[];outgoing=[];poses.clear();$('spectateControl').hidden=true;clear();}
   };
 }

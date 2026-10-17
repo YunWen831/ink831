@@ -5,7 +5,7 @@ import { canonicalMap } from '../../courtyard/parkour-map.js';
 import { cleanText } from './world-store.js';
 
 // Bump when physics or map semantics change: old completion proofs then expire.
-export const MAP_RULESET='parkour-1';
+export const MAP_RULESET='parkour-2';
 export const mapProof=cells=>MAP_RULESET+':'+createHash('sha256').update(canonicalMap(cells)).digest('hex');
 export const isVerified=record=>record.proof===mapProof(record.cells);
 const meta=record=>({id:record.id,title:record.title,version:record.version,updatedAt:record.updatedAt,verified:isVerified(record)});

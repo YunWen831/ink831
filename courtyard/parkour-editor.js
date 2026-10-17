@@ -1,7 +1,7 @@
-import {canonicalMap,mapLevel,editableCell,MAP_COLS,MAP_TILE,MAP_WIDTH,MAP_HEIGHT} from './parkour-map.js?v=0.7.0';
-import {selectionBetween,copySelection,pasteSelection,eraseSelection} from './map-edit.js?v=0.7.0';
-import {drawCourse,drawSky} from './parkour-scene.js?v=0.7.0';
-import {drawRunner} from './parkour-avatar.js?v=0.7.0';
+import {canonicalMap,mapLevel,editableCell,MAP_LIMITS,MAP_COLS,MAP_TILE,MAP_WIDTH,MAP_HEIGHT} from './parkour-map.js?v=0.8.0';
+import {selectionBetween,copySelection,pasteSelection,eraseSelection} from './map-edit.js?v=0.8.0';
+import {drawCourse,drawSky} from './parkour-scene.js?v=0.8.0';
+import {drawRunner} from './parkour-avatar.js?v=0.8.0';
 
 export function createEditor(canvas,{send,save,name,color,onDirty,canCloud=()=>true}){
   const ctx=canvas.getContext('2d'),$=id=>document.getElementById(id),undo=[],redo=[];
@@ -29,7 +29,8 @@ export function createEditor(canvas,{send,save,name,color,onDirty,canCloud=()=>t
     if(verified)send('parkour:invalidate',{documentId});verified=false;onDirty?.();dirty=true;save(cells);status('待同步');clearTimeout(timer);timer=setTimeout(flush,220);return true;
   }
   function action(next){next=canonicalMap(next);if(next===cells)return;remember();change(next);}
-  function setTool(value){tool=value;for(const b of document.querySelectorAll('[data-map-tool]')){b.classList.toggle('active',b.dataset.mapTool===value);b.setAttribute('aria-pressed',String(b.dataset.mapTool===value));}canvas.style.cursor=value==='pan'?'grab':'crosshair';}
+  function setTool(value){tool=value;for(const b of document.querySelectorAll('[data-map-tool]')){b.classList.toggle('active',b.dataset.mapTool===value);b.setAttribute('aria-pressed',String(b.dataset.mapTool===value));}$('editorMechanism').value=[...$('editorMechanism').options].some(o=>o.value===value)?value:'';$('editorMechanism').classList.toggle('active',$('editorMechanism').value!=='');canvas.style.cursor=value==='pan'?'grab':'crosshair';}
+  $('editorMechanism').addEventListener('change',event=>setTool(event.target.value));
   for(const button of document.querySelectorAll('[data-map-tool]'))button.addEventListener('click',()=>setTool(button.dataset.mapTool));
   $('editorZoomIn').addEventListener('click',()=>zoomExtra=Math.min(2.5,zoomExtra+.25));$('editorZoomOut').addEventListener('click',()=>zoomExtra=Math.max(.75,zoomExtra-.25));$('editorScroll').addEventListener('input',()=>pan=Number($('editorScroll').value)/100);
   $('editorVerify').addEventListener('click',()=>{verifyPending=true;flush();});
@@ -51,7 +52,7 @@ export function createEditor(canvas,{send,save,name,color,onDirty,canCloud=()=>t
     if(tool==='paste'){if(!strokeSaved){action(pasteSelection(cells,stamp,point.c,point.r));strokeSaved=true;}return;}
     const start=previous||point,count=Math.max(Math.abs(point.c-start.c),Math.abs(point.r-start.r),1),next=Array.from(cells);
     for(let i=0;i<=Math.min(count,96);i++){const c=Math.round(start.c+(point.c-start.c)*i/count),r=Math.round(start.r+(point.r-start.r)*i/count);if(editableCell(c,r))next[r*MAP_COLS+c]=event.buttons&2?'0':tool;}
-    previous=point;const value=canonicalMap(next.join(''));if(value!==cells){if(!strokeSaved){remember();strokeSaved=true;}change(value);}
+    previous=point;const requested=next.join(''),value=canonicalMap(requested);if(value!==cells){if(!strokeSaved){remember();strokeSaved=true;}change(value);}if(value!==requested&&MAP_LIMITS[tool])status(`该机关已达上限 ${MAP_LIMITS[tool]}${tool==='6'||tool==='e'?'（移动平台合计）':''}`);
   }
   canvas.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('pointerdown',event=>{if(!active)return;event.preventDefault();canvas.focus({preventScroll:true});pointer=event.pointerId;previous=null;anchor=cellAt(event);strokeSaved=false;canvas.setPointerCapture(pointer);paint(event);});
   canvas.addEventListener('pointermove',event=>{hover=cellAt(event);if(active&&event.pointerId===pointer)paint(event);});canvas.addEventListener('pointerleave',()=>hover=null);

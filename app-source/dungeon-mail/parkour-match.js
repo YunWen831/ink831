@@ -1,11 +1,9 @@
 import {randomUUID} from 'node:crypto';
 import {canonicalMap,emptyMap,mapLevel,composeMaps} from '../../courtyard/parkour-map.js';
 import {createParkourState,stepParkour,respawn,STEP} from '../../courtyard/parkour-physics.js';
+import {packState as wireState} from '../../courtyard/parkour-state.js';
+import {mechanismState} from '../../courtyard/parkour-mechanics.js';
 
-const wireState=state=>{
-  const packed={};for(const [key,value] of Object.entries(state))if(key!=='crystals')packed[key]=typeof value==='number'?Math.round(value*10000)/10000:value;
-  packed.crystalCharges=state.crystals.flatMap((time,index)=>time>0?[[index,Math.round(time*1000)/1000]]:[]);return packed;
-};
 
 export class ParkourMatch{
   constructor(members,{send,changed,completed,now=()=>performance.now(),clock=Date.now}={}){
@@ -92,6 +90,7 @@ export class ParkourMatch{
   checkFinished(){if(this.sessions.size&&[...this.sessions.values()].filter(r=>r.kind==='race').every(r=>r.state.finished)){this.phase='results';}}
   snapshot(){
     const racers=[...this.sessions].filter(([,r])=>r.kind==='race').map(([id,{state:s}])=>[id,Math.round(s.x*100)/100,Math.round(s.y*100)/100,Math.round(s.vx),Math.round(s.vy),(s.grounded?1:0)|(s.dash?2:0)|(s.dashTime>0?4:0)|(s.dead>0?8:0)|(s.finished?16:0)|(s.wallSide<0?32:s.wallSide>0?64:0),s.facing,s.checkpoint]);
-    for(const [id,run] of this.sessions)this.send(id,'parkour:state',{id:run.id,state:wireState(run.state),ack:run.ack,phase:this.phase,startsAt:this.startedAt,racers:run.kind==='race'?racers:[],results:this.results||[],serverNow:this.clock()});
+    const mechanismPeers=[...this.sessions].filter(([,r])=>r.kind==='race'&&!r.state.finished).map(([id,r])=>[id,wireState(mechanismState(r.state))]);
+    for(const [id,run] of this.sessions)this.send(id,'parkour:state',{id:run.id,state:wireState(run.state),ack:run.ack,phase:this.phase,startsAt:this.startedAt,racers:run.kind==='race'?racers:[],...(run.kind==='race'&&run.state.finished?{mechanismPeers}:{}),results:this.results||[],serverNow:this.clock()});
   }
 }

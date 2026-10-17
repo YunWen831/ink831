@@ -306,7 +306,7 @@ export class Courtyard extends Room {
     }finally{this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==7)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==8)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');

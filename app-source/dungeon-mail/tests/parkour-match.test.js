@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {ParkourMatch} from '../parkour-match.js';
 import {emptyMap,canonicalMap,mapLevel,composeMaps,MAP_SIZE,MAP_COLS,MAP_WIDTH} from '../../../courtyard/parkour-map.js';
 import {STEP,intersects,BODY} from '../../../courtyard/parkour-physics.js';
+import {mechanismMap} from './fixtures/mechanism-map.js';
 function harness(count=2){
   let now=1000;const messages=[];
   const match=new ParkourMatch(Array.from({length:count},(_,i)=>({id:String(i),name:'作者'+i,color:'#c87768'})),{now:()=>now,clock:()=>now,send:(id,type,data)=>messages.push({id,type,data:structuredClone(data)})});
@@ -55,4 +56,13 @@ test('saved maps load into private editors, new revisions invalidate proof, prog
   m.verify('1',0);drive(200,['1']);const status=m.status();assert.ok(status.players[1].progress>0);assert.equal('cells' in status.players[1],false);drive(500,['1']);assert.ok(m.launch(()=>true));advance(3100);drive(1500);assert.equal(m.phase,'results');
   const cells=m.drafts.get('0').cells;assert.ok(m.rebuild());assert.equal(m.phase,'building');assert.equal(m.drafts.get('0').cells,cells);assert.ok(m.drafts.get('0').verified);assert.equal(m.sessions.size,0);
   const edited=Array.from(cells);edited[10*48+8]='1';m.edit('0',edited.join(''));assert.equal(m.drafts.get('0').verified,false);
+});
+test('all new mechanisms survive authoritative validation, four-map racing, independent states and spectator snapshots',()=>{
+  const {match:m,messages,drive,advance}=harness(4);for(const id of m.drafts.keys()){m.edit(id,mechanismMap());m.verify(id,1);}drive(1000);
+  assert.ok([...m.drafts.values()].every(d=>d.verified));assert.ok([...m.sessions.values()].every(r=>r.state.deaths===0));assert.ok(m.launch(()=>true));advance(3100);
+  const [a,b]=[...m.sessions.values()];assert.notEqual(a.state.crumbles,b.state.crumbles);a.state.doors[0]=3;assert.equal(b.state.doors[0],undefined);
+  drive(3200);assert.equal(m.phase,'results');assert.equal(m.results.length,4);assert.ok(m.results.every(r=>r.deaths===0));
+  a.state.finished=true;b.state.finished=false;b.state.crumbles[191]=2.2;b.state.doors[3]=2;m.snapshot();
+  const view=messages.filter(message=>message.id==='0'&&message.type==='parkour:state').at(-1).data;
+  const observed=view.mechanismPeers.find(([id])=>id==='1')[1];assert.deepEqual(observed.crumbleCharges.find(([index])=>index===191),[191,2.2]);assert.deepEqual(observed.doorCharges,[[3,2]]);assert.ok(observed.mechanismTime>=0);
 });

@@ -7,6 +7,7 @@ import { join, resolve, dirname } from 'node:path';
 import { Client } from '@colyseus/sdk';
 import { move, WORLD } from '../../../courtyard/world.js';
 import { avatarTemplate,AVATAR_LENGTH } from '../../../courtyard/avatar-data.js';
+import {mechanismMap} from './fixtures/mechanism-map.js';
 
 const endpoint=process.env.TEST_ENDPOINT||'http://127.0.0.1:2570',rooms=[];
 const delay=ms=>new Promise(r=>setTimeout(r,ms));let child,directory;
@@ -21,7 +22,7 @@ let accountIndex=0;
 async function enter(name,authenticated=false){
   let cookie='';
   if(authenticated){const response=await fetch(endpoint+'/api/account/register',{method:'POST',headers:{Origin:'http://127.0.0.1:4173','Content-Type':'application/json'},body:JSON.stringify({username:'test_'+(++accountIndex),nickname:name,password:'Integration test password!'})});assert.equal(response.status,200);cookie=response.headers.get('set-cookie').split(';')[0];}
-  const room=listen(await new Client(endpoint,{headers:cookie?{Cookie:cookie}:{}}).joinOrCreate('courtyard',{name,clientVersion:7}));room.testCookie=cookie;await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
+  const room=listen(await new Client(endpoint,{headers:cookie?{Cookie:cookie}:{}}).joinOrCreate('courtyard',{name,clientVersion:8}));room.testCookie=cookie;await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
 async function walkTo(room,x,y){
   let seq=room.state.players.get(room.sessionId).ack;
   for(let batch=0;batch<100;batch++){
@@ -38,7 +39,7 @@ async function walkTo(room,x,y){
 }
 before(async()=>{
   if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
-  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.7.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
+  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.8.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
 });
 after(async()=>{
   await Promise.all(rooms.filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));
@@ -48,7 +49,7 @@ after(async()=>{
 
 test('one shared lobby, logical room isolation, chat, authoritative input and reconnection',async()=>{
   const a=await enter('甲');
-  await assert.rejects(new Client(endpoint).create('courtyard',{clientVersion:7,name:'不能另开大厅'}));
+  await assert.rejects(new Client(endpoint).create('courtyard',{clientVersion:8,name:'不能另开大厅'}));
   const b=await enter('乙'),c=await enter('丙');
   assert.equal(a.roomId,b.roomId);assert.equal(b.roomId,c.roomId);
   await until(()=>a.state.players.size===3);assert.equal(a.state.players.get(a.sessionId).space,'lobby');
@@ -114,8 +115,8 @@ test('only the host can launch a ready party of two, three or four into private 
 
 test('HTTP origin restrictions and invalid transport-room IDs remain enforced',async()=>{
   assert.equal((await fetch(endpoint+'/health',{headers:{Origin:'https://unrelated.example'}})).status,403);
-  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({clientVersion:7,name:'not allowed'})})).status,403);
-  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{clientVersion:7,name:'不存在'}));
+  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({clientVersion:8,name:'not allowed'})})).status,403);
+  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{clientVersion:8,name:'不存在'}));
   await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{name:'旧页面'}),/刷新/);
 });
 test('chunked 32 and 64 pixel materials cross real WebSockets without raising the 4096-byte input limit',async()=>{
@@ -130,18 +131,20 @@ test('chunked 32 and 64 pixel materials cross real WebSockets without raising th
   }finally{await Promise.all([a,b,bad].map(r=>r.leave().catch(()=>{})));}
 });
 
-test('real SDK players verify private maps, race the joined course and recover a dropped connection',async()=>{
+test('real SDK players verify mechanism maps, race the joined course and recover a dropped connection',async()=>{
   const a=await enter('跑酷甲'),b=await enter('跑酷乙'),group=[a,b],counters=new Map();let pump;
   try{
     a.send('space:create',{type:'parkour',title:'真实竞速'});await until(()=>a.state.players.get(a.sessionId).space!=='lobby');const id=a.state.players.get(a.sessionId).space;
     b.send('space:join',{id});await until(()=>b.state.players.get(b.sessionId).space===id);for(const r of group)r.send('space:ready');await until(()=>a.messages.spaces.at(-1)?.find(s=>s.id===id)?.canStart);a.send('space:start');
     await until(()=>group.every(r=>r.messages['parkour:workshop'].length));
-    const edit=Array.from(a.messages['parkour:workshop'].at(-1).cells);edit[14*48+10]='1';a.send('parkour:map',{cells:edit.join('')});await until(()=>a.messages['parkour:workshop'].at(-1)?.revision===1);
+    b.send('parkour:map',{cells:mechanismMap()});await until(()=>b.messages['parkour:workshop'].at(-1)?.revision===1);
+    const edit=Array.from(mechanismMap());edit[14*48+10]='1';a.send('parkour:map',{cells:edit.join('')});await until(()=>a.messages['parkour:workshop'].at(-1)?.revision===1);
     const saved=a.messages['parkour:workshop'].length;edit[14*48+11]='1';a.send('parkour:map',{cells:edit.join('')});await until(()=>a.messages['parkour:workshop'].length>saved);await delay(150);a.send('parkour:map',{cells:edit.join('')});await until(()=>a.messages['parkour:workshop'].at(-1)?.revision===2);
     for(const r of group){const mine=r.messages['parkour:workshop'].at(-1);assert.equal(mine.id,r.sessionId);r.send('parkour:verify',{revision:mine.revision});}
     await until(()=>group.every(r=>r.messages['parkour:run'].length));
     pump=setInterval(()=>{for(const r of group){if(!r.connection.isOpen)continue;const run=r.messages['parkour:run'].at(-1),snapshot=r.messages['parkour:state'].at(-1);if(!run||run.kind==='race'&&snapshot?.phase!=='racing')continue;const key=r.sessionId+run.id;let seq=counters.get(key)||run.ack;const frames=Array.from({length:4},()=>[++seq,1,0,0]);counters.set(key,seq);r.send('parkour:input',{id:run.id,frames});}},33);
     await until(()=>a.messages['parkour:status'].at(-1)?.players.every(p=>p.verified),12000);
+    assert.ok(a.messages['parkour:state'].some(m=>m.state.springBoost>0));assert.ok(a.messages['parkour:state'].some(m=>m.state.crumbleCharges?.length));assert.ok(a.messages['parkour:state'].some(m=>m.state.doorCharges?.length));
     a.send('space:start');await until(()=>group.every(r=>r.messages['parkour:run'].at(-1)?.kind==='race'));
     assert.equal(a.messages['parkour:run'].at(-1).level.width,2304);await until(()=>a.messages['parkour:state'].at(-1)?.phase==='racing',6000);
     let recovered=false;a.onReconnect(()=>{recovered=true;a.send('hello');});a.connection.close(4010,'race interruption');await until(()=>recovered,12000);
@@ -170,7 +173,7 @@ test('real accounts enforce ownership over WebSockets, protect replacements, syn
     await delay(1100);const frames=avatarTemplate('dd2244'),pixels=frames.join('');a.send('avatar:begin',{length:AVATAR_LENGTH,userId:own(b)});for(let offset=0;offset<pixels.length;offset+=3072)a.send('avatar:chunk',{index:offset/3072,pixels:pixels.slice(offset,offset+3072)});a.send('avatar:finish');await until(()=>b.messages.avatar.some(s=>s.userId===own(a)));assert.deepEqual(b.messages.avatar.find(s=>s.userId===own(a)).frames,frames);
     assert.equal((await api(a,'profile',{nickname:'改名后'})).status,200);await until(()=>b.state.players.get(a.sessionId).name==='改名后');assert.equal(b.state.players.get(a.sessionId).userId,art.ownerId);
     a.reconnection.enabled=false;const token=a.reconnectionToken;let left=false;a.onLeave(()=>left=true);assert.equal((await api(a,'logout',{})).status,200);a.send('ping',123);await until(()=>left);
-    await assert.rejects(new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{name:'冒用旧登录',clientVersion:7}));await assert.rejects(new Client(endpoint).reconnect(token));
+    await assert.rejects(new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{name:'冒用旧登录',clientVersion:8}));await assert.rejects(new Client(endpoint).reconnect(token));
     assert.equal((await fetch(endpoint+'/api/account/me',{headers:{Cookie:a.testCookie}}).then(r=>r.json())).user,null);
     assert.ok(b.state.players.get(b.sessionId).userId);
   }finally{await Promise.all([a,b,guest].filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));await delay(150);}
@@ -188,7 +191,7 @@ test('private account workshop saves across sessions, preserves server proofs, r
     await until(()=>a.messages['levels:saved'].some(m=>m.id===first.id&&m.verified),12000);clearInterval(timer);timer=null;const verified=a.messages['levels:saved'].at(-1);
     assert.equal(verified.version,2);a.send('parkour:edit');await until(()=>latest().cloudVersion===2);
     b.send('levels:open',{id:first.id});await until(()=>b.messages.notice.some(n=>n.action==='levels'));assert.equal(b.messages['parkour:workshop'].length,0);
-    second=listen(await new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{clientVersion:7}));await until(()=>second.state?.players?.has(second.sessionId));second.send('levels:open',{id:first.id});await until(()=>second.messages['parkour:workshop'].length>0);
+    second=listen(await new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{clientVersion:8}));await until(()=>second.state?.players?.has(second.sessionId));second.send('levels:open',{id:first.id});await until(()=>second.messages['parkour:workshop'].length>0);
     const loaded=second.messages['parkour:workshop'].at(-1);assert.equal(loaded.verified,true);assert.equal(loaded.cells,verified.cells);
     const cells=Array.from(loaded.cells);cells[10*48+12]='1';second.send('parkour:map',{cells:cells.join('')});await until(()=>second.messages['parkour:workshop'].at(-1).revision>loaded.revision);
     const modified=second.messages['parkour:workshop'].at(-1);assert.equal(modified.verified,false);save(second,modified);await until(()=>second.messages['levels:saved'].length>0);assert.equal(second.messages['levels:saved'][0].version,3);
@@ -207,7 +210,7 @@ test('all 50 player slots share one lobby, keep exchanging input, and a 51st can
   try{
     await until(()=>group.every(r=>r.state.players.size===50));
     assert.equal(new Set(group.map(r=>r.roomId)).size,1);
-    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{clientVersion:7,name:'第51位'}));
+    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{clientVersion:8,name:'第51位'}));
     const sequences=group.map(()=>0);
     for(let frame=0;frame<40;frame++){
       for(let i=0;i<group.length;i++){
