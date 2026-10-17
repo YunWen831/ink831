@@ -1,9 +1,9 @@
-import { PRACTICE_LEVEL,MECHANISM_LEVEL } from './parkour-level.js?v=0.8.0';
-import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.8.0';
-import { drawBubbles } from './bubbles.js?v=0.8.0';
-import { drawRunner } from './parkour-avatar.js?v=0.8.0';
-import { drawCourse,drawSky } from './parkour-scene.js?v=0.8.0';
-import {unpackState as copy} from './parkour-state.js?v=0.8.0';
+import { PRACTICE_LEVEL,MECHANISM_LEVEL } from './parkour-level.js?v=0.8.1';
+import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.8.1';
+import { drawBubbles } from './bubbles.js?v=0.8.1';
+import { drawRunner } from './parkour-avatar.js?v=0.8.1';
+import { drawCourse,drawSky } from './parkour-scene.js?v=0.8.1';
+import {unpackState as copy} from './parkour-state.js?v=0.8.1';
 
 export function createPractice(canvas,options){
   const ctx=canvas.getContext('2d'),keys=new Set(),$=id=>document.getElementById(id),poses=new Map();

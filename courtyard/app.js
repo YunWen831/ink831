@@ -1,13 +1,13 @@
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.8.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.8.0';
-import { createScene } from './scene.js?v=0.8.0';
-import { createPainter, preview } from './art.js?v=0.8.0';
-import { createPractice } from './parkour-game.js?v=0.8.0';
-import { createEditor } from './parkour-editor.js?v=0.8.0';
-import { bubbleDuration } from './chat.js?v=0.8.0';
-import { createAccounts } from './account.js?v=0.8.0';
-import { createAvatarPainter } from './avatar.js?v=0.8.0';
-import { AVATAR_LENGTH,validAvatar } from './avatar-data.js?v=0.8.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.8.1';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.8.1';
+import { createScene } from './scene.js?v=0.8.1';
+import { createPainter, preview } from './art.js?v=0.8.1';
+import { createPractice } from './parkour-game.js?v=0.8.1';
+import { createEditor } from './parkour-editor.js?v=0.8.1';
+import { bubbleDuration } from './chat.js?v=0.8.1';
+import { createAccounts } from './account.js?v=0.8.1';
+import { createAvatarPainter } from './avatar.js?v=0.8.1';
+import { AVATAR_LENGTH,validAvatar } from './avatar-data.js?v=0.8.1';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
@@ -129,7 +129,7 @@ const accountsUI=createAccounts({endpoint:()=>endpoint,onUser:user=>{accountUser
   const old=room;if(old){old.reconnection.enabled=false;cleanup();await old.leave().catch(()=>{});}
   if(join&&accountUser)await enter();
 },onProtection:allow=>{if(room&&online&&ownUserId())room.send('building:protection',{allow});else{accountsUI.protection(false);toast('请先用账号进入大厅');}}});
-const avatarPainter=createAvatarPainter({userId:ownUserId,current:()=>avatars.get(ownUserId()),onSave:frames=>{
+const avatarPainter=createAvatarPainter({defaultColor:()=>players.get(room?.sessionId)?.color||'#568a78',userId:ownUserId,current:()=>avatars.get(ownUserId()),onSave:frames=>{
   if(!room||!online||!ownUserId()){avatarPainter.failed('请登录并连接大厅后保存。');return;}
   const pixels=frames.join('');room.send('avatar:begin',{length:AVATAR_LENGTH});for(let offset=0;offset<pixels.length;offset+=3072)room.send('avatar:chunk',{index:offset/3072,pixels:pixels.slice(offset,offset+3072)});room.send('avatar:finish');
 }});
@@ -334,7 +334,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.8.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.8.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

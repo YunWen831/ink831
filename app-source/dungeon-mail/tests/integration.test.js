@@ -39,7 +39,7 @@ async function walkTo(room,x,y){
 }
 before(async()=>{
   if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
-  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.8.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
+  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.8.1')return;}catch{}await delay(100);}throw Error('Test server did not start');
 });
 after(async()=>{
   await Promise.all(rooms.filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));

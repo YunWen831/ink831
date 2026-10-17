@@ -1,9 +1,9 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.8.0';
-import { RemoteMotion } from './motion.js?v=0.8.0';
-import { avatarImage } from './avatar.js?v=0.8.0';
-import { texture } from './art.js?v=0.8.0';
-import { drawBubbles } from './bubbles.js?v=0.8.0';
-import { bubbleDuration } from './chat.js?v=0.8.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.8.1';
+import { RemoteMotion } from './motion.js?v=0.8.1';
+import { avatarImage,defaultAvatarImage } from './avatar.js?v=0.8.1';
+import { texture } from './art.js?v=0.8.1';
+import { drawBubbles } from './bubbles.js?v=0.8.1';
+import { bubbleDuration } from './chat.js?v=0.8.1';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -29,37 +29,21 @@ export function createScene(canvas,getWorld){
     return {left,top,right,bottom};
   }
   function drawPerson(p,pose,self,now,labels,world){
-    const x=Math.round(p.x),y=Math.round(p.y),swing=p.moving&&!reduced?Math.sin(pose.phase)*3:0;
-    const bob=p.moving&&!reduced?-Math.abs(Math.sin(pose.phase))*1.2:0;
+    const x=Math.round(p.x),y=Math.round(p.y);
     ctx.save();ctx.globalAlpha=p.connected?1:.4;
     ctx.fillStyle='#344d3530';ctx.beginPath();ctx.ellipse(x,y+2,10,4,0,0,Math.PI*2);ctx.fill();
     if(self){ctx.strokeStyle='#fffce5';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y+2,13,6,0,0,Math.PI*2);ctx.stroke();}
     ctx.translate(x,y);
-    const custom=avatarImage(world.avatars?.get(p.userId),pose.facing,p.moving&&!reduced?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
-    if(custom){ctx.drawImage(custom,-13,-39,26,39);}else{
-    ctx.save();if(pose.facing==='left')ctx.scale(-1,1);
-    const side=pose.facing==='left'||pose.facing==='right',back=pose.facing==='up';
-    // Alternating feet and opposite arms make each step read in every direction.
-    ctx.fillStyle='#435347';ctx.fillRect(side?-5:-7,-7+swing,5,8);ctx.fillRect(side?0:2,-7-swing,5,8);
-    ctx.fillStyle='#354039';ctx.fillRect(side?-5:-7,-1+swing,6,3);ctx.fillRect(side?0:2,-1-swing,6,3);
-    ctx.translate(0,bob);
-    ctx.fillStyle=p.color;ctx.fillRect(side?-6:-9,-20,side?13:18,14);
-    ctx.fillStyle='#ffffff20';ctx.fillRect(side?-5:-7,-19,side?3:4,11);
-    ctx.fillStyle='#273b3020';ctx.fillRect(side?3:5,-17,side?4:4,11);
-    ctx.save();ctx.translate(side?2:-10,-18);ctx.rotate(swing*.08);ctx.fillStyle=p.color;ctx.fillRect(-2,0,5,9);ctx.fillStyle='#e5c79d';ctx.fillRect(-2,7,5,4);ctx.restore();
-    if(!side){ctx.save();ctx.translate(10,-18);ctx.rotate(-swing*.08);ctx.fillStyle=p.color;ctx.fillRect(-2,0,5,9);ctx.fillStyle='#e5c79d';ctx.fillRect(-2,7,5,4);ctx.restore();}
-    ctx.fillStyle='#edd6ae';ctx.fillRect(side?-6:-7,-32,side?13:15,14);
-    ctx.fillStyle='#536044';ctx.fillRect(-8,-34,16,6);ctx.fillRect(-8,-30,back?16:4,back?11:8);
-    ctx.fillStyle='#6d7958';ctx.fillRect(-5,-34,9,2);
-    if(!back){ctx.fillStyle='#35443a';ctx.fillRect(side?5:-3,-26,2,3);if(!side)ctx.fillRect(3,-26,2,3);ctx.fillStyle='#d6ad88';ctx.fillRect(side?6:0,-21,3,2);}
-    ctx.fillStyle='#f0dfb5';ctx.fillRect(side?-5:-7,-18,side?12:14,3);ctx.fillRect(back?-5:side?0:-4,-15,3,6+Math.abs(swing)*.3);
-    ctx.restore();}
+    const skin=world.avatars?.get(p.userId),walking=p.moving&&!reduced;
+    const custom=avatarImage(skin,pose.facing,walking?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
+    if(custom)ctx.drawImage(custom,-13,-39,26,39);
+    else ctx.drawImage(defaultAvatarImage(p.color,pose.facing,walking?[0,1,0,2][Math.floor(pose.phase/(Math.PI/2))%4]:0),-16,-46,32,48);
     const label=p.name+(self?' · 你':'');ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const tw=ctx.measureText(label).width;
-    let labelY=-53,showLabel=true;
+    let labelY=custom?-53:-61,showLabel=true;
     if(!self){const collision=()=>labels.some(r=>x-tw/2-5<r.x+r.w&&x+tw/2+5>r.x&&y+labelY<r.y+r.h&&y+labelY+16>r.y);for(let i=0;i<3&&collision();i++)labelY-=18;showLabel=!collision();if(showLabel)labels.push({x:x-tw/2-5,y:y+labelY,w:tw+10,h:16});}
     if(showLabel){ctx.fillStyle=self?'#fbfcefef':'#fcfae6ce';ctx.fillRect(-tw/2-5,labelY,tw+10,16);ctx.fillStyle='#435c40';ctx.fillText(label,0,labelY+11);}
     const speech=world.speech?.get(p.id),emote=world.emotes.get(p.id);
-    if((!speech||now-speech.at>=bubbleDuration(speech.text))&&emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(12,-44,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',25,-30);}
+    if((!speech||now-speech.at>=bubbleDuration(speech.text))&&emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(15,custom?-44:-52,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',28,custom?-30:-38);}
     ctx.restore();
   }
   function minimap(world,cameraX,cameraY,visibleW,visibleH,now){
@@ -109,9 +93,9 @@ export function createScene(canvas,getWorld){
     }
     for(const id of positions.keys())if(!world.players.has(id)){positions.delete(id);motions.delete(id);poses.delete(id);}
     people.sort((a,b)=>a.y-b.y);const labels=[],own=people.find(p=>p.id===world.self);ctx.font='11px "Microsoft YaHei",sans-serif';
-    if(own){const w=ctx.measureText(own.name+' · 你').width+10;labels.push({x:own.x-w/2,y:own.y-53,w,h:16});}
+    if(own){const w=ctx.measureText(own.name+' · 你').width+10;labels.push({x:own.x-w/2,y:own.y-(world.avatars?.has(own.userId)?53:61),w,h:16});}
     for(const p of people)drawPerson(p,poses.get(p.id),p.id===world.self,now,labels,world);
-    drawBubbles(ctx,people.map(p=>({...p,...(world.speech.get(p.id)||{text:'',at:-Infinity})})),now,{x:cameraX,y:cameraY,w:visibleW,h:visibleH},world.self);
+    drawBubbles(ctx,people.map(p=>({...p,...(!world.avatars?.has(p.userId)?{bodyWidth:32,bodyHeight:46,labelTop:61}:{}),...(world.speech.get(p.id)||{text:'',at:-Infinity})})),now,{x:cameraX,y:cameraY,w:visibleW,h:visibleH},world.self);
     minimap(world,cameraX,cameraY,visibleW,visibleH,now);requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

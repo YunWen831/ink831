@@ -1,20 +1,27 @@
-import { AVATAR_DIRECTIONS,avatarTemplate,validAvatar } from './avatar-data.js?v=0.8.0';
-import { CLASSIC_SWATCHES,SWATCHES } from './materials.js?v=0.8.0';
-import { createColorPicker } from './color-picker.js?v=0.8.0';
+import { AVATAR_DIRECTIONS,avatarTemplate,validAvatar } from './avatar-data.js?v=0.8.1';
+import { CLASSIC_SWATCHES,SWATCHES } from './materials.js?v=0.8.1';
+import { createColorPicker } from './color-picker.js?v=0.8.1';
 
-const images=new Map();
+const images=new Map(),defaults=new Map();
+function decodeFrames(frames){return frames.map(text=>{const canvas=document.createElement('canvas');canvas.width=32;canvas.height=48;const context=canvas.getContext('2d'),image=context.createImageData(32,48);for(let i=0;i<1536;i++)for(let c=0;c<4;c++)image.data[i*4+c]=parseInt(text.slice(i*8+c*2,i*8+c*2+2),16);context.putImageData(image,0,0);return canvas;});}
+function frameIndex(direction,frame){return Math.max(0,AVATAR_DIRECTIONS.indexOf(direction))*3+Math.max(0,Math.min(2,frame));}
+export function defaultAvatarImage(color,direction='down',frame=0){
+  let frames=defaults.get(color);if(!frames){frames=decodeFrames(avatarTemplate(color));defaults.set(color,frames);if(defaults.size>24)defaults.delete(defaults.keys().next().value);}
+  return frames[frameIndex(direction,frame)];
+}
 export function avatarImage(data,direction='down',frame=0){
   if(!data)return null;const key=data.userId+':'+data.revision;
   let frames=images.get(key);
   if(!frames){
-    frames=data.frames.map(text=>{const canvas=document.createElement('canvas');canvas.width=32;canvas.height=48;const context=canvas.getContext('2d'),image=context.createImageData(32,48);for(let i=0;i<1536;i++)for(let c=0;c<4;c++)image.data[i*4+c]=parseInt(text.slice(i*8+c*2,i*8+c*2+2),16);context.putImageData(image,0,0);return canvas;});
+    frames=decodeFrames(data.frames);
     images.set(key,frames);if(images.size>128)images.delete(images.keys().next().value);
   }
-  return frames[Math.max(0,AVATAR_DIRECTIONS.indexOf(direction))*3+Math.max(0,Math.min(2,frame))];
+  return frames[frameIndex(direction,frame)];
 }
-export function createAvatarPainter({userId,current,onSave}){
+export function createAvatarPainter({userId,current,onSave,defaultColor=()=> '568a78'}){
   const $=id=>document.getElementById(id),canvas=$('skinCanvas'),ctx=canvas.getContext('2d'),preview=$('skinPreview'),pc=preview.getContext('2d');
-  let frames=avatarTemplate().map(s=>s.match(/.{8}/g)),direction=0,frame=0,color='ff0000ff',tool='brush',pointer=null,last=null,clipboard=null,cursor=0,picker;
+  const template=()=>avatarTemplate(defaultColor());
+  let frames=template().map(s=>s.match(/.{8}/g)),direction=0,frame=0,color='ff0000ff',tool='brush',pointer=null,last=null,clipboard=null,cursor=0,picker;
   const history=[];let changed=false,owner='',lastPreview=0,saving=false;
   const index=()=>direction*3+frame,pixels=()=>frames[index()];
   function remember(){history.push({frames:frames.map(p=>p.slice()),direction,frame});if(history.length>24)history.shift();changed=true;}
@@ -51,7 +58,7 @@ export function createAvatarPainter({userId,current,onSave}){
   $('skinCopy').addEventListener('click',()=>{clipboard=pixels().slice();render();});
   $('skinPaste').addEventListener('click',()=>{if(clipboard){remember();frames[index()]=clipboard.slice();render();draft();}});
   $('skinMirror').addEventListener('click',()=>{remember();const old=pixels();frames[index()]=Array.from({length:48},(_,y)=>old.slice(y*32,y*32+32).reverse()).flat();render();draft();});
-  $('skinTemplate').addEventListener('click',()=>{remember();frames=avatarTemplate().map(s=>s.match(/.{8}/g));render();draft();});
+  $('skinTemplate').addEventListener('click',()=>{remember();frames=template().map(s=>s.match(/.{8}/g));render();draft();});
   for(const [id,name] of [['skinFill','fill'],['skinErase','erase'],['skinPick','pick']])$(id).addEventListener('click',()=>setTool(tool===name?'brush':name));
   swatches();$('skinPaletteMode').addEventListener('change',swatches);picker=createColorPicker(choose,'skin');choose('#ff0000');
   $('skinColor').addEventListener('input',e=>choose(e.target.value));$('skinHex').addEventListener('input',e=>{const value=e.target.value.trim();if(/^#?[a-f0-9]{6}$/i.test(value))choose('#'+value.replace('#',''));});$('skinHex').addEventListener('blur',()=>$('skinHex').value='#'+color.slice(0,6).toUpperCase());
@@ -63,7 +70,7 @@ export function createAvatarPainter({userId,current,onSave}){
   }requestAnimationFrame(animate);
   return {
     get saving(){return saving;},
-    open(){const id=userId();if(!id)return;owner=id;let data=current()?.frames;try{const saved=JSON.parse(localStorage.getItem('dungeon-mail-avatar-draft-'+id)||'null');if(validAvatar(saved))data=saved;}catch{}frames=(validAvatar(data)?data:avatarTemplate()).map(s=>s.match(/.{8}/g));direction=0;frame=0;history.length=0;changed=false;cursor=0;$('skinMessage').textContent='';unlock();$('avatarDialog').showModal();render();},
+    open(){const id=userId();if(!id)return;owner=id;let data=current()?.frames;try{const saved=JSON.parse(localStorage.getItem('dungeon-mail-avatar-draft-'+id)||'null');if(validAvatar(saved))data=saved;}catch{}frames=(validAvatar(data)?data:template()).map(s=>s.match(/.{8}/g));direction=0;frame=0;history.length=0;changed=false;cursor=0;$('skinMessage').textContent='';unlock();$('avatarDialog').showModal();render();},
     saved(){changed=false;unlock();try{localStorage.removeItem('dungeon-mail-avatar-draft-'+owner);}catch{}$('avatarDialog').close();},
     failed(message){unlock();$('skinMessage').textContent=message;},
   };
