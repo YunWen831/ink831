@@ -1,14 +1,14 @@
-import {createAdmin} from './admin.js?v=0.9.0';
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.9.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.9.0';
-import { createScene } from './scene.js?v=0.9.0';
-import { createPainter, preview } from './art.js?v=0.9.0';
-import { createPractice } from './parkour-game.js?v=0.9.0';
-import { createEditor } from './parkour-editor.js?v=0.9.0';
-import { bubbleDuration } from './chat.js?v=0.9.0';
-import { createAccounts } from './account.js?v=0.9.0';
-import { createAvatarPainter } from './avatar.js?v=0.9.0';
-import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.9.0';
+import {createAdmin} from './admin.js?v=0.9.1';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.9.1';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.9.1';
+import { createScene } from './scene.js?v=0.9.1';
+import { createPainter, preview } from './art.js?v=0.9.1';
+import { createPractice } from './parkour-game.js?v=0.9.1';
+import { createEditor } from './parkour-editor.js?v=0.9.1';
+import { bubbleDuration } from './chat.js?v=0.9.1';
+import { createAccounts } from './account.js?v=0.9.1';
+import { createAvatarPainter } from './avatar.js?v=0.9.1';
+import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.9.1';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
@@ -336,7 +336,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.9.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.9.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

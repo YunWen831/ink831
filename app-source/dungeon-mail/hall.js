@@ -291,7 +291,7 @@ export class Courtyard extends Room {
     if(Math.hypot(player.x-(col+.5)*TILE_SIZE,player.y-(row+.5)*TILE_SIZE)>BUILD_REACH){this.notice(client,'离得有点远，走近一些再施工。','build');return;}
     if(this.reserved.has(key)){this.notice(client,'这块位置正在同步，请稍等。','build');return;}
     const old=this.state.tiles.get(key);
-    if(old&&(!old.ownerId||(old.ownerId!==client.userData.accountId&&worldStore.data.protection?.[old.ownerId]!==true))){this.notice(client,old.ownerId?'这座建筑未开放他人拆除。':'旧建筑正在保留，归属由站长确认。','build');return;}
+    if(old&&(!old.ownerId?!accounts.isAdmin(client.userData.accountId):old.ownerId!==client.userData.accountId&&worldStore.data.protection?.[old.ownerId]!==true)){this.notice(client,old.ownerId?'这座建筑未开放他人拆除。':'旧建筑仅管理员可拆除或覆盖。','build');return;}
     const tile={col,row,material:data.material||null,solid:data.solid===true,ownerId:client.userData.accountId};
     if(tile.material&&!BUILTIN_MATERIALS.some(m=>m.id===tile.material)&&!worldStore.data.materials.some(m=>m.id===tile.material&&!m.deletedAt)){this.notice(client,'请先选择已有材料。','build');return;}
     if(!tile.material&&!old){this.notice(client,'这里还没有方块。','build');return;}
@@ -300,10 +300,11 @@ export class Courtyard extends Room {
     // Reserve solid cells during disk I/O so a player cannot walk into a new wall.
     if(tile.material&&tile.solid)this.collisionTiles.set(key,tile);
     try{
-      await worldStore.setTile(tile,client.userData.accountId);
+      await worldStore.setTile(tile,client.userData.accountId,()=>{accounts.requireAdmin(client.userData.sessionHash);return true;});
       if(tile.material){this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
       else{this.state.tiles.delete(key);this.collisionTiles.delete(key);}
       client.send('build:saved',{key});
+      if(old&&!old.ownerId)try{await accounts.recordAdminActor(client.userData.accountId,'legacy',tile.material?'legacy-replace':'legacy-demolish',key);}catch{this.notice(client,'建筑已更新，管理记录暂未保存。','build');}
     }catch(error){
       if(old)this.collisionTiles.set(key,old);else this.collisionTiles.delete(key);
       this.notice(client,error.code?'建筑保存失败，请稍后再试。':error.message,'build');

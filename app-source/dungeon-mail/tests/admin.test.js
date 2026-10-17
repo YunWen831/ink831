@@ -25,3 +25,22 @@ test('administrators are bound to external account IDs; bans/recovery revoke ses
     await world.protect(target.user.id,true,authorize);assert.equal(world.data.protection[target.user.id],true);await store.logout(hash);await assert.rejects(world.protect(target.user.id,false,authorize),/管理员/);assert.equal(world.data.protection[target.user.id],true);
   }finally{assert.equal(dirname(resolve(directory)),resolve(tmpdir()));await rm(directory,{recursive:true,force:true});}
 });
+
+test('only a live administrator can edit unowned legacy content, including after queued permission changes',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'courtyard-legacy-admin-'));
+  try{
+    const accounts=await new AccountStore(directory).load(),ink=await accounts.register({username:'ink',password:'Legacy administration password!'}),other=await accounts.register({username:'other',password:'Legacy other account password!'});
+    await writeFile(join(directory,'admins.json'),JSON.stringify({version:1,ids:[ink.user.id]}));await accounts.load();
+    const hash=accounts.session(ink.token).hash,world=await new WorldStore(directory).load(),cell={col:23,row:20,material:'stone',solid:false};
+    const authorize=()=>{accounts.requireAdmin(hash);return true;};
+    await world.setTile(cell);for(const material of [null,'wood'])await assert.rejects(world.setTile({...cell,material},other.user.id));
+    await assert.rejects(world.setTile({...cell,material:null},ink.user.id,true));
+    await world.setTile({...cell,material:'wood'},ink.user.id,authorize);assert.equal(world.data.tiles[0].ownerId,ink.user.id);
+    await world.setTile({...cell,ownerId:''});await world.setTile({...cell,material:null},ink.user.id,authorize);assert.equal(world.data.tiles.length,0);
+    const legacy=await world.createMaterial('旧画作','ff00ffff'.repeat(256),'ink');await assert.rejects(world.deleteMaterial(legacy.id,other.user.id));
+    await world.deleteMaterial(legacy.id,ink.user.id,false,authorize);assert.ok(world.data.materials[0].deletedAt);await world.deleteMaterial(legacy.id,ink.user.id,true,authorize);
+    await world.setTile(cell,other.user.id);await assert.rejects(world.setTile({...cell,material:null},ink.user.id,authorize),/未开放/);
+    await world.setTile({...cell,ownerId:''});let release;world.queue=new Promise(r=>{release=r;});const queued=world.setTile({...cell,material:null},ink.user.id,authorize);await accounts.logout(hash);release();await assert.rejects(queued,/管理员/);assert.equal(world.data.tiles[0].ownerId,'');
+    await assert.rejects(world.deleteMaterial(legacy.id,ink.user.id,false,authorize),/管理员/);assert.equal(world.data.materials[0].deletedAt,undefined);
+  }finally{assert.equal(dirname(resolve(directory)),resolve(tmpdir()));await rm(directory,{recursive:true,force:true});}
+});

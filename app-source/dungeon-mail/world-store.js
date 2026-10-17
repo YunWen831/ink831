@@ -51,11 +51,12 @@ export class WorldStore {
       data.materials.push(material);return material;
     });
   }
-  setTile(tile,actor){return this.transact(data=>{
+  setTile(tile,actor,authorizeLegacy=null){return this.transact(data=>{
     if(actor!==undefined){
       if(!actor)throw new Error('请登录后施工。');
       const old=data.tiles.find(t=>tileKey(t.col,t.row)===tileKey(tile.col,tile.row));
-      if(old&&(!old.ownerId||(old.ownerId!==actor&&data.protection?.[old.ownerId]!==true)))throw new Error(old.ownerId?'这座建筑未开放他人拆除。':'旧建筑正在保留，归属由站长确认。');
+      if(old&&!old.ownerId){if(typeof authorizeLegacy!=='function'||authorizeLegacy()!==true)throw new Error('旧建筑仅管理员可拆除或覆盖。');}
+      else if(old&&old.ownerId!==actor&&data.protection?.[old.ownerId]!==true)throw new Error('这座建筑未开放他人拆除。');
       if(tile.material&&!BUILTIN_MATERIALS.some(m=>m.id===tile.material)&&!data.materials.some(m=>m.id===tile.material&&!m.deletedAt))throw new Error('材料已删除，请选择其他材料。');
       tile={...tile,ownerId:actor};
     }

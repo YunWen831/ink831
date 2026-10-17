@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { Client } from '@colyseus/sdk';
 import {AccountStore,COOKIE_NAME} from '../accounts.js';
+import {WorldStore} from '../world-store.js';
 import {rigTemplate,packRig,RIG_LENGTH} from '../../../courtyard/avatar-rig.js';
 import { move, WORLD } from '../../../courtyard/world.js';
 import { avatarTemplate,AVATAR_LENGTH } from '../../../courtyard/avatar-data.js';
@@ -40,8 +41,8 @@ async function walkTo(room,x,y){
   throw Error('Path did not reach target');
 }
 before(async()=>{
-  if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));const seed=await new AccountStore(directory).load(),admin=await seed.register({username:'ink',password:'Isolated administration test password!'});adminId=admin.user.id;adminCookie=COOKIE_NAME+'='+admin.token;await writeFile(join(directory,'admins.json'),JSON.stringify({version:1,ids:[adminId]}));child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
-  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.9.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
+  if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));const seed=await new AccountStore(directory).load(),admin=await seed.register({username:'ink',password:'Isolated administration test password!'});adminId=admin.user.id;adminCookie=COOKIE_NAME+'='+admin.token;await writeFile(join(directory,'admins.json'),JSON.stringify({version:1,ids:[adminId]}));const legacyWorld=await new WorldStore(directory).load();await legacyWorld.createMaterial('未绑定旧画作','ff9900ff'.repeat(256),'旧旅人');for(const col of [13,14])await legacyWorld.setTile({col,row:12,material:'stone',solid:false});child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
+  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.9.1')return;}catch{}await delay(100);}throw Error('Test server did not start');
 });
 after(async()=>{
   await Promise.all(rooms.filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));
@@ -65,7 +66,7 @@ test('one shared lobby, logical room isolation, chat, authoritative input and re
   const own=a.state.players.get(a.sessionId),oldX=own.x;
   a.send('input',{space,epoch:own.epoch,steps:[{seq:1,dx:1,dy:0},{seq:2,dx:1,dy:0}]});await until(()=>b.state.players.get(a.sessionId).ack===2);assert.ok(b.state.players.get(a.sessionId).x>oldX);
   a.send('input',{space:'lobby',epoch:0,steps:[{seq:3,dx:1,dy:0}]});a.send('input',{space,epoch:own.epoch,steps:[{seq:3,dx:1e9,dy:0}]});await delay(150);assert.equal(a.state.players.get(a.sessionId).ack,2);
-  a.send('build',{col:12,row:21,material:'stone',solid:true});await until(()=>a.messages.notice.some(m=>m.action==='build'));assert.equal(a.state.tiles.size,0);
+  a.send('build',{col:12,row:21,material:'stone',solid:true});await until(()=>a.messages.notice.some(m=>m.action==='build'));assert.equal(a.state.tiles.has('12,21'),false);
   let reconnected=0;a.onReconnect(()=>reconnected++);const id=a.sessionId;a.connection.close(4010,'test interruption');await until(()=>reconnected===1,12000);await until(()=>b.state.players.get(id).connected);assert.equal(a.state.players.get(id).space,space);
   const token=b.reconnectionToken;b.reconnection.enabled=false;b.connection.close(4010,'page reload');await until(()=>!a.state.players.get(b.sessionId).connected);
   const recovered=listen(await new Client(endpoint).reconnect(token));await until(()=>recovered.state?.players?.has(b.sessionId));assert.equal(recovered.state.players.get(b.sessionId).space,space);await recovered.leave();
@@ -229,6 +230,24 @@ test('HTTP administration enforces role and origin, revokes live sessions, moder
     assert.equal((await api('recover',{username,recoveryCode:reset.recoveryCode,password:'New isolated recovered password!'},'')).status,200);
     const audit=await(await api('admin/audit')).json();assert.ok(audit.events.some(e=>e.action==='material-delete'));assert.ok(audit.events.some(e=>e.action==='protection'));
   }finally{if(target.connection.isOpen)await target.leave();}
+});
+
+test('legacy buildings are editable only by administrators and old artwork remains recoverable',async(t)=>{
+  if(!directory){t.skip('Requires isolated legacy fixtures');return;}
+  const ordinary=await enter('旧内容保护测试',true),admin=listen(await new Client(endpoint,{headers:{Cookie:adminCookie}}).joinOrCreate('courtyard',{clientVersion:9}));
+  await until(()=>admin.state?.players?.has(admin.sessionId));
+  const api=(path,body)=>fetch(endpoint+'/api/account/admin/'+path,{method:body===undefined?'GET':'POST',headers:{Cookie:adminCookie,Origin:'http://127.0.0.1:4173',...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
+  try{
+    for(const material of [null,'wood']){const count=ordinary.messages.notice.length;ordinary.send('build',{col:13,row:12,material,solid:false,admin:true});await until(()=>ordinary.messages.notice.length>count);assert.match(ordinary.messages.notice.at(-1).text,/仅管理员/);assert.equal(ordinary.state.tiles.get('13,12').material,'stone');await delay(150);}
+    admin.send('build',{col:13,row:12,material:'wood',solid:false});await until(()=>ordinary.state.tiles.get('13,12')?.material==='wood');assert.equal(ordinary.state.tiles.get('13,12').ownerId,adminId);
+    await delay(150);admin.send('build',{col:14,row:12,material:null});await until(()=>!ordinary.state.tiles.has('14,12'));
+    await delay(150);admin.send('build',{col:13,row:12,material:null});await until(()=>!ordinary.state.tiles.has('13,12'));
+    const data=await(await api('materials?userId=legacy')).json(),art=data.materials.find(m=>m.name==='未绑定旧画作');assert.ok(art);assert.ok(data.materials.every(m=>!m.ownerId));
+    ordinary.send('material:delete',{id:art.id});await until(()=>ordinary.messages.notice.some(n=>n.action==='library'));
+    assert.equal((await api('materials/action',{id:art.id,restore:false})).status,200);await until(()=>ordinary.messages['material:updated'].some(m=>m.id===art.id&&m.deletedAt));
+    assert.equal((await api('materials/action',{id:art.id,restore:true})).status,200);await until(()=>ordinary.messages['material:updated'].at(-1)?.id===art.id&&!ordinary.messages['material:updated'].at(-1)?.deletedAt);
+    assert.equal(ordinary.messages['build:saved'].length,0);const audit=await(await api('audit')).json();assert.ok(audit.events.some(e=>e.action==='legacy-demolish'&&e.note==='14,12'));assert.ok(audit.events.some(e=>e.action==='legacy-replace'&&e.note==='13,12'));
+  }finally{await Promise.all([ordinary,admin].filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));await delay(150);}
 });
 
 test('all 50 player slots share one lobby, keep exchanging input, and a 51st cannot fork another lobby',async()=>{

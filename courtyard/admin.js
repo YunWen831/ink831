@@ -1,7 +1,7 @@
-import {preview} from './art.js?v=0.9.0';
+import {preview} from './art.js?v=0.9.1';
 export function createAdmin({endpoint,user,notify}){
   const $=id=>document.getElementById(id);let users=[],epoch=0,selected=null,owner='',working=false,searchTimer=0;
-  const labels={ban:'封禁账号',unban:'解除封禁',logout:'强制下线',recovery:'重置登录',rename:'修改昵称',protection:'建筑权限','material-delete':'删除作品','material-restore':'恢复作品'};
+  const labels={ban:'封禁账号',unban:'解除封禁',logout:'强制下线',recovery:'重置登录',rename:'修改昵称',protection:'建筑权限','material-delete':'删除作品','material-restore':'恢复作品','legacy-demolish':'拆除旧建筑','legacy-replace':'覆盖旧建筑'};
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
   const button=(text,action)=>{const b=el('button',text,'secondary-button');b.type='button';b.addEventListener('click',action);return b;};
   async function request(path,body){
@@ -37,6 +37,7 @@ export function createAdmin({endpoint,user,notify}){
   }
   $('adminOpen').addEventListener('click',()=>{if(!user()?.admin)return;$('accountDialog').close();$('adminDialog').showModal();run(refresh);});
   $('adminRefresh').addEventListener('click',()=>run(refresh));$('adminSearch').addEventListener('input',()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>run(refresh),240);});$('adminAllMaterials').addEventListener('click',()=>openMaterials());
+  $('adminLegacyMaterials').addEventListener('click',()=>openMaterials('legacy','旧画布'));
   $('adminConfirmButton').addEventListener('click',()=>run(async()=>{
     if(!selected)return;const data=selected;$('adminConfirmButton').disabled=true;let result;
     try{

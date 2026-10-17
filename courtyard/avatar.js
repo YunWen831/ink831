@@ -1,6 +1,6 @@
-import {AVATAR_DIRECTIONS} from './avatar-data.js?v=0.9.0';
-import {pixelCanvas} from './avatar-render.js?v=0.9.0';
-export {createAvatarPainter} from './avatar-painter.js?v=0.9.0';
+import {AVATAR_DIRECTIONS} from './avatar-data.js?v=0.9.1';
+import {pixelCanvas} from './avatar-render.js?v=0.9.1';
+export {createAvatarPainter} from './avatar-painter.js?v=0.9.1';
 const images=new Map();
 export function avatarImage(data,direction='down',frame=0){
   if(!data?.frames)return null;const key=data.userId+':'+data.revision;let frames=images.get(key);
