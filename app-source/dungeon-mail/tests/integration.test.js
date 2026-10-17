@@ -18,14 +18,14 @@ async function until(check,timeout=8000){const start=Date.now();while(!check()){
 function listen(room){
   room.messages={};
   const originalSend=room.send.bind(room);room.send=(type,data)=>{if(['parkour:map','parkour:verify','parkour:invalidate'].includes(type))data={...data,documentId:data?.documentId??room.messages['parkour:workshop']?.at(-1)?.documentId};return originalSend(type,data);};
-  for(const type of ['party:private','party:state','emote','pong','content','spaces','chat','material','notice','build:saved','space:launch','chat:prune','parkour:workshop','parkour:run','parkour:status','parkour:state','parkour:verified','parkour:closed','avatar','material:updated','building:protection','levels:list','levels:saved','levels:deleted']){room.messages[type]=[];room.onMessage(type,data=>room.messages[type].push(data));}
+  for(const type of ['relay:state','relay:clock','mural:saved','party:private','party:state','emote','pong','content','spaces','chat','material','notice','build:saved','space:launch','chat:prune','parkour:workshop','parkour:run','parkour:status','parkour:state','parkour:verified','parkour:closed','avatar','material:updated','building:protection','levels:list','levels:saved','levels:deleted']){room.messages[type]=[];room.onMessage(type,data=>room.messages[type].push(data));}
   room.reconnection.minUptime=0;rooms.push(room);return room;
 }
 let accountIndex=0;
 async function enter(name,authenticated=false){
   let cookie='';
   if(authenticated){const response=await fetch(endpoint+'/api/account/register',{method:'POST',headers:{Origin:'http://127.0.0.1:4173','Content-Type':'application/json'},body:JSON.stringify({username:'test_'+(++accountIndex),nickname:name,password:'Integration test password!'})});assert.equal(response.status,200);cookie=response.headers.get('set-cookie').split(';')[0];}
-  const room=listen(await new Client(endpoint,{headers:cookie?{Cookie:cookie}:{}}).joinOrCreate('courtyard',{name,clientVersion:12}));room.testCookie=cookie;await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
+  const room=listen(await new Client(endpoint,{headers:cookie?{Cookie:cookie}:{}}).joinOrCreate('courtyard',{name,clientVersion:13}));room.testCookie=cookie;await until(()=>room.state?.players?.has(room.sessionId));room.send('hello');await until(()=>room.messages.content.length>0);return room;}
 async function walkTo(room,x,y){
   let seq=room.state.players.get(room.sessionId).ack;
   for(let batch=0;batch<100;batch++){
@@ -42,7 +42,7 @@ async function walkTo(room,x,y){
 }
 before(async()=>{
   if(!process.env.TEST_ENDPOINT){directory=await mkdtemp(join(tmpdir(),'dungeon-hall-'));const seed=await new AccountStore(directory).load(),admin=await seed.register({username:'ink',password:'Isolated administration test password!'});adminId=admin.user.id;adminCookie=COOKIE_NAME+'='+admin.token;await writeFile(join(directory,'admins.json'),JSON.stringify({version:1,ids:[adminId]}));const legacyWorld=await new WorldStore(directory).load();await legacyWorld.createMaterial('未绑定旧画作','ff9900ff'.repeat(256),'旧旅人');for(const col of [13,14])await legacyWorld.setTile({col,row:12,material:'stone',solid:false});child=spawn(process.execPath,['server.js'],{env:{...process.env,PORT:'2570',DATA_DIR:directory},stdio:['ignore','pipe','pipe']});child.stdout.on('data',()=>{});child.stderr.on('data',chunk=>process.stderr.write(chunk));}
-  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.12.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
+  for(let i=0;i<100;i++){try{if((await(await fetch(endpoint+'/health')).json()).version==='0.13.0')return;}catch{}await delay(100);}throw Error('Test server did not start');
 });
 after(async()=>{
   await Promise.all(rooms.filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));
@@ -52,7 +52,7 @@ after(async()=>{
 
 test('one shared lobby, logical room isolation, chat, authoritative input and reconnection',async()=>{
   const a=await enter('甲');
-  await assert.rejects(new Client(endpoint).create('courtyard',{clientVersion:12,name:'不能另开大厅'}));
+  await assert.rejects(new Client(endpoint).create('courtyard',{clientVersion:13,name:'不能另开大厅'}));
   const b=await enter('乙'),c=await enter('丙');
   assert.equal(a.roomId,b.roomId);assert.equal(b.roomId,c.roomId);
   await until(()=>a.state.players.size===3);assert.equal(a.state.players.get(a.sessionId).space,'lobby');
@@ -118,8 +118,8 @@ test('only the host can launch a ready party of two, three or four into private 
 
 test('HTTP origin restrictions and invalid transport-room IDs remain enforced',async()=>{
   assert.equal((await fetch(endpoint+'/health',{headers:{Origin:'https://unrelated.example'}})).status,403);
-  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({clientVersion:12,name:'not allowed'})})).status,403);
-  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{clientVersion:12,name:'不存在'}));
+  assert.equal((await fetch(endpoint+'/matchmake/joinOrCreate/courtyard',{method:'POST',headers:{Origin:'https://unrelated.example','Content-Type':'application/json'},body:JSON.stringify({clientVersion:13,name:'not allowed'})})).status,403);
+  await assert.rejects(new Client(endpoint).joinById('NOTAROOM',{clientVersion:13,name:'不存在'}));
   await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{name:'旧页面'}),/刷新/);
 });
 test('chunked 32 and 64 pixel materials cross real WebSockets without raising the 4096-byte input limit',async()=>{
@@ -177,7 +177,7 @@ test('real accounts enforce ownership over WebSockets, protect replacements, syn
     await delay(3100);const rig=rigTemplate('#709bbb'),parts=packRig(rig);a.send('avatar:begin',{length:RIG_LENGTH,format:'parts-v1',userId:own(b)});for(let i=0;i<parts.length;i+=3072)a.send('avatar:chunk',{index:i/3072,pixels:parts.slice(i,i+3072)});a.send('avatar:finish');await until(()=>b.messages.avatar.some(s=>s.userId===own(a)&&s.rig));assert.deepEqual(b.messages.avatar.find(s=>s.userId===own(a)&&s.rig).rig,rig);
     assert.equal((await api(a,'profile',{nickname:'改名后'})).status,200);await until(()=>b.state.players.get(a.sessionId).name==='改名后');assert.equal(b.state.players.get(a.sessionId).userId,art.ownerId);
     a.reconnection.enabled=false;const token=a.reconnectionToken;let left=false;a.onLeave(()=>left=true);assert.equal((await api(a,'logout',{})).status,200);a.send('ping',123);await until(()=>left);
-    await assert.rejects(new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{name:'冒用旧登录',clientVersion:12}));await assert.rejects(new Client(endpoint).reconnect(token));
+    await assert.rejects(new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{name:'冒用旧登录',clientVersion:13}));await assert.rejects(new Client(endpoint).reconnect(token));
     assert.equal((await fetch(endpoint+'/api/account/me',{headers:{Cookie:a.testCookie}}).then(r=>r.json())).user,null);
     assert.ok(b.state.players.get(b.sessionId).userId);
   }finally{await Promise.all([a,b,guest].filter(r=>r.connection.isOpen).map(r=>r.leave().catch(()=>{})));await delay(150);}
@@ -195,7 +195,7 @@ test('private account workshop saves across sessions, preserves server proofs, r
     await until(()=>a.messages['levels:saved'].some(m=>m.id===first.id&&m.verified),12000);clearInterval(timer);timer=null;const verified=a.messages['levels:saved'].at(-1);
     assert.equal(verified.version,2);a.send('parkour:edit');await until(()=>latest().cloudVersion===2);
     b.send('levels:open',{id:first.id});await until(()=>b.messages.notice.some(n=>n.action==='levels'));assert.equal(b.messages['parkour:workshop'].length,0);
-    second=listen(await new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{clientVersion:12}));await until(()=>second.state?.players?.has(second.sessionId));second.send('levels:open',{id:first.id});await until(()=>second.messages['parkour:workshop'].length>0);
+    second=listen(await new Client(endpoint,{headers:{Cookie:a.testCookie}}).joinOrCreate('courtyard',{clientVersion:13}));await until(()=>second.state?.players?.has(second.sessionId));second.send('levels:open',{id:first.id});await until(()=>second.messages['parkour:workshop'].length>0);
     const loaded=second.messages['parkour:workshop'].at(-1);assert.equal(loaded.verified,true);assert.equal(loaded.cells,verified.cells);
     const cells=Array.from(loaded.cells);cells[10*48+12]='1';second.send('parkour:map',{cells:cells.join('')});await until(()=>second.messages['parkour:workshop'].at(-1).revision>loaded.revision);
     const modified=second.messages['parkour:workshop'].at(-1);assert.equal(modified.verified,false);save(second,modified);await until(()=>second.messages['levels:saved'].length>0);assert.equal(second.messages['levels:saved'][0].version,3);
@@ -234,7 +234,7 @@ test('HTTP administration enforces role and origin, revokes live sessions, moder
 
 test('legacy buildings are editable only by administrators and old artwork remains recoverable',async(t)=>{
   if(!directory){t.skip('Requires isolated legacy fixtures');return;}
-  const ordinary=await enter('旧内容保护测试',true),admin=listen(await new Client(endpoint,{headers:{Cookie:adminCookie}}).joinOrCreate('courtyard',{clientVersion:12}));
+  const ordinary=await enter('旧内容保护测试',true),admin=listen(await new Client(endpoint,{headers:{Cookie:adminCookie}}).joinOrCreate('courtyard',{clientVersion:13}));
   await until(()=>admin.state?.players?.has(admin.sessionId));
   const api=(path,body)=>fetch(endpoint+'/api/account/admin/'+path,{method:body===undefined?'GET':'POST',headers:{Cookie:adminCookie,Origin:'http://127.0.0.1:4173',...(body===undefined?{}:{'Content-Type':'application/json'})},body:body===undefined?undefined:JSON.stringify(body)});
   try{
@@ -294,12 +294,38 @@ test('new game secrets are sent only to their owner, survive peeking and become 
   }finally{await Promise.all([a,b,outsider].filter(p=>p.connection.isOpen).map(p=>p.leave().catch(()=>{})));await delay(200);}
 });
 
+test('relay rooms deliver only assigned pages, survive refresh and reveal both complete books',async()=>{
+ const a=await enter('接龙甲'),b=await enter('接龙乙'),outsider=await enter('接龙旁观');let recovered;
+ const upload=async(p,request,value)=>{const text=JSON.stringify(value);p.send('relay:begin',{...request,length:text.length,submit:true});p.send('relay:chunk',{index:0,text});p.send('relay:finish');};
+ try{
+  a.send('space:create',{type:'party',mode:'relay'});await until(()=>a.state.players.get(a.sessionId).space!=='lobby');const space=a.state.players.get(a.sessionId).space;b.send('space:join',{id:space});await until(()=>b.state.players.get(b.sessionId).space===space);for(const p of [a,b])p.send('space:ready');await until(()=>a.messages.spaces.at(-1)?.find(s=>s.id===space)?.canStart);a.send('space:start');await until(()=>a.messages['relay:state'].length&&b.messages['relay:state'].length);
+  for(let step=0;step<4;step++){
+   const state=a.messages['relay:state'].at(-1),request={id:state.id,step,revision:1};assert.equal(state.step,step);assert.equal(state.books,undefined);
+   for(const p of [a,b])await upload(p,request,step%2?[['#ff0000',5,[2,2,40,40]]]:p.sessionId+'页'+step);
+   await until(()=>a.messages['relay:state'].at(-1)?.step===step+1);
+   if(step===0){assert.equal(a.messages['relay:state'].at(-1).previous[0].author,b.sessionId);b.reconnection.enabled=false;const token=b.reconnectionToken;b.connection.close(4010,'reload relay');await until(()=>!a.state.players.get(b.sessionId).connected);recovered=listen(await new Client(endpoint).reconnect(token));await until(()=>recovered.state?.players?.has(recovered.sessionId));recovered.send('hello');await until(()=>recovered.messages['relay:state'].length);assert.equal(recovered.messages['relay:state'][0].previous[0].author,a.sessionId);}
+   // Continue through the recovered socket, with the same server identity.
+   if(recovered&&step===0){b.send=recovered.send.bind(recovered);}
+   if(step<3)await delay(60);
+  }
+  const final=a.messages['relay:state'].at(-1);assert.equal(final.phase,'final');assert.equal(final.books.length,2);assert.ok(final.books.every(book=>book.pages.length===4));outsider.send('relay:peek');await delay(100);assert.equal(outsider.messages['relay:state'].length,0);
+ }finally{await Promise.all([a,b,outsider,recovered].filter(p=>p?.connection.isOpen).map(p=>p.leave().catch(()=>{})));await delay(200);}
+});
+
+test('regional art crosses bounded chunks and guests cannot write it',async()=>{
+ const a=await enter('区域画家',true),b=await enter('区域旁观');
+ const data={cols:2,rows:1,col:17,row:14,name:'区域测试',pixels:('abcdef12'.repeat(16)+'001122ff'.repeat(16)).repeat(16)},text=JSON.stringify(data);
+ const upload=p=>{p.send('mural:begin',{length:text.length});for(let i=0;i<text.length;i+=2000)p.send('mural:chunk',{index:i/2000,text:text.slice(i,i+2000)});p.send('mural:finish');};
+ try{upload(b);await until(()=>b.messages.notice.some(n=>n.action==='mural'));assert.equal(a.state.tiles.has('17,14'),false);upload(a);await until(()=>a.messages['mural:saved'].length);await until(()=>b.state.tiles.has('18,14'));assert.equal(b.state.tiles.get('17,14').solid,false);assert.equal(b.state.tiles.get('17,14').ownerId,a.state.players.get(a.sessionId).userId);assert.equal(a.messages['mural:saved'][0].count,2);upload(a);await until(()=>a.messages.notice.some(n=>n.action==='mural'&&n.text.includes('稍等')));assert.equal(a.messages['mural:saved'].length,1);}
+ finally{await Promise.all([a,b].map(p=>p.leave().catch(()=>{})));await delay(200);}
+});
+
 test('all 50 player slots share one lobby, keep exchanging input, and a 51st cannot fork another lobby',async()=>{
   const group=await Promise.all(Array.from({length:50},(_,i)=>enter('容量旅人'+i)));
   try{
     await until(()=>group.every(r=>r.state.players.size===50));
     assert.equal(new Set(group.map(r=>r.roomId)).size,1);
-    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{clientVersion:12,name:'第51位'}));
+    await assert.rejects(new Client(endpoint).joinOrCreate('courtyard',{clientVersion:13,name:'第51位'}));
     const sequences=group.map(()=>0);
     for(let frame=0;frame<40;frame++){
       for(let i=0;i<group.length;i++){

@@ -1,10 +1,10 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.12.0';
-import { RemoteMotion } from './motion.js?v=0.12.0';
-import { avatarImage } from './avatar.js?v=0.12.0';
-import {rigImage} from './avatar-render.js?v=0.12.0';
-import { texture } from './art.js?v=0.12.0';
-import { drawBubbles } from './bubbles.js?v=0.12.0';
-import { bubbleDuration } from './chat.js?v=0.12.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.13.0';
+import { RemoteMotion } from './motion.js?v=0.13.0';
+import { avatarImage } from './avatar.js?v=0.13.0';
+import {rigImage} from './avatar-render.js?v=0.13.0';
+import { texture } from './art.js?v=0.13.0';
+import { drawBubbles } from './bubbles.js?v=0.13.0';
+import { bubbleDuration } from './chat.js?v=0.13.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -73,6 +73,7 @@ export function createScene(canvas,getWorld){
         if(tile){const image=texture(world.materials.get(tile.material));if(image){if(tile.solid){ctx.fillStyle='#384c3628';ctx.fillRect(x+3,y+4,TILE_SIZE,TILE_SIZE);}ctx.drawImage(image,x,y,TILE_SIZE,TILE_SIZE);if(tile.solid){ctx.fillStyle='#182e2828';ctx.fillRect(x,y+TILE_SIZE-4,TILE_SIZE,4);ctx.strokeStyle='#ffffee5c';ctx.strokeRect(x+.5,y+.5,TILE_SIZE-1,TILE_SIZE-1);}}}
         if(building){ctx.strokeStyle='#5b7a442e';ctx.lineWidth=.5;ctx.strokeRect(x,y,TILE_SIZE,TILE_SIZE);}
       }
+      if(world.stamp?.hasPoint){const s=world.stamp;ctx.save();ctx.globalAlpha=.7;ctx.drawImage(s.canvas,s.col*TILE_SIZE,s.row*TILE_SIZE,s.cols*TILE_SIZE,s.rows*TILE_SIZE);ctx.globalAlpha=1;ctx.strokeStyle='#ffffff';ctx.lineWidth=3;ctx.strokeRect(s.col*TILE_SIZE,s.row*TILE_SIZE,s.cols*TILE_SIZE,s.rows*TILE_SIZE);ctx.restore();}
       for(const f of FACILITIES){
         const near=world.nearFacility===f.id;
         ctx.fillStyle=f.id==='parkour'?'#8cb8ab':f.id==='dungeon'?'#b7a3c5':'#d6b380';ctx.beginPath();ctx.ellipse(f.x,f.y-4,19,11,0,0,Math.PI*2);ctx.fill();

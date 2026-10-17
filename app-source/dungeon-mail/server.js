@@ -52,7 +52,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts,worldStore,notifyAdministration));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.12.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.13.0' }));
 const sourceRoot=fileURLToPath(new URL('../../',import.meta.url));
 app.get('/',(req,res)=>res.redirect('/courtyard/'));
 app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));

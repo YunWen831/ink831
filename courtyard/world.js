@@ -6,6 +6,7 @@ export const MAX_TILES = WORLD.width / TILE_SIZE * (WORLD.height / TILE_SIZE);
 export const PARTY = Object.freeze({ min: 2, max: 4 });
 export const FACILITIES = [
   { id: 'party', name: '小游戏派对', x: 283, y: 229, hint: '2～4 人，五轮轻松派对' },
+  { id: 'relay', name: '接龙小馆', x: 680, y: 229, hint: '绘画接龙 · 故事接龙' },
   { id: 'art', name: '方块画室', x: 480, y: 660, hint: '画一块材料，留在大家的庭院里' },
 ];
 export const tileKey = (col, row) => `${col},${row}`;

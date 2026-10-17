@@ -1,5 +1,5 @@
-import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.12.0';
-import { createColorPicker } from './color-picker.js?v=0.12.0';
+import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.13.0';
+import { createColorPicker } from './color-picker.js?v=0.13.0';
 
 const textures=new Map();
 export function texture(material){
@@ -98,6 +98,7 @@ export function createPainter(onSave){
       try{const saved=JSON.parse(localStorage.getItem('dungeon-mail-art-draft')||'null'),decoded=decodePixels(saved?.pixels);if(decoded){pixels=decoded;size=materialSize(saved.pixels);cursor=0;$('materialName').value=typeof saved.name==='string'?saved.name.slice(0,12):'';undo.length=0;}}catch{}
       $('paintMessage').textContent='';unlock();$('paintDialog').showModal();render();
     },
+    importPixels(value,name){const decoded=decodePixels(value);if(!decoded)return;remember();pixels=decoded;size=materialSize(value);cursor=0;$('materialName').value=name;render();draft();if(!$('paintDialog').open)$('paintDialog').showModal();unlock();},
     saved(){unlock();$('paintMessage').textContent='';$('paintDialog').close();},
     failed(message){unlock();$('paintMessage').textContent=message;},
   };

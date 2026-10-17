@@ -18,6 +18,8 @@ test('single games end after one round; final voting is bounded, replaceable and
   assert.equal(g.vote('outsider',{id:g.id,mode:'bump'}),false);assert.equal(g.vote('p0',{id:'old',mode:'bump'}),false);assert.equal(g.vote('p0',{id:g.id,mode:'unknown'}),false);
   g.vote('p0',{id:g.id,mode:'bump'});g.vote('p1',{id:g.id,mode:'delivery'});assert.equal(g.nextMode(),'delivery');g.vote('p2',{id:g.id,mode:'bump'});assert.equal(g.nextMode(),'bump');g.vote('p0',{id:g.id,mode:'rescue'});assert.equal(g.snapshot().voteCounts.bump,1);assert.equal(g.nextMode(),'delivery');absent='p1';assert.equal(g.snapshot().votes.length,2);assert.equal(g.nextMode(),'bump');
   assert.throws(()=>new PartyMatch(members.slice(0,2),{mode:'forged'}));
+  assert.throws(()=>new PartyMatch(members.slice(0,2),{mode:'relay'}));
+  assert.throws(()=>new PartyMatch(members.slice(0,2),{mode:'story'}));
 });
 test('moving bumpers arrive after a warning period and push without inventing a player knockout',()=>{
   const g=game('bump');start(g);assert.equal(g.bumpers.length,0);advance(g,8.2);assert.equal(g.bumpers.length,2);const b=g.bumpers[0],p=g.players[0];Object.assign(p,{x:b.x,y:b.y,shield:0});g.bumping();assert.ok(Math.hypot(p.x-b.x,p.y-b.y)>=39);assert.equal(g.players[1].value,0);assert.ok(g.snapshot().events.some(e=>e.kind==='hit'));

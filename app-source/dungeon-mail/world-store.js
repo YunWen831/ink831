@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { BUILTIN_MATERIALS, validPixels } from '../../courtyard/materials.js';
 import { isBuildCell, tileKey, MAX_TILES } from '../../courtyard/world.js';
+import {splitMural} from '../../courtyard/mural-rules.js';
 
 export const cleanText = (value, length) => typeof value === 'string' ? Array.from(value.replace(/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,length).join('') : '';
 const ownerId=value=>value===undefined||value===''||/^[a-f0-9-]{36}$/.test(value);
@@ -62,6 +63,20 @@ export class WorldStore {
     }
     data.tiles=data.tiles.filter(t=>tileKey(t.col,t.row)!==tileKey(tile.col,tile.row));
     if(tile.material)data.tiles.push(tile);return tile;
+  });}
+  importMural(input,actor,author,authorize){return this.transact(data=>{
+    authorize();if(!actor||!ownerId(actor)||!Number.isInteger(input.col)||!Number.isInteger(input.row))throw Error('请登录后放置。');
+    const parts=splitMural(input),materials=[],tiles=[];
+    for(const part of parts){
+      const col=input.col+part.x,row=input.row+part.y;if(!isBuildCell(col,row))throw Error('区域超出地图边界。');
+      const old=data.tiles.find(t=>t.col===col&&t.row===row);
+      if(old&&(!old.ownerId?!authorize(true):old.ownerId!==actor&&data.protection?.[old.ownerId]!==true))throw Error('区域内有未开放拆除的建筑，请换个位置。');
+      let material=[...data.materials,...materials].find(m=>!m.deletedAt&&m.pixels===part.pixels);
+      if(!material){material={id:randomUUID(),name:cleanText(input.name,8)||'像素画',pixels:part.pixels,author:cleanText(author,12),ownerId:actor};materials.push(material);}
+      tiles.push({col,row,material:material.id,solid:false,ownerId:actor});
+    }
+    if(data.materials.filter(m=>!m.deletedAt).length+materials.length>128||data.materials.length+materials.length>512)throw Error('材料库空间不足，请先删除不用的画布或缩小图片。');
+    const keys=new Set(tiles.map(t=>tileKey(t.col,t.row)));data.tiles=data.tiles.filter(t=>!keys.has(tileKey(t.col,t.row)));data.tiles.push(...tiles);data.materials.push(...materials);return {materials,tiles};
   });}
   protect(owner,allow,authorize=null){return this.transact(data=>{authorize?.();if(!owner||!ownerId(owner)||typeof allow!=='boolean')throw new Error('无效的建筑设置。');data.protection={...data.protection,[owner]:allow};return allow;});}
   deleteMaterial(id,owner,restore=false,authorizeAdmin=null){return this.transact(data=>{

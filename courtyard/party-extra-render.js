@@ -1,5 +1,5 @@
-import {FLOOR_TYPES,POWERS,BUTTON_EFFECTS} from './party-rules.js?v=0.12.0';
-import {rigImage} from './avatar-render.js?v=0.12.0';
+import {FLOOR_TYPES,POWERS,BUTTON_EFFECTS} from './party-rules.js?v=0.13.0';
+import {rigImage} from './avatar-render.js?v=0.13.0';
 export function drawExtra(ctx,state,now,{rect,circle,text,self}){
   const e=state.extra;if(!e)return;
   if(['floor','remote'].includes(state.game)){

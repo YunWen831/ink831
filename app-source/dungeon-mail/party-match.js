@@ -6,7 +6,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),distance=(a,b)=>Math.hypot(a.x-b.
 export class PartyMatch{
   constructor(members,{send=()=>{},connected=()=>true,host=()=>members[0]?.id,random=Math.random,schedule=null,mode='random'}={}){
     if(members.length<2||members.length>4||new Set(members.map(p=>p.id)).size!==members.length)throw Error('需要 2～4 位玩家');
-    if(!validPartyMode(mode))throw Error('无效的小游戏');
+    if(!validPartyMode(mode)||(mode!=='random'&&!Object.hasOwn(PARTY_GAMES,mode)))throw Error('无效的小游戏');
     this.id=randomUUID();this.send=send;this.connected=connected;this.host=host;this.random=random;this.mode=mode;this.schedule=schedule||(mode==='random'?partySchedule(random):[mode]);this.roundCount=this.schedule.length;this.votes=new Map();this.events=[];this.eventSeq=0;this.round=0;this.phase='intro';this.left=5;this.time=0;this.last=performance.now();this.broadcastAt=0;this.pause=0;this.reason='';this.history=[];
     this.players=members.map((p,i)=>({...p,index:i,total:0,points:0,value:0,x:0,y:0,vx:0,vy:0,seq:0,cool:0,shield:0,out:0,input:{x:0,y:0,at:-10},carry:null,boards:2}));this.setup();
   }
