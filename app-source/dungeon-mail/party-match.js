@@ -1,0 +1,93 @@
+import {randomUUID} from 'node:crypto';
+import {PARTY_GAMES,PARTY_BASES,PARTY_ROUNDS,roundPoints,partySchedule} from '../../courtyard/party-rules.js';
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+export class PartyMatch{
+  constructor(members,{send=()=>{},connected=()=>true,random=Math.random,schedule=null}={}){
+    if(members.length<2||members.length>4||new Set(members.map(p=>p.id)).size!==members.length)throw Error('需要 2～4 位玩家');
+    this.id=randomUUID();this.send=send;this.connected=connected;this.random=random;this.schedule=schedule||partySchedule(random);this.round=0;this.phase='intro';this.left=5;this.time=0;this.last=performance.now();this.broadcastAt=0;this.pause=0;this.reason='';this.history=[];
+    this.players=members.map((p,i)=>({...p,index:i,total:0,points:0,value:0,x:0,y:0,vx:0,vy:0,seq:0,cool:0,shield:0,out:0,input:{x:0,y:0,at:-10},carry:null,boards:2}));this.setup();
+  }
+  get game(){return this.schedule[this.round];}
+  setup(){
+    this.items=[];this.leaks=[];this.water=8;this.spawnAt=0;this.turn=0;this.minePot=0;this.mineEvent='大家上车！';this.reason='';this.radius=235;
+    for(const p of this.players){const a=p.index*Math.PI*2/this.players.length;p.x=this.game==='delivery'?PARTY_BASES[p.index].x:480+Math.cos(a)*130;p.y=this.game==='delivery'?PARTY_BASES[p.index].y:300+Math.sin(a)*130;Object.assign(p,{vx:0,vy:0,value:0,points:0,cool:0,out:0,shield:1.5,carry:null,boards:2,cashed:false,choice:'',bank:0,hit:null,input:{x:0,y:0,at:-10}});}
+    if(this.game==='delivery')for(let i=0;i<7;i++)this.package();
+    if(this.game==='rescue')this.leak();
+  }
+  package(x=360+this.random()*240,y=215+this.random()*170,value=1+Math.floor(this.random()*3)){this.items.push({id:randomUUID(),x,y,value});}
+  leak(){if(this.leaks.length>=8)return;const cells=Array.from({length:12},(_,i)=>({x:170+i%4*205,y:135+Math.floor(i/4)*120})).filter(cell=>this.leaks.every(l=>distance(cell,l)>65));if(!cells.length)return;const cell=cells[Math.floor(this.random()*cells.length)];this.leaks.push({id:randomUUID(),...cell,progress:0});}
+  input(id,data){
+    const p=this.players.find(p=>p.id===id);if(!p||!this.connected(id)||this.phase!=='playing'||this.pause||data?.id!==this.id||data.round!==this.round||!Number.isSafeInteger(data.seq)||data.seq<=p.seq||data.seq>p.seq+10000||!Number.isFinite(data.x)||!Number.isFinite(data.y)||Math.abs(data.x)>1||Math.abs(data.y)>1)return false;
+    p.seq=data.seq;
+    if(this.game==='mine'){if(!p.cashed&&!p.choice&&['dig','cash'].includes(data.choice))p.choice=data.choice;return true;}
+    const norm=Math.max(1,Math.hypot(data.x,data.y));p.input={x:data.x/norm,y:data.y/norm,action:data.action===true,at:this.time};return true;
+  }
+  tick(dt){
+    const now=performance.now();dt=dt===undefined?clamp((now-this.last)/1000,0,.1):clamp(dt,0,.1);this.last=now;if(this.phase==='final')return;
+    const online=this.players.filter(p=>this.connected(p.id)).length;
+    if(online<2){this.pause+=dt;if(this.pause>=15){this.phase='final';this.left=0;this.reason='在线不足两人，本场提前结束。';this.publish();}else if(now-this.broadcastAt>=150)this.publish();return;}
+    if(this.pause){this.pause=0;for(const p of this.players)p.input={x:0,y:0,at:-10};}
+    const previousPhase=this.phase;this.time+=dt;this.left-=dt;
+    if(this.phase==='intro'&&this.left<=0){this.phase='playing';this.left=PARTY_GAMES[this.game].seconds;this.roundStarted=this.time;this.spawnAt=this.time+4;}
+    else if(this.phase==='playing'){
+      if(this.game==='mine')this.mining();else{this.movement(dt);if(this.game==='bump')this.bumping();if(this.game==='delivery')this.deliveries();if(this.game==='rescue')this.repair(dt);}
+      if(this.left<=0&&this.phase==='playing')this.finishRound();
+    }else if(this.phase==='results'&&this.left<=0){if(this.round===PARTY_ROUNDS-1){this.phase='final';this.left=0;}else{this.round++;this.phase='intro';this.left=5;this.setup();}}
+    if(previousPhase!==this.phase||now-this.broadcastAt>=100)this.publish();
+  }
+  movement(dt){
+    for(const p of this.players){p.cool=Math.max(0,p.cool-dt);p.shield=Math.max(0,p.shield-dt);if(p.out>0){p.out-=dt;if(p.out<=0){const a=p.index*Math.PI*2/this.players.length;p.x=480+Math.cos(a)*120;p.y=300+Math.sin(a)*120;p.vx=p.vy=0;p.shield=1.5;p.hit=null;}continue;}
+      const input=this.connected(p.id)&&this.time-p.input.at<.3?p.input:{x:0,y:0,action:false};p.pressed=!!input.action&&!p.acting;p.acting=!!input.action;
+      if(this.game==='bump'){
+        p.vx=(p.vx+input.x*750*dt)*Math.exp(-2.5*dt);p.vy=(p.vy+input.y*750*dt)*Math.exp(-2.5*dt);
+        if(input.action&&p.cool<=0){const n=Math.hypot(input.x,input.y)||Math.hypot(p.vx,p.vy)||1,dx=input.x||(!input.y?p.vx:0),dy=input.y||(!input.x?p.vy:0);p.vx+=dx/n*330;p.vy+=dy/n*330;p.cool=1.15;}
+        const n=Math.hypot(p.vx,p.vy);if(n>520){p.vx*=520/n;p.vy*=520/n;}p.x+=p.vx*dt;p.y+=p.vy*dt;
+      }else{const speed=p.carry?170:220;p.vx=input.x*speed;p.vy=input.y*speed;p.x=clamp(p.x+p.vx*dt,35,925);p.y=clamp(p.y+p.vy*dt,45,555);}
+    }
+  }
+  bumping(){
+    for(let i=0;i<this.players.length;i++)for(let j=i+1;j<this.players.length;j++){
+      const a=this.players[i],b=this.players[j];if(a.out>0||b.out>0||a.shield||b.shield)continue;let d=distance(a,b);if(d>=32)continue;const nx=d?(a.x-b.x)/d:1,ny=d?(a.y-b.y)/d:0;d=Math.max(d,1);const push=(32-d)/2;a.x+=nx*push;a.y+=ny*push;b.x-=nx*push;b.y-=ny*push;
+      const closing=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(closing>0){const force=Math.min(460,closing*.9+50);a.vx+=nx*force;a.vy+=ny*force;b.vx-=nx*force;b.vy-=ny*force;a.hit={id:b.id,at:this.time};b.hit={id:a.id,at:this.time};}
+    }
+    this.radius=235-Math.min(25,(this.time-this.roundStarted)*.4);
+    for(const p of this.players)if(p.out<=0&&Math.hypot(p.x-480,p.y-300)>this.radius+14){if(p.hit&&this.time-p.hit.at<3){const hitter=this.players.find(q=>q.id===p.hit.id);if(hitter)hitter.value++;}p.out=2;p.vx=p.vy=0;}
+  }
+  deliveries(){
+    for(const p of this.players){if(p.carry&&distance(p,PARTY_BASES[p.index])<62){p.value+=p.carry.value;p.carry=null;}
+      if(!p.pressed||p.cool>0)continue;p.cool=.25;
+      if(p.carry){this.package(p.x,p.y,p.carry.value);p.carry=null;continue;}
+      const item=this.items.filter(i=>distance(p,i)<48).sort((a,b)=>distance(p,a)-distance(p,b))[0];
+      if(item){p.carry=item;this.items=this.items.filter(i=>i!==item);continue;}
+      const other=this.players.find(q=>q!==p&&q.carry&&distance(p,q)<45);if(other){this.package(other.x,other.y,other.carry.value);other.carry=null;}
+    }
+    if(this.time>=this.spawnAt&&this.items.length<8){this.package();this.spawnAt=this.time+2.5;}
+  }
+  repair(dt){
+    for(const p of this.players){if(distance(p,{x:300,y:520})<65)p.boards=2;
+      if(!p.acting)continue;
+      if(distance(p,{x:650,y:520})<65&&p.cool<=0){this.water=Math.max(0,this.water-9);p.cool=.8;p.value++;}
+      const leak=this.leaks.find(l=>distance(p,l)<58);if(leak&&p.boards>0){leak.progress+=dt;if(leak.progress>=1.4){this.leaks=this.leaks.filter(l=>l!==leak);p.boards--;p.value+=3;}}
+    }
+    if(this.time>=this.spawnAt){this.leak();this.spawnAt=this.time+5;}
+    this.water=clamp(this.water+this.leaks.length*.9*dt,0,100);if(this.water>=100){this.left=0;this.reason='水漫过屋顶，下一次再一起救回来。';}
+  }
+  mining(){
+    if(this.players.every(p=>p.cashed)){this.finishRound();return;}
+    const elapsed=this.time-this.roundStarted;if(elapsed<(this.turn+1)*5)return;
+    const active=this.players.filter(p=>!p.cashed);for(const p of active)if(p.choice==='cash'){p.bank+=this.minePot;p.value=p.bank;p.cashed=true;}
+    const remaining=active.filter(p=>!p.cashed);this.turn++;
+    if(!remaining.length){this.mineEvent='全部安全回家';this.finishRound();return;}
+    if(this.turn>2&&this.random()<.12+(this.turn-3)*.09){this.mineEvent='塌方！未存金币掉了';for(const p of remaining){p.cashed=true;p.value=p.bank;}this.finishRound();return;}
+    const amount=3+Math.floor(this.random()*6);this.minePot+=amount;this.mineEvent='发现 '+amount+' 枚金币';
+    for(const p of remaining)p.choice='';if(this.turn>=7){for(const p of remaining){p.bank+=this.minePot;p.value=p.bank;p.cashed=true;}this.mineEvent='终点站，全部结算';this.finishRound();}
+  }
+  finishRound(){
+    if(this.phase!=='playing')return;
+    const points=this.game==='rescue'?this.players.map(()=>this.water<100?10:4):roundPoints(this.players.map(p=>p.value));
+    this.players.forEach((p,i)=>{p.points=points[i];p.total+=p.points;p.input={x:0,y:0,at:-10};});
+    this.history.push({game:this.game,points:[...points],values:this.players.map(p=>p.value)});this.phase='results';this.left=7;this.publish();
+  }
+  snapshot(){return {id:this.id,round:this.round,game:this.game,phase:this.phase,left:Math.max(0,this.left),paused:this.pause>0,pauseLeft:Math.max(0,15-this.pause),reason:this.reason,players:this.players.map(({id,name,color,index,total,points,value,x,y,vx,vy,cool,shield,out,carry,boards,cashed,seq})=>({id,name,color,index,total,points,value,ack:seq,x:Math.round(x*10)/10,y:Math.round(y*10)/10,vx,vy,cool,shield,out,carry:carry?{value:carry.value}:null,boards,cashed,connected:this.connected(id)})),items:this.items,leaks:this.leaks,water:this.water,radius:this.radius||235,turn:this.turn,pot:this.minePot,mineEvent:this.mineEvent,history:this.history};}
+  publish(){this.broadcastAt=performance.now();this.send('party:state',this.snapshot());}
+}

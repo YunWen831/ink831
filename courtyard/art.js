@@ -1,5 +1,5 @@
-import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.9.1';
-import { createColorPicker } from './color-picker.js?v=0.9.1';
+import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.10.0';
+import { createColorPicker } from './color-picker.js?v=0.10.0';
 
 const textures=new Map();
 export function texture(material){

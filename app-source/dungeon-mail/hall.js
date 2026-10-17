@@ -1,3 +1,4 @@
+import {PartyMatch} from './party-match.js';
 import { randomInt, randomUUID } from 'node:crypto';
 import { resolve } from 'node:path';
 import { Room } from '@colyseus/core';
@@ -47,6 +48,7 @@ export class Courtyard extends Room {
   reserved=new Set();
   ownsLobby=false;
   matches=new Map();
+  partyMatches=new Map();
   soloWorkshops=new Map();
 
   onCreate(){
@@ -67,13 +69,13 @@ export class Courtyard extends Room {
     },1000).unref();
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
-    this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values()])match.tick();},1000/60).unref();
+    this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values(),...this.partyMatches.values()])match.tick();},1000/60).unref();
     for(const tile of worldStore.data.tiles){const key=tileKey(tile.col,tile.row);this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
     this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
     this.onMessage('input',(client,data)=>{
       const player=this.state.players.get(client.sessionId);
-      if(this.matches.has(player?.space)||this.soloWorkshops.has(client.sessionId))return;
+      if(this.partyMatches.has(player?.space)||this.matches.has(player?.space)||this.soloWorkshops.has(client.sessionId))return;
       if(!player?.connected||data?.space!==player.space||data.epoch!==player.epoch||!Array.isArray(data.steps)||data.steps.length>6)return;
       const now=performance.now(),user=client.userData;
       user.credit=Math.min(400,user.credit+now-user.creditAt);user.creditAt=now;
@@ -96,13 +98,14 @@ export class Courtyard extends Room {
       this.chatHistory.add(player.space,message);
       this.sendSpace(player.space,'chat',message);
     });
+    this.onMessage('party:input',(client,data)=>this.partyMatches.get(this.state.players.get(client.sessionId)?.space)?.input(client.sessionId,data));
     this.onMessage('spaces:list',client=>client.send('spaces',this.roomList()));
     this.onMessage('space:create',(client,data)=>{
       const player=this.state.players.get(client.sessionId);
-      if(!player||player.space!=='lobby'||!['parkour','dungeon'].includes(data?.type))return;
+      if(!player||player.space!=='lobby'||!['party','parkour','dungeon'].includes(data?.type))return;
       if(!this.allow(client,'space',1200)){this.notice(client,'动作太快了，稍等一下再开房间。','space');return;}
       if(this.spaces.size>=12){this.notice(client,'准备房间已满，请加入已有房间。','space');return;}
-      const title=cleanText(data.title,18)||`${player.name}的${data.type==='parkour'?'跑酷':'地牢'}小队`;
+      const title=cleanText(data.title,18)||`${player.name}的${data.type==='party'?'派对':data.type==='parkour'?'跑酷':'地牢'}小队`;
       let id;do{id=Array.from({length:6},()=>alphabet[randomInt(alphabet.length)]).join('');}while(this.spaces.has(id));
       this.spaces.set(id,{id,title,type:data.type,capacity:PARTY.max,minPlayers:PARTY.min,phase:'forming',host:client.sessionId});this.transfer(client,id);
     });
@@ -118,12 +121,19 @@ export class Courtyard extends Room {
     this.onMessage('home',client=>{const player=this.state.players.get(client.sessionId);if(player?.space==='lobby'&&this.allow(client,'home',3000)){Object.assign(player,spawn(0,this.collisionTiles));player.epoch++;}});
     this.onMessage('space:ready',client=>{
       const player=this.state.players.get(client.sessionId);if(!player||player.space==='lobby')return;
-      if(this.matches.has(player.space))return;
+      if(this.matches.has(player.space)||this.partyMatches.has(player.space))return;
       player.ready=!player.ready;const space=this.spaces.get(player.space);if(space)space.phase='forming';this.broadcastRooms();
     });
     this.onMessage('space:start',client=>{
       const player=this.state.players.get(client.sessionId),space=this.spaces.get(player?.space);
       if(!space||space.host!==client.sessionId){this.notice(client,'由房主开始。','space');return;}
+      if(space.type==='party'){
+        const previous=this.partyMatches.get(space.id),members=this.members(space.id);
+        if(previous&&previous.phase!=='final')return;
+        if(members.length<2||members.length>4||members.some(([,p])=>!p.connected)||(!previous&&members.some(([,p])=>!p.ready))){this.notice(client,'需要 2～4 人在线并全部准备。','space');return;}
+        const party=new PartyMatch(members.map(([id,p])=>({id,name:p.name,color:p.color})),{send:(type,data)=>{this.sendSpace(space.id,type,data);if(space.phase!==data.phase){space.phase=data.phase;this.broadcastRooms();}},connected:id=>{const p=this.state.players.get(id);return !!p?.connected&&p.space===space.id;}});
+        this.partyMatches.set(space.id,party);space.phase='party';this.sendSpace(space.id,'space:launch',{});party.publish();this.broadcastRooms();return;
+      }
       const match=this.matches.get(space.id);
       if(match){if(!match.launch(id=>this.state.players.get(id)?.connected))this.notice(client,'需要 2～4 人在线，并各自通关自己的地图。','space');else this.sendSpace(space.id,'space:launch',{id:space.id,type:space.type,phase:match.phase});this.broadcastRooms();return;}
       if(!partyStatus(this.members(space.id).map(([,p])=>p),space.phase).canStart){this.notice(client,'需要 2～4 人在线并全部准备。','space');return;}
@@ -257,11 +267,12 @@ export class Courtyard extends Room {
   notice(client,text,action=''){client.send('notice',{text,action});}
   members(space){return [...this.state.players.entries()].filter(([,p])=>p.space===space);}
   sendSpace(space,type,message){for(const client of this.clients)if(this.state.players.get(client.sessionId)?.space===space)client.send(type,message);}
-  roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {})};});}
+  roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);const party=this.partyMatches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {}),...(party?{phase:party.phase,canStart:party.phase==='final'&&this.members(space.id).length>=2&&this.members(space.id).every(([,p])=>p.connected)}:{})};});}
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
   async content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
     client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),space:player.space,account:publicUser(accounts.data.users.find(u=>u.id===client.userData.accountId)),allowDemolition:worldStore.data.protection?.[client.userData.accountId]===true});
+    const party=this.partyMatches.get(player.space);if(party)client.send('party:state',party.snapshot());
     for(const id of new Set([...this.state.players.values()].map(p=>p.userId).filter(Boolean))){try{const avatar=await avatars.get(id);if(avatar)client.send('avatar',avatar);}catch{this.notice(client,'一件人物贴图读取失败，请联系站长。');}}
   }
   transfer(client,destination){
@@ -275,10 +286,10 @@ export class Courtyard extends Room {
     if(id==='lobby')return;
     const members=this.members(id),space=this.spaces.get(id);
     const match=this.matches.get(id);if(match)for(const key of match.drafts.keys())if(!members.some(([id])=>id===key))match.remove(key);
-    if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);this.matches.delete(id);}
+    if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);this.matches.delete(id);this.partyMatches.delete(id);}
     else if(space){
       if(!members.some(([key])=>key===space.host))space.host=members[0][0];
-      if(!match){space.phase='forming';for(const [,member] of members)member.ready=false;}
+      if(!match&&!this.partyMatches.has(id)){space.phase='forming';for(const [,member] of members)member.ready=false;}
     }
   }
   async build(client,data){
@@ -311,7 +322,7 @@ export class Courtyard extends Room {
     }finally{this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==9)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==10)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');

@@ -1,14 +1,15 @@
-import {createAdmin} from './admin.js?v=0.9.1';
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.9.1';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.9.1';
-import { createScene } from './scene.js?v=0.9.1';
-import { createPainter, preview } from './art.js?v=0.9.1';
-import { createPractice } from './parkour-game.js?v=0.9.1';
-import { createEditor } from './parkour-editor.js?v=0.9.1';
-import { bubbleDuration } from './chat.js?v=0.9.1';
-import { createAccounts } from './account.js?v=0.9.1';
-import { createAvatarPainter } from './avatar.js?v=0.9.1';
-import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.9.1';
+import {createPartyGame} from './party-game.js?v=0.10.0';
+import {createAdmin} from './admin.js?v=0.10.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.10.0';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.10.0';
+import { createScene } from './scene.js?v=0.10.0';
+import { createPainter, preview } from './art.js?v=0.10.0';
+import { createPractice } from './parkour-game.js?v=0.10.0';
+import { createEditor } from './parkour-editor.js?v=0.10.0';
+import { bubbleDuration } from './chat.js?v=0.10.0';
+import { createAccounts } from './account.js?v=0.10.0';
+import { createAvatarPainter } from './avatar.js?v=0.10.0';
+import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.10.0';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
@@ -18,7 +19,7 @@ const avatars=new Map();let accountUser=null,adminUI=null,libraryMode='all',dele
 const ownUserId=()=>players.get(room?.sessionId)?.userId||'';
 const store={get(key,session=false){try{return (session?sessionStorage:localStorage).getItem(key);}catch{return null;}},set(key,value,session=false){try{(session?sessionStorage:localStorage).setItem(key,value);}catch{}},remove(key){try{sessionStorage.removeItem(key);}catch{}}};
 const params=new URLSearchParams(location.search);
-let room=null,endpoint='',ready=false,busy=false,online=false,space='lobby',epoch=0,spaces=[],facilityMode='parkour',spaceBusy=false;
+let room=null,endpoint='',ready=false,busy=false,online=false,space='lobby',epoch=0,spaces=[],facilityMode='party',spaceBusy=false;
 let predicted=null,pending=[],outgoing=[],seq=0,resetPrediction=true,reconnects=0,lastPong=0,latency=null;
 let joystick={x:0,y:0},rosterSignature='',toastTimer=0,checkTask=null,tool='walk',hover=null,nearFacility=null,invitationShown=false;
 let selectedId=store.get('dungeon-mail-material')||'stone',lastChat=-Infinity,spaceUiSignature='';
@@ -50,7 +51,7 @@ function roster(){
     if(p.connected)count++;
     const li=document.createElement('li'),color=document.createElement('span'),name=document.createElement('span'),badge=document.createElement('span');
     color.className='player-color';color.style.backgroundColor=p.color;name.textContent=p.name;badge.className='player-badge';
-    const progress=matchStatus?.players.find(item=>item.id===id);badge.textContent=!p.connected?'重连中':progress?matchStatus.phase==='building'?(progress.verified?'已验证':progress.testing?`试跑 ${progress.progress||0}%`:'编辑中'):(matchStatus.results.some(r=>r.id===id)?'已抵达':'竞速中'):p.ready?'已准备':id===room?.sessionId?'你':'在线';li.append(color,name,badge);$('playerList').append(li);
+    const progress=matchStatus?.players.find(item=>item.id===id);badge.textContent=!p.connected?'重连中':partyGame.active?'派对中':progress?matchStatus.phase==='building'?(progress.verified?'已验证':progress.testing?`试跑 ${progress.progress||0}%`:'编辑中'):(matchStatus.results.some(r=>r.id===id)?'已抵达':'竞速中'):p.ready?'已准备':id===room?.sessionId?'你':'在线';li.append(color,name,badge);$('playerList').append(li);
   }
   $('rosterCount').textContent=`${players.size} / ${space==='lobby'?50:4}`;$('worldCount').textContent=`${count} 人`;
 }
@@ -59,7 +60,7 @@ function updateSpaceUI(){
   const signature=JSON.stringify([space,info?.title,info?.type,info?.phase,info?.canStart,info?.host,info?.count,info?.ready,info?.verified,matchStatus,players.get(room?.sessionId)?.ready,!!room,online,spaceBusy]);
   if(signature===spaceUiSignature)return;spaceUiSignature=signature;
   $('spaceTitle').textContent=inLobby?'大厅':info?.title||'小队';
-  $('spaceBadge').textContent=inLobby?'':info?.type==='dungeon'?'地牢':'跑酷';
+  $('spaceBadge').textContent=inLobby?'':info?.type==='party'?'派对':info?.type==='dungeon'?'地牢':'跑酷';
   $('roomCard').hidden=inLobby;$('roomsButton').hidden=!inLobby;
   $('homeButton').hidden=!inLobby;
   $('roomTitle').textContent=info?.title||'小队准备庭院';$('roomCode').textContent=inLobby?'':space;
@@ -73,6 +74,7 @@ function updateSpaceUI(){
   $('resetPartyButton').hidden=!matchStatus||!['building','results'].includes(matchStatus.phase)||info?.host!==room?.sessionId;
   $('resetPartyButton').textContent=matchStatus?.phase==='results'?'编辑下一轮':'返回准备';
   $('startButton').title=matchStatus?'每位玩家亲自验证地图后，由房主开始':'2～4 人全部准备后由房主开始';
+  if(info?.type==='party'&&info?.phase!=='forming'){$('roomDescription').textContent=info.phase==='final'?'本场结束':'五轮派对进行中';$('readyButton').hidden=true;$('startButton').hidden=true;}else $('startButton').hidden=false;
   $('chatTitle').textContent=inLobby?'聊天':'小队聊天';
   const url=new URL(location.href);if(inLobby)url.searchParams.delete('room');else url.searchParams.set('room',space);if(url.href!==location.href)history.replaceState(null,'',url);
   controls();
@@ -83,7 +85,7 @@ function applyState(state){
   const changed=space!==own.space||epoch!==own.epoch,previousSpace=space;
   if(resetPrediction||changed){
     space=own.space;epoch=own.epoch;seq=own.ack;pending=[];outgoing=[];resetPrediction=false;resetInput();
-    if(changed){if(previousSpace!==space){localMapDirty=false;if(matchStatus){matchStatus=null;if(practicing)leavePractice();}}spaceBusy=false;setTool('walk');hover=null;speech.clear();emotes.clear();$('spacesDialog').close();if(previousSpace!==space){if(previousSpace!=='lobby')histories.delete(previousSpace);renderChat();}}
+    if(changed){if(previousSpace!==space){if(partyGame.active)partyGame.stop();localMapDirty=false;if(matchStatus){matchStatus=null;if(practicing)leavePractice();}}spaceBusy=false;setTool('walk');hover=null;speech.clear();emotes.clear();$('spacesDialog').close();if(previousSpace!==space){if(previousSpace!=='lobby')histories.delete(previousSpace);renderChat();}}
   }
   tiles.clear();state.tiles?.forEach((b,key)=>tiles.set(key,{col:b.col,row:b.row,material:b.material,solid:b.solid,ownerId:b.ownerId}));
   players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready,userId:p.userId});});
@@ -145,7 +147,7 @@ function renderRooms(){
 function openFacility(id){
   if(!room||!online||space!=='lobby')return;resetInput();
   if(id==='art'){openPaint();return;}
-  facilityMode=id;$('practiceEntry').hidden=id!=='parkour';$('levelLibraryButton').hidden=id!=='parkour';$('facilityTitle').textContent=id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent=id==='parkour'?'2～4 人 · 造图与竞速':'2～4 人 · 对局待开放';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
+  facilityMode=id;$('practiceEntry').hidden=id!=='parkour';$('levelLibraryButton').hidden=id!=='parkour';$('facilityTitle').textContent=id==='party'?'小游戏派对':id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent=id==='party'?'2～4 人 · 四种小游戏 · 五轮计分':id==='parkour'?'2～4 人 · 造图与竞速':'2～4 人';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
 }
 function confirmLevel(title,text,action){levelConfirmAction=action;$('levelConfirmTitle').textContent=title;$('levelConfirmText').textContent=text;$('levelConfirmDialog').showModal();}
 function beforeReplace(action){if(editor.hasUnsaved)confirmLevel('离开当前地图？','还有未保存到账号的更改。本机草稿会保留，也可以取消后先保存。',action);else action();}
@@ -171,6 +173,7 @@ function attach(joined){
   joined.onStateChange(state=>{if(room===joined)applyState(state);});
   joined.onMessage('pong',stamp=>{if(room!==joined||typeof stamp!=='number')return;latency=Math.round(performance.now()-stamp);lastPong=performance.now();$('latency').replaceChildren(document.createTextNode(String(latency)),Object.assign(document.createElement('small'),{textContent:' ms'}));if(online)status('online','已连接',latency>300?'网络较慢':'');});
   joined.onMessage('space:launch',()=>{if(room===joined){spaceBusy=false;controls();updateSpaceUI();}});
+  joined.onMessage('party:state',data=>{if(room!==joined)return;spaceBusy=false;partyGame.receive(data,spaces.find(s=>s.id===space)?.host===room.sessionId&&spaces.find(s=>s.id===space)?.canStart);controls();});
   joined.onMessage('parkour:workshop',data=>{if(room!==joined)return;if(data.verified)localMapDirty=false;if(levelOpening&&(levelOpening===data.cloudId||levelOpening==='new'&&!data.cloudId)){levelOpening=null;$('levelLibraryDialog').close();}if(arenaMode==='editor')editor.acknowledged(data);else{practice.stop();showParkour('editor');editor.open(data,store.get(draftKey()));}controls();});
   joined.onMessage('parkour:run',data=>{if(room!==joined)return;if(data.verified)localMapDirty=false;editor.stop();showParkour(data.kind);practice.run(data);});
   joined.onMessage('parkour:state',data=>{if(room===joined)practice.reconcile(data);});
@@ -184,7 +187,7 @@ function attach(joined){
     for(const [id,history] of histories)histories.set(id,history.filter(m=>m.at>data.cutoff));
     for(const [id,item] of speech)if(item.sentAt<=data.cutoff)speech.delete(id);renderChat();
   });
-  joined.onMessage('spaces',data=>{if(room!==joined)return;spaces=data;renderRooms();updateSpaceUI();});
+  joined.onMessage('spaces',data=>{if(room!==joined)return;spaces=data;renderRooms();updateSpaceUI();partyGame.refresh(spaces.find(s=>s.id===space)?.host===room.sessionId&&spaces.find(s=>s.id===space)?.canStart);});
   joined.onMessage('content',data=>{
     if(room!==joined)return;materials.clear();for(const material of [...BUILTIN_MATERIALS,...data.materials])materials.set(material.id,material);accountsUI.protection(data.allowDemolition===true);spaces=data.spaces;histories.set(data.space,data.history);selectMaterial(materials.has(selectedId)?selectedId:'stone');renderRooms();if(data.space===space)renderChat();updateSpaceUI();
     if(!invitationShown&&params.get('room')){invitationShown=true;const invitation=spaces.find(s=>s.id===params.get('room'));if(invitation){openFacility(invitation.type);toast('朋友的房间在列表里，点击加入就能过去。');}else toast('邀请的房间已结束，你可以留在大厅和大家玩。');}
@@ -205,6 +208,7 @@ function attach(joined){
   applyState(joined.state);room.send('hello');$('world').focus({preventScroll:true});
 }
 function cleanup(){
+  if(partyGame.active)partyGame.stop();
   if(practicing)leavePractice();
   matchStatus=null;localMapDirty=false;room=null;online=false;predicted=null;pending=[];outgoing=[];space='lobby';epoch=0;spaces=[];spaceBusy=false;spaceUiSignature='';players.clear();tiles.clear();emotes.clear();speech.clear();histories.clear();resetInput();rosterSignature='';setTool('walk');
   for(const dialog of document.querySelectorAll('dialog[open]'))dialog.close();
@@ -215,7 +219,7 @@ function friendly(error){const message=String(error?.message||error);if(/full|lo
 async function enter(){
   if(busy||room)return;const name=accountUser?.nickname||$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:9,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:10,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -227,7 +231,7 @@ async function checkEndpoint(){
       if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('invalid endpoint');
       if(!globalThis.Colyseus)throw Error('client unavailable');
       const health=await fetch(url.origin+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!health.ok)throw Error('health unavailable');const data=await health.json();
-      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.9.'))throw Error('server updating');
+      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.10.'))throw Error('server updating');
       endpoint=url.origin;ready=true;if(!wasInRoom)status('ready','入口可用','输入用户名，就能进入大家共同的大厅。');log('endpoint ready');
     }catch(error){if(!wasInRoom)status('error','暂不可用','入口暂时不可用或正在更新，请稍后重新检查。');else toast('入口检查未通过，当前连接继续保留。');log('endpoint check failed '+error.message);}finally{controls();}
   })();try{await checkTask;}finally{checkTask=null;}
@@ -238,7 +242,7 @@ $('returnButton').addEventListener('click',()=>{if(room&&online){spaceBusy=true;
 $('readyButton').addEventListener('click',()=>{if(room&&online)room.send(matchStatus?'parkour:edit':'space:ready');});
 $('resetPartyButton').addEventListener('click',()=>{if(room&&online){const action=()=>room.send(matchStatus?.phase==='results'?'parkour:rebuild':'parkour:reset');if(matchStatus?.phase==='results')action();else beforeReplace(action);}});
 $('startButton').addEventListener('click',()=>{if(room&&online){spaceBusy=true;controls();room.send('space:start');}});
-$('roomsButton').addEventListener('click',()=>openFacility('parkour'));
+$('roomsButton').addEventListener('click',()=>openFacility('party'));
 for(const button of document.querySelectorAll('[data-facility]'))button.addEventListener('click',()=>openFacility(button.dataset.facility));
 $('helpButton').addEventListener('click',()=>{resetInput();$('helpDialog').showModal();});
 $('mapButton').addEventListener('click',()=>{const hidden=!$('minimap').hidden;$('minimap').hidden=hidden;$('mapButton').setAttribute('aria-pressed',String(!hidden));});
@@ -268,6 +272,7 @@ $('waveButton').addEventListener('click',wave);$('touchWave').addEventListener('
 const movementKeys=new Set(['w','a','s','d','arrowup','arrowleft','arrowdown','arrowright']);
 window.addEventListener('keydown',event=>{
   if(!room||!online||spaceBusy||document.querySelector('dialog[open]')||/INPUT|TEXTAREA|BUTTON|SELECT/.test(event.target.tagName)||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(partyGame.active)return;
   if(practicing){if(event.key==='Enter'){event.preventDefault();$('chatBody').hidden=false;$('chatInput').focus();}return;}
   const key=event.key.toLowerCase();if(movementKeys.has(key)){event.preventDefault();keys.add(key);}else if(event.key==='Enter'){event.preventDefault();$('chatBody').hidden=false;$('chatToggle').textContent='−';$('chatToggle').setAttribute('aria-expanded','true');$('chatInput').focus();}else if(key==='e'&&nearFacility&&!event.repeat){event.preventDefault();openFacility(nearFacility);}else if(event.code==='Space'){event.preventDefault();if(!event.repeat)wave();}
 });
@@ -276,7 +281,7 @@ const joystickElement=$('joystick');let pointer=null;
 function touchMove(event){if(pointer!==event.pointerId)return;const box=joystickElement.getBoundingClientRect(),radius=box.width/2-18;let x=event.clientX-box.left-box.width/2,y=event.clientY-box.top-box.height/2;const distance=Math.hypot(x,y);if(distance>radius){x=x/distance*radius;y=y/distance*radius;}joystick=distance<7?{x:0,y:0}:{x:x/radius,y:y/radius};$('joystickKnob').style.transform=`translate(${x}px,${y}px)`;}
 joystickElement.addEventListener('pointerdown',event=>{event.preventDefault();pointer=event.pointerId;joystickElement.setPointerCapture(pointer);touchMove(event);});joystickElement.addEventListener('pointermove',touchMove);for(const name of ['pointerup','pointercancel','lostpointercapture'])joystickElement.addEventListener(name,()=>{pointer=null;resetInput();});
 setInterval(()=>{
-  if(practicing||!room||!online||!predicted||spaceBusy||document.hidden||document.querySelector('dialog[open]')||pending.length>150)return;
+  if(partyGame.active||practicing||!room||!online||!predicted||spaceBusy||document.hidden||document.querySelector('dialog[open]')||pending.length>150)return;
   const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joystick.x,dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joystick.y;if(!dx&&!dy)return;
   const norm=Math.max(1,Math.hypot(dx,dy)),step={seq:++seq,dx:dx/norm,dy:dy/norm};predicted=move(predicted,step.dx,step.dy,space==='lobby'?tiles:undefined);pending.push(step);outgoing.push(step);
 },WORLD.stepMs);
@@ -285,13 +290,17 @@ setInterval(()=>{if(room&&online)room.send('ping',performance.now());},2000);
 setInterval(()=>{
   if(predicted&&room)$('coordinates').textContent=`${Math.round(predicted.x)}, ${Math.round(predicted.y)}`;
   for(const [id,item] of speech)if(performance.now()-item.at>=bubbleDuration(item.text))speech.delete(id);
-  nearFacility=!practicing&&room&&online&&space==='lobby'&&predicted?FACILITIES.find(f=>Math.hypot(f.x-predicted.x,f.y-predicted.y)<76)?.id||null:null;
+  nearFacility=!partyGame.active&&!practicing&&room&&online&&space==='lobby'&&predicted?FACILITIES.find(f=>Math.hypot(f.x-predicted.x,f.y-predicted.y)<76)?.id||null:null;
   $('interactButton').hidden=!nearFacility;if(nearFacility)$('interactButton').lastElementChild.textContent='进入'+FACILITIES.find(f=>f.id===nearFacility).name;
   $('areaLabel').textContent=space!=='lobby'?'小队':'大厅';
   if(room&&online&&performance.now()-lastPong>9000)status('reconnecting','响应较慢','暂时没有收到服务器响应，正在等待恢复。');
 },150);
-const scene=createScene($('world'),()=>({players,tiles,materials,avatars,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,practicing}));
+const scene=createScene($('world'),()=>({players,tiles,materials,avatars,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,practicing:practicing||partyGame.active}));
 const practice=createPractice($('parkourWorld'),{stick:()=>joystick,online:()=>online,color:()=>players.get(room?.sessionId)?.color,self:()=>room?.sessionId,speech:id=>speech.get(id||room?.sessionId),send:(type,data)=>{if(room&&online)room.send(type,data);}});
+const partyGame=createPartyGame({send:(type,data)=>{if(room&&online)room.send(type,data);},self:()=>room?.sessionId,online:()=>online,speech:id=>speech.get(id),replay:()=>{if(room&&online)room.send('space:start');},onActive:active=>{
+  resetInput();outgoing=[];pending=[];rosterSignature='';roster();document.body.classList.toggle('in-party',active);$('world').hidden=active;$('toolbelt').hidden=active;$('minimap').hidden=active||mapWasHidden;$('touchControls').hidden=active||!touchDevice||!room;$('mapButton').hidden=active;$('homeButton').hidden=active||space!=='lobby';$('roomsButton').hidden=active||space!=='lobby';$('interactButton').hidden=true;
+}});
+$('partyExit').addEventListener('click',()=>{if(room&&online){resetInput();room.send('space:leave');}});
 const draftKey=()=> 'dungeon-mail-parkour-draft-'+(ownUserId()||players.get(room?.sessionId)?.name||$('nickname').value.trim());
 const editor=createEditor($('editorWorld'),{send:(type,data)=>{if(room&&online)room.send(type,data);},onDirty:()=>{localMapDirty=true;controls();},save:cells=>store.set(draftKey(),cells),name:()=>players.get(room?.sessionId)?.name||'我的关卡',color:()=>players.get(room?.sessionId)?.color,canCloud:()=>!!ownUserId()&&online});
 for(const id of ['levelLibraryButton','editorLibrary'])$(id).addEventListener('click',openLevels);
@@ -336,7 +345,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.9.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.10.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

@@ -5,8 +5,7 @@ export const BUILD_REACH = 160;
 export const MAX_TILES = WORLD.width / TILE_SIZE * (WORLD.height / TILE_SIZE);
 export const PARTY = Object.freeze({ min: 2, max: 4 });
 export const FACILITIES = [
-  { id: 'parkour', name: '跑酷工坊', x: 283, y: 229, hint: '找朋友，准备下一场跑酷' },
-  { id: 'dungeon', name: '地牢邮局', x: 678, y: 235, hint: '寄给朋友的冒险，从这里开始' },
+  { id: 'party', name: '小游戏派对', x: 283, y: 229, hint: '2～4 人，五轮轻松派对' },
   { id: 'art', name: '方块画室', x: 480, y: 660, hint: '画一块材料，留在大家的庭院里' },
 ];
 export const tileKey = (col, row) => `${col},${row}`;
