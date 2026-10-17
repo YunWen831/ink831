@@ -11,6 +11,32 @@ test('party schedule contains all four games, scores ties fairly, and completes 
   const schedule=partySchedule(()=>.3);assert.equal(new Set(schedule.slice(0,4)).size,4);assert.equal(schedule.length,5);assert.ok(schedule.every((s,i)=>!i||s!==schedule[i-1]));assert.deepEqual(roundPoints([7,7,3,0]),[10,10,4,2]);
   for(const n of [2,3,4]){const g=game('bump',n);advance(g,480);assert.equal(g.phase,'final');assert.equal(g.history.length,5);const totals=g.players.map(p=>p.total);assert.ok(totals.every(v=>v>=10&&v<=50));advance(g,20);assert.deepEqual(g.players.map(p=>p.total),totals);assert.ok(JSON.stringify(g.snapshot()).length<10000);}
 });
+
+test('single games end after one round; final voting is bounded, replaceable and excludes departed players',()=>{
+  let absent='';const g=new PartyMatch(members.slice(0,3),{mode:'mine',host:()=>members[1].id,connected:id=>id!==absent});
+  assert.equal(g.roundCount,1);assert.deepEqual(g.schedule,['mine']);assert.equal(g.vote('p0',{id:g.id,mode:'bump'}),false);start(g);advance(g,50);assert.equal(g.phase,'final');assert.equal(g.history.length,1);
+  assert.equal(g.vote('outsider',{id:g.id,mode:'bump'}),false);assert.equal(g.vote('p0',{id:'old',mode:'bump'}),false);assert.equal(g.vote('p0',{id:g.id,mode:'unknown'}),false);
+  g.vote('p0',{id:g.id,mode:'bump'});g.vote('p1',{id:g.id,mode:'delivery'});assert.equal(g.nextMode(),'delivery');g.vote('p2',{id:g.id,mode:'bump'});assert.equal(g.nextMode(),'bump');g.vote('p0',{id:g.id,mode:'rescue'});assert.equal(g.snapshot().voteCounts.bump,1);assert.equal(g.nextMode(),'delivery');absent='p1';assert.equal(g.snapshot().votes.length,2);assert.equal(g.nextMode(),'bump');
+  assert.throws(()=>new PartyMatch(members.slice(0,2),{mode:'forged'}));
+});
+test('moving bumpers arrive after a warning period and push without inventing a player knockout',()=>{
+  const g=game('bump');start(g);assert.equal(g.bumpers.length,0);advance(g,8.2);assert.equal(g.bumpers.length,2);const b=g.bumpers[0],p=g.players[0];Object.assign(p,{x:b.x,y:b.y,shield:0});g.bumping();assert.ok(Math.hypot(p.x-b.x,p.y-b.y)>=39);assert.equal(g.players[1].value,0);assert.ok(g.snapshot().events.some(e=>e.kind==='hit'));
+});
+test('urgent parcels expire by server time, keep their deadline when dropped, and count actual deliveries',()=>{
+  const g=game('delivery');start(g);advance(g,12.1);const bonus=g.items.find(i=>i.bonus);assert.equal(bonus.value,6);const p=g.players[0];Object.assign(p,{x:bonus.x,y:bonus.y});input(g,0,{action:true});g.tick(.05);assert.equal(p.carry?.expires,bonus.expires);
+  input(g,0,{action:false});advance(g,.3);input(g,0,{action:true});g.tick(.05);assert.equal(p.carry,null);assert.equal(g.items.find(i=>i.bonus).expires,bonus.expires);
+  advance(g,14);assert.ok(!g.items.some(i=>i.bonus&&i.expires<=g.time));
+  p.carry={value:6,bonus:true,expires:g.time+5};Object.assign(p,PARTY_BASES[0]);g.tick(.05);assert.equal(p.value,6);assert.equal(p.stats.delivered,1);assert.equal(p.stats.bonus,1);assert.ok(g.events.some(e=>e.kind==='delivery'&&e.amount===6));
+});
+test('the risk preview describes the exact next mining roll and never exposes private choices',()=>{
+  const g=game('mine',2,{random:()=>.13});start(g);assert.equal(g.snapshot().nextRisk,0);advance(g,10);assert.equal(g.snapshot().nextRisk,12);advance(g,5);assert.equal(g.phase,'playing');assert.equal(g.snapshot().nextRisk,21);advance(g,5);assert.equal(g.phase,'results');assert.ok(g.events.some(e=>e.kind==='collapse'));
+});
+test('large leaks require two connected, supplied helpers and record each contribution once',()=>{
+  let online=true;const g=game('rescue',2,{connected:id=>id==='p0'||online});start(g);g.leaks=[];g.leak(true);const leak=g.leaks[0];for(const p of g.players)Object.assign(p,{x:leak.x,y:leak.y});
+  for(let i=0;i<30;i++){input(g,0,{action:true});g.tick(.1);}assert.equal(leak.progress,0);
+  for(let i=0;i<28;i++){input(g,0,{action:true});input(g,1,{action:true});g.tick(.1);}assert.ok(!g.leaks.includes(leak));assert.deepEqual(g.players.map(p=>p.stats.bigRepairs),[1,1]);assert.deepEqual(g.players.map(p=>p.boards),[1,1]);
+  g.finishRound();assert.equal(g.history[0].stats[0].repairs,1);assert.deepEqual(g.players.map(p=>p.points),[10,10]);assert.ok(g.snapshot().events.length<=24);
+});
 test('inputs cannot forge results, skip time, reuse a round, or move disconnected players',()=>{
   const g=game('delivery');assert.equal(input(g,0,{x:1}),false);start(g);const p=g.players[0],x=p.x;
   for(let seq=1;seq<300;seq++)g.input(p.id,{id:g.id,round:0,seq,x:1,y:0,total:9999});assert.equal(p.x,x);assert.equal(p.total,0);

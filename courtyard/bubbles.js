@@ -1,4 +1,4 @@
-import { bubbleDuration, wrapMessage } from './chat.js?v=0.10.0';
+import { bubbleDuration, wrapMessage } from './chat.js?v=0.11.0';
 
 const overlaps = (a,b) => a.x < b.x+b.w+5 && a.x+a.w+5 > b.x && a.y < b.y+b.h+5 && a.y+a.h+5 > b.y;
 const clamp = (v,low,high) => Math.max(low,Math.min(high,v));
