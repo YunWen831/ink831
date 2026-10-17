@@ -1,9 +1,10 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.8.1';
-import { RemoteMotion } from './motion.js?v=0.8.1';
-import { avatarImage,defaultAvatarImage } from './avatar.js?v=0.8.1';
-import { texture } from './art.js?v=0.8.1';
-import { drawBubbles } from './bubbles.js?v=0.8.1';
-import { bubbleDuration } from './chat.js?v=0.8.1';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.9.0';
+import { RemoteMotion } from './motion.js?v=0.9.0';
+import { avatarImage } from './avatar.js?v=0.9.0';
+import {rigImage} from './avatar-render.js?v=0.9.0';
+import { texture } from './art.js?v=0.9.0';
+import { drawBubbles } from './bubbles.js?v=0.9.0';
+import { bubbleDuration } from './chat.js?v=0.9.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -14,7 +15,7 @@ export function createScene(canvas,getWorld){
   const mini=document.getElementById('minimap'),miniCtx=mini.getContext('2d');
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   const positions=new Map(),motions=new Map(),poses=new Map();
-  let width=960,height=640,dpr=1,lastMini=0,view={zoom:1,cameraX:0,cameraY:0};
+  let width=960,height=640,dpr=1,lastMini=0,lastFrame=0,view={zoom:1,cameraX:0,cameraY:0};
   new ResizeObserver(()=>{const box=canvas.getBoundingClientRect();width=box.width;height=box.height;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}).observe(canvas);
   function background(cameraX,cameraY,visibleW,visibleH){
     ctx.fillStyle=pattern;ctx.fillRect(cameraX,cameraY,visibleW,visibleH);
@@ -35,15 +36,15 @@ export function createScene(canvas,getWorld){
     if(self){ctx.strokeStyle='#fffce5';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y+2,13,6,0,0,Math.PI*2);ctx.stroke();}
     ctx.translate(x,y);
     const skin=world.avatars?.get(p.userId),walking=p.moving&&!reduced;
-    const custom=avatarImage(skin,pose.facing,walking?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
+    const custom=skin?.frames&&avatarImage(skin,pose.facing,walking?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
     if(custom)ctx.drawImage(custom,-13,-39,26,39);
-    else ctx.drawImage(defaultAvatarImage(p.color,pose.facing,walking?[0,1,0,2][Math.floor(pose.phase/(Math.PI/2))%4]:0),-16,-46,32,48);
+    else ctx.drawImage(rigImage(skin,p.color,pose.facing,pose.phase,reduced?0:pose.amount),-20,-52,40,56);
     const label=p.name+(self?' · 你':'');ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const tw=ctx.measureText(label).width;
-    let labelY=custom?-53:-61,showLabel=true;
+    let labelY=custom?-53:-63,showLabel=true;
     if(!self){const collision=()=>labels.some(r=>x-tw/2-5<r.x+r.w&&x+tw/2+5>r.x&&y+labelY<r.y+r.h&&y+labelY+16>r.y);for(let i=0;i<3&&collision();i++)labelY-=18;showLabel=!collision();if(showLabel)labels.push({x:x-tw/2-5,y:y+labelY,w:tw+10,h:16});}
     if(showLabel){ctx.fillStyle=self?'#fbfcefef':'#fcfae6ce';ctx.fillRect(-tw/2-5,labelY,tw+10,16);ctx.fillStyle='#435c40';ctx.fillText(label,0,labelY+11);}
     const speech=world.speech?.get(p.id),emote=world.emotes.get(p.id);
-    if((!speech||now-speech.at>=bubbleDuration(speech.text))&&emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(15,custom?-44:-52,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',28,custom?-30:-38);}
+    if((!speech||now-speech.at>=bubbleDuration(speech.text))&&emote&&now-emote<2300){ctx.fillStyle='#fff9e8';ctx.fillRect(15,custom?-44:-54,27,20);ctx.fillStyle='#8b7655';ctx.fillText('嗨',28,custom?-30:-40);}
     ctx.restore();
   }
   function minimap(world,cameraX,cameraY,visibleW,visibleH,now){
@@ -57,6 +58,7 @@ export function createScene(canvas,getWorld){
     for(const [id,p] of world.players){const point=id===world.self&&world.me?world.me:p;miniCtx.beginPath();miniCtx.fillStyle=id===world.self?'#fff9df':p.color;miniCtx.arc(point.x*sx,point.y*sy,id===world.self?2.6:1.6,0,Math.PI*2);miniCtx.fill();}
   }
   function frame(now){
+    const elapsed=Math.min(.05,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
     if(getWorld().practicing){requestAnimationFrame(frame);return;}
     const world=getWorld(),me=world.me,zoom=width<600?.92:Math.min(1.2,Math.max(1,width/1050));
     const visibleW=width/zoom,visibleH=height/zoom;
@@ -84,18 +86,18 @@ export function createScene(canvas,getWorld){
       const target=id===world.self&&me?{...p,...me}:p,previous=positions.get(id)||target;let next={x:target.x,y:target.y};
       if(id!==world.self){let motion=motions.get(id);if(!motion){motion=new RemoteMotion(p,now);motions.set(id,motion);}motion.update(p,now);next=motion.sample(now,world.space==='lobby'?world.tiles:undefined);}
       const dx=next.x-previous.x,dy=next.y-previous.y,distance=Math.hypot(dx,dy);
-      const pose=poses.get(id)||{phase:0,facing:'down',movedAt:-1000};
-      if(distance>.04&&distance<30){pose.phase+=distance*.075;pose.movedAt=now;pose.facing=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';}
+      const pose=poses.get(id)||{phase:0,facing:'down',movedAt:-1000,amount:0};
+      if(distance>.04&&distance<30){pose.phase+=distance*.055;pose.movedAt=now;pose.facing=Math.abs(dx)>Math.abs(dy)?dx>0?'right':'left':dy>0?'down':'up';}
       else if(distance>=30){pose.phase=0;pose.movedAt=-1000;}
-      const moving=p.connected&&now-pose.movedAt<90;
+      const moving=p.connected&&now-pose.movedAt<90;pose.amount+=(Number(moving)-pose.amount)*(1-Math.exp(-elapsed/.07));if(pose.amount<.002)pose.amount=0;
       positions.set(id,next);poses.set(id,pose);
       if(next.x>cameraX-70&&next.x<cameraX+visibleW+70&&next.y>cameraY-70&&next.y<cameraY+visibleH+70)people.push({...target,...next,id,moving});
     }
     for(const id of positions.keys())if(!world.players.has(id)){positions.delete(id);motions.delete(id);poses.delete(id);}
     people.sort((a,b)=>a.y-b.y);const labels=[],own=people.find(p=>p.id===world.self);ctx.font='11px "Microsoft YaHei",sans-serif';
-    if(own){const w=ctx.measureText(own.name+' · 你').width+10;labels.push({x:own.x-w/2,y:own.y-(world.avatars?.has(own.userId)?53:61),w,h:16});}
+    if(own){const w=ctx.measureText(own.name+' · 你').width+10;labels.push({x:own.x-w/2,y:own.y-(world.avatars?.get(own.userId)?.frames?53:63),w,h:16});}
     for(const p of people)drawPerson(p,poses.get(p.id),p.id===world.self,now,labels,world);
-    drawBubbles(ctx,people.map(p=>({...p,...(!world.avatars?.has(p.userId)?{bodyWidth:32,bodyHeight:46,labelTop:61}:{}),...(world.speech.get(p.id)||{text:'',at:-Infinity})})),now,{x:cameraX,y:cameraY,w:visibleW,h:visibleH},world.self);
+    drawBubbles(ctx,people.map(p=>({...p,...(!world.avatars?.get(p.userId)?.frames?{bodyWidth:36,bodyHeight:50,labelTop:63}:{}),...(world.speech.get(p.id)||{text:'',at:-Infinity})})),now,{x:cameraX,y:cameraY,w:visibleW,h:visibleH},world.self);
     minimap(world,cameraX,cameraY,visibleW,visibleH,now);requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

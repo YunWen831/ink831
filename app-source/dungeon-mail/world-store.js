@@ -62,10 +62,12 @@ export class WorldStore {
     data.tiles=data.tiles.filter(t=>tileKey(t.col,t.row)!==tileKey(tile.col,tile.row));
     if(tile.material)data.tiles.push(tile);return tile;
   });}
-  protect(owner,allow){return this.transact(data=>{if(!owner||!ownerId(owner)||typeof allow!=='boolean')throw new Error('无效的建筑设置。');data.protection={...data.protection,[owner]:allow};return allow;});}
-  deleteMaterial(id,owner,restore=false){return this.transact(data=>{
+  protect(owner,allow,authorize=null){return this.transact(data=>{authorize?.();if(!owner||!ownerId(owner)||typeof allow!=='boolean')throw new Error('无效的建筑设置。');data.protection={...data.protection,[owner]:allow};return allow;});}
+  deleteMaterial(id,owner,restore=false,authorizeAdmin=null){return this.transact(data=>{
     const material=data.materials.find(m=>m.id===id);
-    if(!owner||!material?.ownerId||material.ownerId!==owner)throw new Error('只能管理自己保存的画布。');
+    const admin=typeof authorizeAdmin==='function'&&authorizeAdmin()===true;
+    if(!material)throw Error('作品不存在。');
+    if(!admin&&(!owner||!material.ownerId||material.ownerId!==owner))throw new Error('只能管理自己保存的画布。');
     if(restore){if(!material.deletedAt)return material;if(Date.now()-material.deletedAt>RECYCLE_MS)throw new Error('已超过七天恢复期限。');if(data.materials.filter(m=>!m.deletedAt).length>=128)throw new Error('材料库已满，请先删除其他画布。');delete material.deletedAt;}
     else if(!material.deletedAt)material.deletedAt=Date.now();
     return material;

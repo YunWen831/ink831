@@ -1,19 +1,20 @@
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.8.1';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.8.1';
-import { createScene } from './scene.js?v=0.8.1';
-import { createPainter, preview } from './art.js?v=0.8.1';
-import { createPractice } from './parkour-game.js?v=0.8.1';
-import { createEditor } from './parkour-editor.js?v=0.8.1';
-import { bubbleDuration } from './chat.js?v=0.8.1';
-import { createAccounts } from './account.js?v=0.8.1';
-import { createAvatarPainter } from './avatar.js?v=0.8.1';
-import { AVATAR_LENGTH,validAvatar } from './avatar-data.js?v=0.8.1';
+import {createAdmin} from './admin.js?v=0.9.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.9.0';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.9.0';
+import { createScene } from './scene.js?v=0.9.0';
+import { createPainter, preview } from './art.js?v=0.9.0';
+import { createPractice } from './parkour-game.js?v=0.9.0';
+import { createEditor } from './parkour-editor.js?v=0.9.0';
+import { bubbleDuration } from './chat.js?v=0.9.0';
+import { createAccounts } from './account.js?v=0.9.0';
+import { createAvatarPainter } from './avatar.js?v=0.9.0';
+import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.9.0';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
 const keys=new Set(),players=new Map(),tiles=new Map(),emotes=new Map(),speech=new Map();
 const materials=new Map(BUILTIN_MATERIALS.map(m=>[m.id,m])),histories=new Map(),events=[];
-const avatars=new Map();let accountUser=null,libraryMode='all',deleteMaterialId='';
+const avatars=new Map();let accountUser=null,adminUI=null,libraryMode='all',deleteMaterialId='';
 const ownUserId=()=>players.get(room?.sessionId)?.userId||'';
 const store={get(key,session=false){try{return (session?sessionStorage:localStorage).getItem(key);}catch{return null;}},set(key,value,session=false){try{(session?sessionStorage:localStorage).setItem(key,value);}catch{}},remove(key){try{sessionStorage.removeItem(key);}catch{}}};
 const params=new URLSearchParams(location.search);
@@ -125,13 +126,14 @@ const painter=createPainter(data=>{
   else{room.send('material:begin',{name:data.name,length:data.pixels.length});for(let offset=0;offset<data.pixels.length;offset+=2048)room.send('material:chunk',{index:offset/2048,pixels:data.pixels.slice(offset,offset+2048)});room.send('material:finish');}
 });
 function openPaint(){if(!room||!online)return;if(!ownUserId()){accountsUI.open();return;}resetInput();$('libraryDialog').close();painter.open();}
-const accountsUI=createAccounts({endpoint:()=>endpoint,onUser:user=>{accountUser=user;controls();},notify:toast,onSession:async(join=true)=>{
+const accountsUI=createAccounts({endpoint:()=>endpoint,onUser:user=>{accountUser=user;adminUI?.roleChanged();controls();},notify:toast,onSession:async(join=true)=>{
   const old=room;if(old){old.reconnection.enabled=false;cleanup();await old.leave().catch(()=>{});}
   if(join&&accountUser)await enter();
 },onProtection:allow=>{if(room&&online&&ownUserId())room.send('building:protection',{allow});else{accountsUI.protection(false);toast('请先用账号进入大厅');}}});
-const avatarPainter=createAvatarPainter({defaultColor:()=>players.get(room?.sessionId)?.color||'#568a78',userId:ownUserId,current:()=>avatars.get(ownUserId()),onSave:frames=>{
+adminUI=createAdmin({endpoint:()=>endpoint,user:()=>accountUser,notify:toast});
+const avatarPainter=createAvatarPainter({defaultColor:()=>players.get(room?.sessionId)?.color||'#568a78',userId:ownUserId,current:()=>avatars.get(ownUserId()),onSave:rig=>{
   if(!room||!online||!ownUserId()){avatarPainter.failed('请登录并连接大厅后保存。');return;}
-  const pixels=frames.join('');room.send('avatar:begin',{length:AVATAR_LENGTH});for(let offset=0;offset<pixels.length;offset+=3072)room.send('avatar:chunk',{index:offset/3072,pixels:pixels.slice(offset,offset+3072)});room.send('avatar:finish');
+  const pixels=packRig(rig);room.send('avatar:begin',{length:RIG_LENGTH,format:'parts-v1'});for(let offset=0;offset<pixels.length;offset+=3072)room.send('avatar:chunk',{index:offset/3072,pixels:pixels.slice(offset,offset+3072)});room.send('avatar:finish');
 }});
 function renderRooms(){
   $('roomList').replaceChildren();const list=spaces.filter(s=>s.type===facilityMode);
@@ -188,9 +190,9 @@ function attach(joined){
     if(!invitationShown&&params.get('room')){invitationShown=true;const invitation=spaces.find(s=>s.id===params.get('room'));if(invitation){openFacility(invitation.type);toast('朋友的房间在列表里，点击加入就能过去。');}else toast('邀请的房间已结束，你可以留在大厅和大家玩。');}
   });
   joined.onMessage('material',data=>{if(room!==joined)return;materials.set(data.id,data);renderLibrary();if(data.creator===room.sessionId){selectMaterial(data.id);painter.saved();setTool('place');toast('已保存');}});
-  joined.onMessage('material:updated',data=>{if(room!==joined)return;materials.set(data.id,data);selectMaterial(selectedId);$('libraryMessage').textContent='';toast(data.deletedAt?'已移入回收站，建筑贴图保留':'画布已恢复');});
+  joined.onMessage('material:updated',data=>{if(room!==joined)return;materials.set(data.id,data);selectMaterial(selectedId);renderLibrary();$('libraryMessage').textContent='';toast(data.deletedAt?'已移入回收站，建筑贴图保留':'画布已恢复');});
   joined.onMessage('building:protection',data=>{if(room===joined){accountsUI.protection(data.allow===true);toast('建筑权限已保存');}});
-  joined.onMessage('avatar',data=>{if(room!==joined||!validAvatar(data?.frames))return;const old=avatars.get(data.userId);avatars.set(data.userId,data);if(avatars.size>128)avatars.delete(avatars.keys().next().value);if(data.userId===ownUserId()&&old?.revision!==data.revision&&avatarPainter.saving){avatarPainter.saved();toast('人物已保存');}});
+  joined.onMessage('avatar',data=>{if(room!==joined||!validAvatarRecord(data))return;const old=avatars.get(data.userId);avatars.set(data.userId,data);if(avatars.size>128)avatars.delete(avatars.keys().next().value);if(data.userId===ownUserId()&&old?.revision!==data.revision&&avatarPainter.saving){avatarPainter.saved();toast('人物已保存');}});
   joined.onMessage('levels:list',data=>{if(room!==joined)return;savedLevels=data.maps;renderLevels();$('levelMessage').textContent='';});
   joined.onMessage('levels:saved',data=>{if(room!==joined)return;editor.cloudSaved(data);toast(data.automatic?'验证结果已保存到账号':'关卡已保存到账号');if($('levelLibraryDialog').open)room.send('levels:list');});
   joined.onMessage('levels:deleted',data=>{if(room!==joined)return;editor.cloudDeleted(data.id);toast('关卡已删除');});
@@ -213,7 +215,7 @@ function friendly(error){const message=String(error?.message||error);if(/full|lo
 async function enter(){
   if(busy||room)return;const name=accountUser?.nickname||$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:8,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:9,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -225,7 +227,7 @@ async function checkEndpoint(){
       if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('invalid endpoint');
       if(!globalThis.Colyseus)throw Error('client unavailable');
       const health=await fetch(url.origin+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!health.ok)throw Error('health unavailable');const data=await health.json();
-      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.8.'))throw Error('server updating');
+      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.9.'))throw Error('server updating');
       endpoint=url.origin;ready=true;if(!wasInRoom)status('ready','入口可用','输入用户名，就能进入大家共同的大厅。');log('endpoint ready');
     }catch(error){if(!wasInRoom)status('error','暂不可用','入口暂时不可用或正在更新，请稍后重新检查。');else toast('入口检查未通过，当前连接继续保留。');log('endpoint check failed '+error.message);}finally{controls();}
   })();try{await checkTask;}finally{checkTask=null;}
@@ -334,7 +336,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.8.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.9.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

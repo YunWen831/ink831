@@ -1,7 +1,8 @@
 import express from 'express';
 import { cookieToken,publicUser,sessionCookie } from './accounts.js';
+import {adminApi} from './admin-api.js';
 
-export function accountApi(accounts){
+export function accountApi(accounts,worldStore,notify){
   const router=express.Router(),rates=new Map();
   const localPort=Number(process.env.PORT||2567);
   const authOrigins=new Set((process.env.AUTH_ORIGINS||(process.env.NODE_ENV==='production'?'https://82.157.83.81':`https://82.157.83.81,http://127.0.0.1:4173,http://localhost:4173,http://127.0.0.1:${localPort},http://localhost:${localPort}`)).split(','));
@@ -21,12 +22,13 @@ export function accountApi(accounts){
     req.account=accounts.session(cookieToken(req.headers.cookie));next();
   });
   const result=(res,data)=>{res.setHeader('Set-Cookie',sessionCookie(data.token));res.json({user:data.user,...(data.recoveryCode?{recoveryCode:data.recoveryCode}:{})});};
-  router.get('/me',(req,res)=>res.json({user:publicUser(req.account?.user)}));
+  router.get('/me',(req,res)=>res.json({user:accounts.user(req.account?.user)}));
   for(const method of ['register','login','recover'])router.post('/'+method,async(req,res,next)=>{try{result(res,await accounts[method](req.body));}catch(error){next(error);}});
   router.post('/logout',async(req,res,next)=>{try{if(req.account)await accounts.logout(req.account.hash);res.setHeader('Set-Cookie',sessionCookie(null));res.json({ok:true});}catch(error){next(error);}});
   router.use((req,res,next)=>req.account?next():res.status(401).json({error:'请先登录。'}));
+  router.use('/admin',adminApi(accounts,worldStore,notify));
   router.post('/profile',async(req,res,next)=>{try{res.json({user:await accounts.profile(req.account.user.id,req.body?.nickname)});}catch(error){next(error);}});
   router.post('/password',async(req,res,next)=>{try{result(res,await accounts.changePassword(req.account.user.id,req.body?.oldPassword,req.body?.password));}catch(error){next(error);}});
-  router.use((error,req,res,next)=>{if(res.headersSent)return next(error);const internal=!!error.code||!!error.type;res.status(error.status===413?413:400).json({error:internal?'操作暂时失败，请稍后重试。':error.message});});
+  router.use((error,req,res,next)=>{if(res.headersSent)return next(error);const internal=!!error.code||!!error.type;res.status([400,401,403,404,409,413].includes(error.status)?error.status:400).json({error:internal?'操作暂时失败，请稍后重试。':error.message});});
   return router;
 }

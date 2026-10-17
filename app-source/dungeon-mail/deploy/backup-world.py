@@ -28,7 +28,7 @@ with tarfile.open(staging,'w:gz') as archive:
         archive.addfile(entry,io.BytesIO(content))
     add_bytes('world.json',raw)
     for avatar in sorted((base/'data/avatars').glob('*.json')):
-        content=avatar.read_bytes();assert isinstance(json.loads(content)['frames'],list)
+        content=avatar.read_bytes();data=json.loads(content);assert isinstance(data.get('frames'),list) or isinstance(data.get('rig'),dict)
         add_bytes('avatars/'+avatar.name,content)
     for levels in sorted((base/'data/levels').glob('*.json')):
         content=levels.read_bytes();assert isinstance(json.loads(content)['maps'],list)
@@ -39,6 +39,10 @@ with tarfile.open(staging,'w:gz') as archive:
     if accounts.exists():
         content=accounts.read_bytes();assert json.loads(content)['version']==1
         add_bytes('accounts.json',content)
+    admins=base/'data/admins.json'
+    if admins.exists():
+        content=admins.read_bytes();assert json.loads(content)['version']==1
+        add_bytes('admins.json',content)
 staging.chmod(0o600);staging.replace(complete)
 for stale in sorted(folder.glob('state-????-??-??.tar.gz'))[:-14]:
     stale.unlink()

@@ -28,7 +28,11 @@ const Player = schema({
 const Block = schema({col:t.number(),row:t.number(),material:t.string(),solid:t.boolean(),ownerId:t.string().default('')},'Block');
 const blockOf = tile => Object.assign(new Block(),tile);
 const HallState = schema({players:t.map(Player),tiles:t.map(Block)},'HallState');
-let active=false;
+let active=false,liveHall=null;
+export function notifyAdministration({protection,material}){
+  if(!liveHall)return;if(material)liveHall.broadcast('material:updated',material);
+  if(protection)for(const client of liveHall.clients)if(client.userData?.accountId===protection.id)client.send('building:protection',{allow:protection.allow});
+}
 const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export class Courtyard extends Room {
@@ -47,7 +51,7 @@ export class Courtyard extends Room {
 
   onCreate(){
     if(active)throw new Error('大厅暂时已满，请稍后再试');
-    active=true;this.ownsLobby=true;this.roomId='courtyard';
+    active=true;liveHall=this;this.ownsLobby=true;this.roomId='courtyard';
     const register=this.onMessage.bind(this);
     this.onMessage=(type,handler,...args)=>register(type,(client,data)=>{
       if(client.userData?.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}
@@ -161,7 +165,7 @@ export class Courtyard extends Room {
     this.onMessage('avatar:begin',(client,data)=>{
       client.userData.avatarUpload=null;if(!this.requireAccount(client,'avatar'))return;
       if(!this.allow(client,'avatar',3000)){this.notice(client,'请稍等一下再保存人物。','avatar');return;}
-      try{client.userData.avatarUpload=new AvatarUpload(data?.length);}catch(error){this.notice(client,error.message,'avatar');}
+      try{client.userData.avatarUpload=new AvatarUpload(data?.length,data?.format);}catch(error){this.notice(client,error.message,'avatar');}
     });
     this.onMessage('avatar:chunk',(client,data)=>{
       const upload=client.userData.avatarUpload;if(!upload)return;
@@ -306,7 +310,7 @@ export class Courtyard extends Room {
     }finally{this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==8)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==9)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');
@@ -318,8 +322,8 @@ export class Courtyard extends Room {
     client.userData={credit:200,creditAt:performance.now(),times:{},accountId:auth.userId,sessionHash:auth.hash};this.state.players.set(client.sessionId,player);
     if(auth.userId){try{const avatar=await avatars.get(auth.userId);if(avatar)this.broadcast('avatar',avatar);}catch{this.notice(client,'人物贴图暂时无法读取。');}}
   }
-  onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
+  onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash))return;this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
   onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);this.soloWorkshops.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
-  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby)active=false;}
+  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby){active=false;liveHall=null;}}
 }
