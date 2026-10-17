@@ -6,6 +6,9 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Courtyard, worldStore,accounts,avatars,levelStore,notifyAdministration } from './hall.js';
 import { accountApi } from './account-api.js';
+import {materialInfo} from './material-catalog.js';
+import {Encoder} from '@colyseus/schema';
+Encoder.BUFFER_SIZE=128*1024;
 
 const joinRates = new Map();
 const localPort=Number(process.env.PORT||2567);
@@ -52,12 +55,22 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts,worldStore,notifyAdministration));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.14.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.15.0' }));
+app.get('/api/materials/:id',(req,res)=>{
+  const material=worldStore.data.materials.find(m=>m.id===req.params.id);
+  if(!material)return res.status(404).json({error:'材料已不存在'});
+  const info=materialInfo(material);if(req.query.v!==info.rev)return res.status(409).json({error:'材料已更新，请刷新'});
+  res.setHeader('Cache-Control','public, max-age=31536000, immutable');
+  res.json({id:material.id,rev:info.rev,pixels:material.pixels});
+});
 const sourceRoot=fileURLToPath(new URL('../../',import.meta.url));
 app.get('/',(req,res)=>res.redirect('/courtyard/'));
 app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
 app.get('/assets/favicon.svg',(req,res)=>res.sendFile(resolve(sourceRoot,'assets/favicon.svg')));
-app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true}));
+app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true,setHeaders:(res,path)=>{
+  const request=new URL(res.req.url,'http://localhost');
+  res.setHeader('Cache-Control',request.searchParams.get('v')==='0.15.0'&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
+}}));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({
   gracefullyShutdown: false,

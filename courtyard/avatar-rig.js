@@ -1,4 +1,4 @@
-import {avatarTemplate,validAvatar} from './avatar-data.js?v=0.14.0';
+import {avatarTemplate,validAvatar} from './avatar-data.js?v=0.15.0';
 export const RIG_VIEWS=['down','up','right'];
 export const RIG_PARTS=[
   {id:'head',name:'头部',w:20,h:22,x:6,y:2},

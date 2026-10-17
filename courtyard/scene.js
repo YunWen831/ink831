@@ -1,10 +1,11 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.14.0';
-import { RemoteMotion } from './motion.js?v=0.14.0';
-import { avatarImage } from './avatar.js?v=0.14.0';
-import {rigImage} from './avatar-render.js?v=0.14.0';
-import { texture } from './art.js?v=0.14.0';
-import { drawBubbles } from './bubbles.js?v=0.14.0';
-import { bubbleDuration } from './chat.js?v=0.14.0';
+import {drawCar,drawPickups,drawCombatPerson,drawShots} from './lobby-render.js?v=0.15.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.15.0';
+import { RemoteMotion } from './motion.js?v=0.15.0';
+import { avatarImage } from './avatar.js?v=0.15.0';
+import {rigImage} from './avatar-render.js?v=0.15.0';
+import { texture } from './art.js?v=0.15.0';
+import { drawBubbles } from './bubbles.js?v=0.15.0';
+import { bubbleDuration } from './chat.js?v=0.15.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -37,8 +38,11 @@ export function createScene(canvas,getWorld){
     ctx.translate(x,y);
     const skin=world.avatars?.get(p.userId),walking=p.moving&&!reduced;
     const custom=skin?.frames&&avatarImage(skin,pose.facing,walking?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
-    if(custom)ctx.drawImage(custom,-13,-39,26,39);
+    if(p.driving){drawCar(ctx,p);ctx.drawImage(rigImage(skin,p.color,'down',0,0),-10,-22,20,28);}
+    else if(p.hp<=0){ctx.globalAlpha=.35;ctx.drawImage(rigImage(skin,p.color,pose.facing,0,0),-20,-52,40,56);ctx.globalAlpha=1;}
+    else if(custom)ctx.drawImage(custom,-13,-39,26,39);
     else ctx.drawImage(rigImage(skin,p.color,pose.facing,pose.phase,reduced?0:pose.amount),-20,-52,40,56);
+    if(world.space==='lobby')drawCombatPerson(ctx,p,world,now);
     const label=p.name+(self?' · 你':'');ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const tw=ctx.measureText(label).width;
     let labelY=custom?-53:-63,showLabel=true;
     if(!self){const collision=()=>labels.some(r=>x-tw/2-5<r.x+r.w&&x+tw/2+5>r.x&&y+labelY<r.y+r.h&&y+labelY+16>r.y);for(let i=0;i<3&&collision();i++)labelY-=18;showLabel=!collision();if(showLabel)labels.push({x:x-tw/2-5,y:y+labelY,w:tw+10,h:16});}
@@ -83,6 +87,7 @@ export function createScene(canvas,getWorld){
       }
       if(world.hover&&me&&building){const {col,row}=world.hover,valid=isBuildCell(col,row)&&Math.hypot(me.x-(col+.5)*TILE_SIZE,me.y-(row+.5)*TILE_SIZE)<=BUILD_REACH;ctx.fillStyle=valid?'#f6ffe33d':'#d47e6a30';ctx.fillRect(col*TILE_SIZE,row*TILE_SIZE,TILE_SIZE,TILE_SIZE);ctx.strokeStyle=valid?'#fafee6':'#ba7765';ctx.lineWidth=2;ctx.strokeRect(col*TILE_SIZE+1,row*TILE_SIZE+1,TILE_SIZE-2,TILE_SIZE-2);}
     }
+    if(world.space==='lobby'){drawPickups(ctx,world.lobbyGame,now);drawShots(ctx,world.lobbyGame,now);const margin=me?.driving?640:160;for(const tile of world.tiles.values())if(tile.col*TILE_SIZE>cameraX-margin&&tile.col*TILE_SIZE<cameraX+visibleW+margin&&tile.row*TILE_SIZE>cameraY-margin&&tile.row*TILE_SIZE<cameraY+visibleH+margin)world.ensureMaterial?.(tile.material);}
     const people=[];
     for(const [id,p] of world.players){
       const target=id===world.self&&me?{...p,...me}:p,previous=positions.get(id)||target;let next={x:target.x,y:target.y};

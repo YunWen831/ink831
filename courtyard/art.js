@@ -1,15 +1,15 @@
-import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.14.0';
-import { createColorPicker } from './color-picker.js?v=0.14.0';
+import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.15.0';
+import { createColorPicker } from './color-picker.js?v=0.15.0';
 
 const textures=new Map();
 export function texture(material){
   if(!material)return null;
-  const key=material.id+material.pixels;if(textures.has(key))return textures.get(key);
-  const pixels=decodePixels(material.pixels);if(!pixels)return null;
+  const key=material.id+(material.pixels||material.thumbnail);if(textures.has(key))return textures.get(key);
+  const pixels=decodePixels(material.pixels)||material.thumbnail?.match(/.{8}/g);if(!pixels)return null;
   const canvas=document.createElement('canvas');const size=Math.sqrt(pixels.length);canvas.width=canvas.height=size;
   const ctx=canvas.getContext('2d');
   pixels.forEach((color,i)=>{if(color.slice(6)!=='00'){ctx.fillStyle='#'+color;ctx.fillRect(i%size,Math.floor(i/size),1,1);}});
-  textures.set(key,canvas);return canvas;
+  if(textures.size>=768)textures.delete(textures.keys().next().value);textures.set(key,canvas);return canvas;
 }
 export function preview(canvas,material){
   const image=texture(material),size=image?.width||16;

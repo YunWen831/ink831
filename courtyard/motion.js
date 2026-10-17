@@ -1,4 +1,5 @@
-import { WORLD, move } from './world.js?v=0.14.0';
+import { WORLD, move } from './world.js?v=0.15.0';
+import {CAR,slide} from './lobby-rules.js?v=0.15.0';
 
 // Use acknowledged simulation time for direction, since packets can arrive
 // together after a tunnel stall. This never changes authoritative game state.
@@ -14,14 +15,14 @@ export class RemoteMotion {
   }
   update(player, now) {
     const previous = this.latest;
-    if (player.ack === previous.ack && player.x === previous.x && player.y === previous.y && player.connected === previous.connected) return;
-    if (player.ack < previous.ack || Math.hypot(player.x - previous.x, player.y - previous.y) > 80) {
+    if (player.ack === previous.ack && player.x === previous.x && player.y === previous.y && player.connected === previous.connected&&player.epoch===previous.epoch&&player.driving===previous.driving) return;
+    if (player.epoch!==previous.epoch||player.driving!==previous.driving||player.ack < previous.ack || Math.hypot(player.x - previous.x, player.y - previous.y) > 80) {
       this.reset(player, now);
       return;
     }
     const seconds = Math.max(WORLD.stepMs, (player.ack - previous.ack) * WORLD.stepMs) / 1000;
     let x = (player.x - previous.x) / seconds, y = (player.y - previous.y) / seconds;
-    const scale = Math.max(1, Math.hypot(x, y) / WORLD.speed);
+    const scale = Math.max(1, Math.hypot(x, y) / (player.driving?CAR.maxSpeed:WORLD.speed));
     this.velocity = player.connected ? { x: x / scale, y: y / scale } : { x: 0, y: 0 };
     this.latest = { ...player };
     this.receivedAt = now;
@@ -34,7 +35,7 @@ export class RemoteMotion {
     let target = { x: this.latest.x, y: this.latest.y };
     for (let remaining = ahead; remaining > 0; remaining -= WORLD.stepMs) {
       const fraction = Math.min(remaining, WORLD.stepMs) / WORLD.stepMs;
-      target = move(target, this.velocity.x / WORLD.speed * fraction, this.velocity.y / WORLD.speed * fraction, tiles);
+      target = this.latest.driving?slide(target,this.velocity.x*WORLD.stepMs/1000*fraction,this.velocity.y*WORLD.stepMs/1000*fraction,tiles):move(target, this.velocity.x / WORLD.speed * fraction, this.velocity.y / WORLD.speed * fraction, tiles);
     }
     const dt = Math.min(100, Math.max(0, now - this.renderedAt));
     this.renderedAt = now;

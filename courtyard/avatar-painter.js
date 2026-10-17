@@ -1,9 +1,9 @@
-import {RIG_VIEWS,RIG_PARTS,rigTemplate,rigFromFrames,validRig} from './avatar-rig.js?v=0.14.0';
-import {validAvatar} from './avatar-data.js?v=0.14.0';
-import {decodeRig,pixelCanvas} from './avatar-render.js?v=0.14.0';
-import {drawRig,rigPose} from './avatar-motion.js?v=0.14.0';
-import {CLASSIC_SWATCHES,SWATCHES} from './materials.js?v=0.14.0';
-import {createColorPicker} from './color-picker.js?v=0.14.0';
+import {RIG_VIEWS,RIG_PARTS,rigTemplate,rigFromFrames,validRig} from './avatar-rig.js?v=0.15.0';
+import {validAvatar} from './avatar-data.js?v=0.15.0';
+import {decodeRig,pixelCanvas} from './avatar-render.js?v=0.15.0';
+import {drawRig,rigPose} from './avatar-motion.js?v=0.15.0';
+import {CLASSIC_SWATCHES,SWATCHES} from './materials.js?v=0.15.0';
+import {createColorPicker} from './color-picker.js?v=0.15.0';
 export function createAvatarPainter({userId,current,onSave,defaultColor=()=> '568a78'}){
   const $=id=>document.getElementById(id),canvas=$('skinCanvas'),ctx=canvas.getContext('2d'),preview=$('skinPreview'),pc=preview.getContext('2d'),history=[];
   let rig=rigTemplate(),parts=decodeRig(rig),view='down',part='head',owner='',color='ff0000ff',tool='brush',pointer=null,last=null,clipboard=null,cursor=0,picker,saving=false,lastPreview=0;
