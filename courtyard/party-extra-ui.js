@@ -1,0 +1,22 @@
+import {CHOICE_GAMES,FLOOR_TYPES,WISHES,POWERS,BUTTON_EFFECTS} from './party-rules.js?v=0.12.0';
+export function extraAchievement(p,game){const s=p.stats||{};if(game==='floor')return p.value+' 颗星星 · '+(s.placed||0)+' 块地砖';if(game==='remote')return p.value+' 颗星星 · '+(s.powers||0)+' 次规则变化';if(['wish','buttons','follow'].includes(game))return p.value+' 分 · '+(s.successes||0)+' 次成功';return null;}
+export function createExtraUI({send,self,online}){
+  const $=id=>document.getElementById(id);let state=null,personal=null,key='',pending='',tileType='ice',signature='';
+  function pick(value){if(!state||!online()||state.phase!=='playing'||state.paused)return;if(state.game==='floor'){if(state.extra.stage!=='build')return;tileType=value;render();return;}if(CHOICE_GAMES.includes(state.game)&&(state.extra.stage!=='choose'||pending||personal?.choice))return;if(state.game==='remote'&&(state.extra.controller!==self()||state.extra.used))return;pending=value;send({choice:value,target:$('partyTarget').value});render();}
+  function render(){
+    if(!state)return;const e=state.extra,isChoice=CHOICE_GAMES.includes(state.game),playing=state.phase==='playing'&&!state.paused;
+    $('partyExtraControls').hidden=!e||!playing;$('partyExtraControls').classList.toggle('moving',!isChoice);if(!e)return;
+    const me=state.players.find(p=>p.id===self()),mine=personal?.id===state.id&&personal.round===state.round&&personal.turn===state.turn?personal:null,locked=mine?.choice||pending;
+    let options={},info='';
+    if(state.game==='floor'){options=FLOOR_TYPES;info=e.stage==='build'?'放置阶段 '+Math.ceil(e.buildLeft)+'s · 剩余 '+Math.max(0,6-(me?.tileCount||0))+' 块':'抢星星！地砖对所有人有效';}
+    if(state.game==='remote'){options=POWERS;info='遥控器：'+(state.players.find(p=>p.id===e.controller)?.name||'等待')+(e.used?' · 本次已使用':' · 可改变一次规则')+(e.power?' · '+POWERS[e.power]+' '+Math.ceil(e.powerLeft)+'s':'');}
+    if(state.game==='wish'){options=WISHES;info=e.stage==='choose'?'秘密许愿 · '+Math.ceil(e.turnLeft)+'s · 顺序 '+e.order.join(' → '):e.message;}
+    if(state.game==='buttons'){options={'0':'红按钮','1':'蓝按钮','2':'黄按钮'};info=e.stage==='choose'?(mine?.clue?'仅你知道：'+['红','蓝','黄'][mine.clue.button]+'按钮 '+(mine.clue.not?'≠ ':'= ')+BUTTON_EFFECTS[mine.clue.effect]:'正在拆开你的私密提示…')+' · '+Math.ceil(e.turnLeft)+'s':e.message;}
+    if(state.game==='follow'){options={do:'我来做',hold:'我不做'};info=e.stage==='choose'?'恰好 '+e.required+' 人「'+e.prompt+'」 · '+Math.ceil(e.turnLeft)+'s':e.message;}
+    $('partyExtraInfo').textContent=info;$('partyTargetLabel').hidden=state.game!=='wish'||e.stage!=='choose';
+    const targetKey=state.players.filter(p=>p.id!==self()&&p.connected).map(p=>p.id).join(',');if($('partyTarget').dataset.key!==targetKey){const old=$('partyTarget').value;$('partyTarget').replaceChildren(...state.players.filter(p=>p.id!==self()&&p.connected).map(p=>new Option(p.name,p.id)));$('partyTarget').dataset.key=targetKey;if([...$('partyTarget').options].some(o=>o.value===old))$('partyTarget').value=old;}
+    const stamp=JSON.stringify([state.id,state.round,state.turn,state.game,e.stage,e.controller,e.used,locked,tileType,online()]);if(stamp===signature)return;signature=stamp;$('partyExtraButtons').replaceChildren();
+    for(const [value,label] of Object.entries(options)){const b=document.createElement('button');b.className='secondary-button';b.dataset.extraChoice=value;b.textContent=label;b.setAttribute('aria-pressed',String((state.game==='floor'?tileType:locked)===value));b.disabled=!online()||(isChoice&&(e.stage!=='choose'||!!locked))||(state.game==='floor'&&e.stage!=='build')||(state.game==='remote'&&(e.controller!==self()||e.used));b.addEventListener('click',()=>pick(value));$('partyExtraButtons').append(b);}
+  }
+  return {update(data){const next=data.id+':'+data.round+':'+data.turn;if(next!==key){key=next;pending='';personal=null;signature='';}state=data;render();},personal(data){if(!state||data.id!==state.id||data.round!==state.round||data.turn!==state.turn)return;personal=data;render();},fields(){return state?.game==='floor'?{tileType}:{};},key(value){if(!state||!['1','2','3','4'].includes(value))return false;const options=state.game==='floor'?Object.keys(FLOOR_TYPES):state.game==='wish'?Object.keys(WISHES):state.game==='remote'?Object.keys(POWERS):state.game==='buttons'?['0','1','2']:state.game==='follow'?['do','hold']:[];if(options[Number(value)-1]){pick(options[Number(value)-1]);return true;}return false;},stop(){state=null;personal=null;pending='';key='';signature='';$('partyExtraControls').hidden=true;}};
+}

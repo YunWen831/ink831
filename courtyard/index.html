@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5ef"><meta name="description" content="联机建造、像素绘画与朋友。">
-<title>庭院 · 地牢来信</title><link rel="icon" href="https://yunwen831.github.io/ink831/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.11.0">
+<title>庭院 · 地牢来信</title><link rel="icon" href="https://yunwen831.github.io/ink831/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.12.0">
 <script>if(location.hostname==='yunwen831.github.io')location.replace('https://82.157.83.81/courtyard/'+location.search+location.hash);</script>
-<script src="./vendor/colyseus.js" defer></script><script type="module" src="./app.js?v=0.11.0"></script>
+<script src="./vendor/colyseus.js" defer></script><script type="module" src="./app.js?v=0.12.0"></script>
 </head>
 <body>
 <div class="page-shell">
@@ -21,6 +21,7 @@
 <div id="partyScores" class="party-scores"></div><div id="partyPersonal" class="party-personal" aria-live="polite"></div><canvas id="partyWorld" width="960" height="600" tabindex="0" aria-label="派对游戏场地"></canvas>
 <div id="partyOverlay" class="party-overlay"><div class="party-card"><small>小游戏派对</small><h2 id="partyOverlayTitle"></h2><p id="partyRule"></p><ol id="partyRanking"></ol><strong id="partyCountdown"></strong><section id="partyVoting" class="party-voting" hidden><p>下一场玩什么？</p><div id="partyVoteButtons"></div><small id="partyVoteHint"></small></section><button id="partyAgain" class="primary-button" hidden>再来一场</button></div></div>
 <div id="partyChoices" class="party-choices" hidden><button id="partyDig" class="secondary-button">继续挖</button><button id="partyCash" class="primary-button">带钱回家</button></div>
+<section id="partyExtraControls" class="party-extra-controls" hidden><p id="partyExtraInfo"></p><label id="partyTargetLabel" hidden>交换对象 <select id="partyTarget" aria-label="交换积分对象"></select></label><div id="partyExtraButtons"></div></section>
 <div id="partyPads" class="party-pads" hidden><div id="partyStick" class="party-stick" aria-label="派对移动摇杆"><span id="partyKnob"></span></div><button id="partyAction" class="party-action">行动</button></div><p id="partyHint" class="party-hint"></p>
 </section>
 <canvas id="editorWorld" width="960" height="640" tabindex="0" aria-label="关卡绘制画布" hidden></canvas>

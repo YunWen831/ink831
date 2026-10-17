@@ -21,7 +21,7 @@ window.YUNWEN_PROJECTS = [
   {
     title: '地牢来信',
     category: 'game',
-    description: '建造 · 跑酷竞速',
+    description: '建造 · 九款联机小游戏',
     href: './courtyard/index.html',
     image: './assets/courtyard-cover.svg?v=courtyard-03',
     imageAlt: '地牢来信：两位旅人在庭院里交换一封信'

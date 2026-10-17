@@ -99,7 +99,8 @@ export class Courtyard extends Room {
       this.chatHistory.add(player.space,message);
       this.sendSpace(player.space,'chat',message);
     });
-    this.onMessage('party:input',(client,data)=>this.partyMatches.get(this.state.players.get(client.sessionId)?.space)?.input(client.sessionId,data));
+    this.onMessage('party:input',(client,data)=>{const match=this.partyMatches.get(this.state.players.get(client.sessionId)?.space);if(match?.input(client.sessionId,data)&&data?.choice){const personal=match.privateState(client.sessionId,data);if(personal)client.send('party:private',personal);}});
+    this.onMessage('party:peek',(client,data)=>{if(!this.allow(client,'partyPeek',150))return;const personal=this.partyMatches.get(this.state.players.get(client.sessionId)?.space)?.privateState(client.sessionId,data);if(personal)client.send('party:private',personal);});
     this.onMessage('party:settings',(client,data)=>{
       const p=this.state.players.get(client.sessionId),space=this.spaces.get(p?.space);
       if(!space||space.type!=='party'||space.host!==client.sessionId||space.phase!=='forming'||!validPartyMode(data?.mode)){this.notice(client,'仅房主可在准备时选择有效玩法。','space');return;}
@@ -331,7 +332,7 @@ export class Courtyard extends Room {
     }finally{this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==11)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==12)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');

@@ -1,4 +1,4 @@
-import { MAP_COLS,MAP_ROWS,canonicalMap,editableCell } from './parkour-map.js?v=0.11.0';
+import { MAP_COLS,MAP_ROWS,canonicalMap,editableCell } from './parkour-map.js?v=0.12.0';
 export function selectionBetween(a,b){
   const left=Math.max(4,Math.min(a.c,b.c)),right=Math.min(MAP_COLS-5,Math.max(a.c,b.c));
   const top=Math.max(2,Math.min(a.r,b.r)),bottom=Math.min(MAP_ROWS-1,Math.max(a.r,b.r));

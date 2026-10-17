@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {PartyMatch} from '../party-match.js';
 import {PARTY_GAMES,PARTY_BASES,partySchedule,roundPoints} from '../../../courtyard/party-rules.js';
 const members=Array.from({length:4},(_,i)=>({id:'p'+i,name:'玩家'+i,color:'#709bbb'}));
-function game(kind,n=2,options={}){const g=new PartyMatch(members.slice(0,n),{random:()=>.5,schedule:[kind,...Object.keys(PARTY_GAMES).filter(k=>k!==kind),kind],...options});return g;}
+function game(kind,n=2,options={}){const g=new PartyMatch(members.slice(0,n),{random:()=>.5,schedule:[kind,...['bump','delivery','mine','rescue'].filter(k=>k!==kind),kind],...options});return g;}
 function advance(g,seconds){for(let t=0;t<seconds;t+=.05)g.tick(Math.min(.05,seconds-t));}
 function start(g){advance(g,5.1);assert.equal(g.phase,'playing');}
 function input(g,i,data={}){const p=g.players[i];return g.input(p.id,{id:g.id,round:g.round,seq:p.seq+1,x:0,y:0,...data});}

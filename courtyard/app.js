@@ -1,16 +1,16 @@
-import {PARTY_MODES,partyModeName} from './party-rules.js?v=0.11.0';
-import {createPartyGame} from './party-game.js?v=0.11.0';
-import {createAdmin} from './admin.js?v=0.11.0';
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.11.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.11.0';
-import { createScene } from './scene.js?v=0.11.0';
-import { createPainter, preview } from './art.js?v=0.11.0';
-import { createPractice } from './parkour-game.js?v=0.11.0';
-import { createEditor } from './parkour-editor.js?v=0.11.0';
-import { bubbleDuration } from './chat.js?v=0.11.0';
-import { createAccounts } from './account.js?v=0.11.0';
-import { createAvatarPainter } from './avatar.js?v=0.11.0';
-import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.11.0';
+import {PARTY_MODES,partyModeName} from './party-rules.js?v=0.12.0';
+import {createPartyGame} from './party-game.js?v=0.12.0';
+import {createAdmin} from './admin.js?v=0.12.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.12.0';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.12.0';
+import { createScene } from './scene.js?v=0.12.0';
+import { createPainter, preview } from './art.js?v=0.12.0';
+import { createPractice } from './parkour-game.js?v=0.12.0';
+import { createEditor } from './parkour-editor.js?v=0.12.0';
+import { bubbleDuration } from './chat.js?v=0.12.0';
+import { createAccounts } from './account.js?v=0.12.0';
+import { createAvatarPainter } from './avatar.js?v=0.12.0';
+import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.12.0';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
@@ -149,7 +149,7 @@ function renderRooms(){
 function openFacility(id){
   if(!room||!online||space!=='lobby')return;resetInput();
   if(id==='art'){openPaint();return;}
-  facilityMode=id;$('createPartyMode').hidden=id!=='party';$('practiceEntry').hidden=id!=='parkour';$('levelLibraryButton').hidden=id!=='parkour';$('facilityTitle').textContent=id==='party'?'小游戏派对':id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent=id==='party'?'2～4 人 · 四种小游戏 · 五轮计分':id==='parkour'?'2～4 人 · 造图与竞速':'2～4 人';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
+  facilityMode=id;$('createPartyMode').hidden=id!=='party';$('practiceEntry').hidden=id!=='parkour';$('levelLibraryButton').hidden=id!=='parkour';$('facilityTitle').textContent=id==='party'?'小游戏派对':id==='parkour'?'跑酷':'地牢';$('facilityDescription').textContent=id==='party'?'2～4 人 · 九款小游戏 · 随机五轮 / 单项':id==='parkour'?'2～4 人 · 造图与竞速':'2～4 人';for(const button of document.querySelectorAll('[data-facility]'))button.classList.toggle('active',button.dataset.facility===id);$('spaceMessage').textContent='';renderRooms();room.send('spaces:list');if(!$('spacesDialog').open)$('spacesDialog').showModal();
 }
 function confirmLevel(title,text,action){levelConfirmAction=action;$('levelConfirmTitle').textContent=title;$('levelConfirmText').textContent=text;$('levelConfirmDialog').showModal();}
 function beforeReplace(action){if(editor.hasUnsaved)confirmLevel('离开当前地图？','还有未保存到账号的更改。本机草稿会保留，也可以取消后先保存。',action);else action();}
@@ -175,6 +175,7 @@ function attach(joined){
   joined.onStateChange(state=>{if(room===joined)applyState(state);});
   joined.onMessage('pong',stamp=>{if(room!==joined||typeof stamp!=='number')return;latency=Math.round(performance.now()-stamp);lastPong=performance.now();$('latency').replaceChildren(document.createTextNode(String(latency)),Object.assign(document.createElement('small'),{textContent:' ms'}));if(online)status('online','已连接',latency>300?'网络较慢':'');});
   joined.onMessage('space:launch',()=>{if(room===joined){spaceBusy=false;controls();updateSpaceUI();}});
+  joined.onMessage('party:private',data=>{if(room===joined)partyGame.personal(data);});
   joined.onMessage('party:state',data=>{if(room!==joined)return;spaceBusy=false;partyGame.receive(data,spaces.find(s=>s.id===space)?.host===room.sessionId&&spaces.find(s=>s.id===space)?.canStart);controls();});
   joined.onMessage('parkour:workshop',data=>{if(room!==joined)return;if(data.verified)localMapDirty=false;if(levelOpening&&(levelOpening===data.cloudId||levelOpening==='new'&&!data.cloudId)){levelOpening=null;$('levelLibraryDialog').close();}if(arenaMode==='editor')editor.acknowledged(data);else{practice.stop();showParkour('editor');editor.open(data,store.get(draftKey()));}controls();});
   joined.onMessage('parkour:run',data=>{if(room!==joined)return;if(data.verified)localMapDirty=false;editor.stop();showParkour(data.kind);practice.run(data);});
@@ -221,7 +222,7 @@ function friendly(error){const message=String(error?.message||error);if(/full|lo
 async function enter(){
   if(busy||room)return;const name=accountUser?.nickname||$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:11,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:12,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -233,7 +234,7 @@ async function checkEndpoint(){
       if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('invalid endpoint');
       if(!globalThis.Colyseus)throw Error('client unavailable');
       const health=await fetch(url.origin+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!health.ok)throw Error('health unavailable');const data=await health.json();
-      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.11.'))throw Error('server updating');
+      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.12.'))throw Error('server updating');
       endpoint=url.origin;ready=true;if(!wasInRoom)status('ready','入口可用','输入用户名，就能进入大家共同的大厅。');log('endpoint ready');
     }catch(error){if(!wasInRoom)status('error','暂不可用','入口暂时不可用或正在更新，请稍后重新检查。');else toast('入口检查未通过，当前连接继续保留。');log('endpoint check failed '+error.message);}finally{controls();}
   })();try{await checkTask;}finally{checkTask=null;}
@@ -349,7 +350,7 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.11.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.12.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

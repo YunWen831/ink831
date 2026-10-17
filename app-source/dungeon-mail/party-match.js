@@ -1,3 +1,5 @@
+import {setupExtra,inputExtra,tickExtra,privateExtra,snapshotExtra} from './party-extra.js';
+import {EXTRA_GAMES} from '../../courtyard/party-rules.js';
 import {randomUUID} from 'node:crypto';
 import {PARTY_GAMES,PARTY_BASES,PARTY_MODES,validPartyMode,mineRisk,roundPoints,partySchedule} from '../../courtyard/party-rules.js';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -10,10 +12,11 @@ export class PartyMatch{
   }
   get game(){return this.schedule[this.round];}
   setup(){
-    this.items=[];this.leaks=[];this.bumpers=[];this.water=8;this.spawnAt=0;this.bonusAt=0;this.bigAt=0;this.turn=0;this.minePot=0;this.mineEvent='大家上车！';this.reason='';this.radius=235;this.events=[];
+    this.extra=null;this.items=[];this.leaks=[];this.bumpers=[];this.water=8;this.spawnAt=0;this.bonusAt=0;this.bigAt=0;this.turn=0;this.minePot=0;this.mineEvent='大家上车！';this.reason='';this.radius=235;this.events=[];
     for(const p of this.players){const a=p.index*Math.PI*2/this.players.length;p.x=this.game==='delivery'?PARTY_BASES[p.index].x:480+Math.cos(a)*130;p.y=this.game==='delivery'?PARTY_BASES[p.index].y:300+Math.sin(a)*130;Object.assign(p,{vx:0,vy:0,value:0,points:0,cool:0,out:0,shield:1.5,carry:null,boards:2,cashed:false,choice:'',bank:0,hit:null,stats:{falls:0,delivered:0,bonus:0,repairs:0,pumps:0,bigRepairs:0},input:{x:0,y:0,at:-10}});}
     if(this.game==='delivery')for(let i=0;i<7;i++)this.package();
     if(this.game==='rescue')this.leak();
+    if(EXTRA_GAMES.includes(this.game))setupExtra(this);
   }
   package(x=360+this.random()*240,y=215+this.random()*170,value=1+Math.floor(this.random()*3),extra={}){const item={id:randomUUID(),x,y,value,...extra};this.items.push(item);return item;}
   leak(large=false){if(this.leaks.length>=8)return;const cells=Array.from({length:12},(_,i)=>({x:170+i%4*205,y:135+Math.floor(i/4)*120})).filter(cell=>this.leaks.every(l=>distance(cell,l)>65));if(!cells.length)return;const cell=cells[Math.floor(this.random()*cells.length)];this.leaks.push({id:randomUUID(),...cell,progress:0,large});if(large)this.event('large',{...cell,text:'双人漏点！一起修'});}
@@ -23,6 +26,7 @@ export class PartyMatch{
   input(id,data){
     const p=this.players.find(p=>p.id===id);if(!p||!this.connected(id)||this.phase!=='playing'||this.pause||data?.id!==this.id||data.round!==this.round||!Number.isSafeInteger(data.seq)||data.seq<=p.seq||data.seq>p.seq+10000||!Number.isFinite(data.x)||!Number.isFinite(data.y)||Math.abs(data.x)>1||Math.abs(data.y)>1)return false;
     p.seq=data.seq;
+    if(EXTRA_GAMES.includes(this.game)&&inputExtra(this,p,data))return true;
     if(this.game==='mine'){if(!p.cashed&&!p.choice&&['dig','cash'].includes(data.choice))p.choice=data.choice;return true;}
     const norm=Math.max(1,Math.hypot(data.x,data.y));p.input={x:data.x/norm,y:data.y/norm,action:data.action===true,at:this.time};return true;
   }
@@ -34,7 +38,7 @@ export class PartyMatch{
     const previousPhase=this.phase;this.time+=dt;this.left-=dt;
     if(this.phase==='intro'&&this.left<=0){this.phase='playing';this.left=PARTY_GAMES[this.game].seconds;this.roundStarted=this.time;this.spawnAt=this.time+4;this.bonusAt=this.time+12;this.bigAt=this.time+14;this.event('start');}
     else if(this.phase==='playing'){
-      if(this.game==='mine')this.mining();else{this.movement(dt);if(this.game==='bump')this.bumping();if(this.game==='delivery')this.deliveries();if(this.game==='rescue')this.repair(dt);}
+      if(EXTRA_GAMES.includes(this.game))tickExtra(this,dt);else if(this.game==='mine')this.mining();else{this.movement(dt);if(this.game==='bump')this.bumping();if(this.game==='delivery')this.deliveries();if(this.game==='rescue')this.repair(dt);}
       if(this.left<=0&&this.phase==='playing')this.finishRound();
     }else if(this.phase==='results'&&this.left<=0){if(this.round===this.roundCount-1){this.phase='final';this.left=0;}else{this.round++;this.phase='intro';this.left=5;this.setup();}}
     if(previousPhase!==this.phase||now-this.broadcastAt>=100)this.publish();
@@ -97,12 +101,13 @@ export class PartyMatch{
     this.players.forEach((p,i)=>{p.points=points[i];p.total+=p.points;p.input={x:0,y:0,at:-10};});
     this.history.push({game:this.game,points:[...points],values:this.players.map(p=>p.value),stats:this.players.map(p=>({...p.stats})),water:this.game==='rescue'?this.water:null});this.phase='results';this.left=7;this.event('round');this.publish();
   }
+  privateState(id,data){return privateExtra(this,id,data);}
   snapshot(){
     const votes=[...this.votes].filter(([id])=>this.connected(id)).map(([id,mode])=>({id,mode}));
     return {id:this.id,mode:this.mode,round:this.round,roundCount:this.roundCount,time:this.time,game:this.game,phase:this.phase,left:Math.max(0,this.left),paused:this.pause>0,pauseLeft:Math.max(0,15-this.pause),reason:this.reason,
-      players:this.players.map(({id,name,color,index,total,points,value,x,y,vx,vy,cool,shield,out,carry,boards,cashed,seq,stats})=>({id,name,color,index,total,points,value,ack:seq,x:Math.round(x*10)/10,y:Math.round(y*10)/10,vx,vy,cool,shield,out,carry:carry?{value:carry.value,bonus:!!carry.bonus,expires:carry.expires}:null,boards,cashed,stats:{...stats},connected:this.connected(id)})),
+      players:this.players.map(({id,name,color,index,total,points,value,x,y,vx,vy,cool,shield,out,carry,boards,cashed,seq,stats,tileType,tileCount})=>({id,name,color,index,total,points,value,ack:seq,x:Math.round(x*10)/10,y:Math.round(y*10)/10,vx,vy,cool,shield,out,carry:carry?{value:carry.value,bonus:!!carry.bonus,expires:carry.expires}:null,boards,cashed,tileType,tileCount,stats:{...stats},connected:this.connected(id)})),
       items:this.items,leaks:this.leaks,bumpers:this.bumpers,water:this.water,radius:this.radius||235,turn:this.turn,pot:this.minePot,nextRisk:Math.round(mineRisk(this.turn+1)*100),mineEvent:this.mineEvent,history:this.history,
-      events:this.events.filter(e=>this.time-e.at<3),votes,voteCounts:Object.fromEntries(PARTY_MODES.map(mode=>[mode,votes.filter(v=>v.mode===mode).length])),nextMode:this.nextMode()};
+      extra:snapshotExtra(this),events:this.events.filter(e=>this.time-e.at<3),votes,voteCounts:Object.fromEntries(PARTY_MODES.map(mode=>[mode,votes.filter(v=>v.mode===mode).length])),nextMode:this.nextMode()};
   }
   publish(){this.broadcastAt=performance.now();this.send('party:state',this.snapshot());}
 }
