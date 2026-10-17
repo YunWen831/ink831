@@ -1,6 +1,8 @@
 export const RELAY_MODES={relay:'绘画接龙',story:'故事接龙'};
 export const isRelay=mode=>Object.hasOwn(RELAY_MODES,mode);
-export const relaySteps=(mode,count)=>mode==='story'?count*2:count===3?6:4;
+export const RELAY_MAX=18;
+export const relayCapacity=mode=>isRelay(mode)?RELAY_MAX:4;
+export const relaySteps=(mode,count)=>mode==='story'?(count<=4?count*2:count):count<=4?(count===3?6:4):count+count%2;
 export const relayKind=(mode,step)=>mode==='story'||step%2===0?'text':'drawing';
 export function validDrawing(value){
   if(!Array.isArray(value)||value.length>240)return false;

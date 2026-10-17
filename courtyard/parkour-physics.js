@@ -1,4 +1,4 @@
-import {platformAt,crumbleSolid,CRUMBLE_LIFETIME,DOOR_DURATION} from './parkour-mechanics.js?v=0.13.1';
+import {platformAt,crumbleSolid,CRUMBLE_LIFETIME,DOOR_DURATION} from './parkour-mechanics.js?v=0.14.0';
 export const STEP=1/120;
 export const BODY={w:16,h:24};
 export const intersects=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;

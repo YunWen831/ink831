@@ -1,5 +1,5 @@
-import {readPixelImage,sampleImage} from './image-import.js?v=0.13.1';
-import {MURAL_REACH} from './mural-rules.js?v=0.13.1';
+import {readPixelImage,sampleImage} from './image-import.js?v=0.14.0';
+import {MURAL_REACH} from './mural-rules.js?v=0.14.0';
 export function createMural({send,online,allowed,start,finish,toast}){
   const dialog=document.createElement('dialog');dialog.className='modal mural-modal';dialog.id='importDialog';
   dialog.innerHTML='<div class="modal-heading"><h2>导入像素画</h2><button id="importClose" class="close-button" aria-label="关闭">×</button></div><input id="importFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" aria-label="选择像素画图片"><div class="mural-settings"><label id="importColsLabel">宽 / 块<input id="importCols" type="number" min="1" max="8" value="4"></label><label id="importRowsLabel">高 / 块<input id="importRows" type="number" min="1" max="8" value="4"></label></div><canvas id="importPreview" width="128" height="128" aria-label="像素画导入预览"></canvas><input id="importName" maxlength="12" placeholder="作品名称"><p class="muted">保留比例与透明区域，不加入砖块材料库。大画按每块 16 × 16 像素拆分为地砖，最多 8 × 8 块。</p><button id="importUse" class="primary-button" disabled>去地图选位置</button><p id="importMessage" class="form-message" role="status"></p>';

@@ -1,9 +1,9 @@
-import { PARTY } from './world.js?v=0.13.1';
+import { PARTY } from './world.js?v=0.14.0';
 
-export function partyStatus(players,phase='forming') {
+export function partyStatus(players,phase='forming',capacity=PARTY.max) {
   const members=Array.from(players),count=members.length;
   const connected=members.filter(p=>p.connected).length;
   const ready=members.filter(p=>p.connected&&p.ready).length;
-  return {count,connected,ready,minPlayers:PARTY.min,capacity:PARTY.max,
-    canStart:phase==='forming'&&count>=PARTY.min&&count<=PARTY.max&&connected===count&&ready===count};
+  return {count,connected,ready,minPlayers:PARTY.min,capacity,
+    canStart:phase==='forming'&&count>=PARTY.min&&count<=capacity&&connected===count&&ready===count};
 }

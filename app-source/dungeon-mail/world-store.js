@@ -1,10 +1,12 @@
 import { mkdir, readFile, writeFile, rename, copyFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { randomUUID } from 'node:crypto';
+import { randomUUID,createHash } from 'node:crypto';
 import { BUILTIN_MATERIALS, validPixels } from '../../courtyard/materials.js';
 import { isBuildCell, tileKey, MAX_TILES } from '../../courtyard/world.js';
 import {splitMural} from '../../courtyard/mural-rules.js';
 import {isLibraryMaterial,expiredMaterial} from '../../courtyard/material-lifecycle.js';
+import {buildRectangle,inRectangle} from '../../courtyard/bulk-rules.js';
+const regionHash=tiles=>createHash('sha256').update(JSON.stringify(tiles.slice().sort((a,b)=>a.row-b.row||a.col-b.col))).digest('hex');
 
 export const cleanText = (value, length) => typeof value === 'string' ? Array.from(value.replace(/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,length).join('') : '';
 const ownerId=value=>value===undefined||value===''||/^[a-f0-9-]{36}$/.test(value);
@@ -99,5 +101,11 @@ export class WorldStore {
       });return {removed,retained};
     });
   }
+  previewDemolition(value){const rect=buildRectangle(value),tiles=this.data.tiles.filter(t=>inRectangle(t,rect));return {rect,count:tiles.length,digest:regionHash(tiles)};}
+  demolishRegion(rect,digest,authorize){return this.transact(data=>{
+    authorize();rect=buildRectangle(rect);const removed=data.tiles.filter(t=>inRectangle(t,rect));
+    if(regionHash(removed)!==digest)throw Object.assign(Error('选区建筑已变化，请重新预览。'),{status:409});
+    data.tiles=data.tiles.filter(t=>!inRectangle(t,rect));return removed;
+  });}
   async flush(){await this.queue;}
 }

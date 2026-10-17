@@ -1,4 +1,4 @@
-import {CHOICE_GAMES,FLOOR_TYPES,WISHES,POWERS,BUTTON_EFFECTS} from './party-rules.js?v=0.13.1';
+import {CHOICE_GAMES,FLOOR_TYPES,WISHES,POWERS,BUTTON_EFFECTS} from './party-rules.js?v=0.14.0';
 export function extraAchievement(p,game){const s=p.stats||{};if(game==='floor')return p.value+' 颗星星 · '+(s.placed||0)+' 块地砖';if(game==='remote')return p.value+' 颗星星 · '+(s.powers||0)+' 次规则变化';if(['wish','buttons','follow'].includes(game))return p.value+' 分 · '+(s.successes||0)+' 次成功';return null;}
 export function createExtraUI({send,self,online}){
   const $=id=>document.getElementById(id);let state=null,personal=null,key='',pending='',tileType='ice',signature='';

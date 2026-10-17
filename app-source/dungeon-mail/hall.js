@@ -1,5 +1,5 @@
 import {RelayMatch} from './relay-match.js';
-import {isRelay,TextUpload} from '../../courtyard/relay-rules.js';
+import {isRelay,relayCapacity,TextUpload} from '../../courtyard/relay-rules.js';
 import {MURAL_MAX,MURAL_REACH,splitMural} from '../../courtyard/mural-rules.js';
 import {validPartyMode} from '../../courtyard/party-rules.js';
 import {PartyMatch} from './party-match.js';
@@ -35,8 +35,9 @@ const Block = schema({col:t.number(),row:t.number(),material:t.string(),solid:t.
 const blockOf = tile => Object.assign(new Block(),tile);
 const HallState = schema({players:t.map(Player),tiles:t.map(Block)},'HallState');
 let active=false,liveHall=null;
-export function notifyAdministration({protection,material}){
-  if(!liveHall)return;if(material)liveHall.broadcast('material:updated',material);
+export function notifyAdministration({protection,material,removedTiles}){
+  if(!liveHall)return;if(removedTiles)for(const t of removedTiles){liveHall.state.tiles.delete(tileKey(t.col,t.row));liveHall.collisionTiles.delete(tileKey(t.col,t.row));}
+  if(material)liveHall.broadcast('material:updated',material);
   if(protection)for(const client of liveHall.clients)if(client.userData?.accountId===protection.id)client.send('building:protection',{allow:protection.allow});
 }
 const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -107,6 +108,7 @@ export class Courtyard extends Room {
       this.chatHistory.add(channel,message);
       if(channel==='lobby')this.broadcast('chat',message);else this.sendSpace(channel,'chat',message);
     });
+    this.onMessage('relay:page',(client,data)=>{const match=this.relayMatches.get(this.state.players.get(client.sessionId)?.space);const page=match?.page(client.sessionId,data);if(!page)return;if(!this.allow(client,'relayPage',80)){client.send('relay:page',{id:page.id,book:page.book,page:page.page,error:'翻页太快，请稍后重试。'});return;}client.send('relay:page',page);});
     this.onMessage('relay:peek',client=>{if(this.allow(client,'relayPeek',300))this.relayMatches.get(this.state.players.get(client.sessionId)?.space)?.publish();});
     this.onMessage('relay:begin',(client,data)=>{
       client.userData.relayUpload=null;const match=this.relayMatches.get(this.state.players.get(client.sessionId)?.space);
@@ -115,7 +117,7 @@ export class Courtyard extends Room {
       try{client.userData.relayUpload={upload:new TextUpload(data.length),id:data.id,step:data.step,revision:data.revision,submit:data.submit===true};}catch(error){this.notice(client,error.message,'relay');}
     });
     this.onMessage('relay:chunk',(client,data)=>{const pending=client.userData.relayUpload;if(!pending)return;try{pending.upload.append(data?.index,data?.text);}catch(error){client.userData.relayUpload=null;this.notice(client,error.message,'relay');}});
-    this.onMessage('relay:finish',client=>{const pending=client.userData.relayUpload;client.userData.relayUpload=null;if(!pending)return;const match=this.relayMatches.get(this.state.players.get(client.sessionId)?.space);try{if(!match?.save(client.sessionId,{...pending,value:JSON.parse(pending.upload.finish())}))throw Error('本页已结束或已提交。');if(pending.submit)match.submit(client.sessionId,pending);const state=match.snapshot(client.sessionId);if(state)client.send('relay:state',state);}catch(error){this.notice(client,error.message,'relay');}});
+    this.onMessage('relay:finish',client=>{const pending=client.userData.relayUpload;client.userData.relayUpload=null;if(!pending)return;const match=this.relayMatches.get(this.state.players.get(client.sessionId)?.space);try{if(!match?.save(client.sessionId,{...pending,value:JSON.parse(pending.upload.finish())}))throw Error('本页已结束或已提交。');if(pending.submit)match.submit(client.sessionId,pending);client.send('relay:ack',{id:pending.id,step:pending.step,revision:pending.revision,submitted:match.step===pending.step&&!!match.drafts.get(client.sessionId)?.submitted});}catch(error){this.notice(client,error.message,'relay');}});
     this.onMessage('mural:begin',(client,data)=>{client.userData.muralUpload=null;if(!this.requireAccount(client,'mural'))return;if(!this.allow(client,'mural',2500)){this.notice(client,'请稍等两秒再放置下一幅像素画。','mural');return;}try{client.userData.muralUpload=new TextUpload(data?.length,MURAL_MAX);}catch(error){this.notice(client,error.message,'mural');}});
     this.onMessage('mural:chunk',(client,data)=>{const upload=client.userData.muralUpload;if(!upload)return;try{upload.append(data?.index,data?.text);}catch(error){client.userData.muralUpload=null;this.notice(client,error.message,'mural');}});
     this.onMessage('mural:finish',client=>this.placeMural(client));
@@ -124,7 +126,7 @@ export class Courtyard extends Room {
     this.onMessage('party:settings',(client,data)=>{
       const p=this.state.players.get(client.sessionId),space=this.spaces.get(p?.space);
       if(!space||space.type!=='party'||space.host!==client.sessionId||space.phase!=='forming'||!validPartyMode(data?.mode)){this.notice(client,'仅房主可在准备时选择有效玩法。','space');return;}
-      if(!this.allow(client,'partySettings',250))return;if(space.mode===data.mode)return;space.mode=data.mode;for(const [,member] of this.members(space.id))member.ready=false;this.broadcastRooms();
+      if(!this.allow(client,'partySettings',250))return;if(space.mode===data.mode)return;if(this.members(space.id).length>relayCapacity(data.mode)){this.notice(client,'当前人数超过该玩法上限，请先减少到4人。','space');return;}space.mode=data.mode;space.capacity=relayCapacity(data.mode);for(const [,member] of this.members(space.id))member.ready=false;this.broadcastRooms();
     });
     this.onMessage('party:vote',(client,data)=>{if(this.actionBudget(client,'partyVote'))this.partyMatches.get(this.state.players.get(client.sessionId)?.space)?.vote(client.sessionId,data);});
     this.onMessage('spaces:list',client=>client.send('spaces',this.roomList()));
@@ -136,7 +138,7 @@ export class Courtyard extends Room {
       if(data.type==='party'&&!validPartyMode(data.mode??'random')){this.notice(client,'请选择有效的派对玩法。','space');return;}
       const title=cleanText(data.title,18)||`${player.name}的${data.type==='party'?(isRelay(data.mode)?'接龙':'派对'):data.type==='parkour'?'跑酷':'地牢'}小队`;
       let id;do{id=Array.from({length:6},()=>alphabet[randomInt(alphabet.length)]).join('');}while(this.spaces.has(id));
-      this.spaces.set(id,{id,title,type:data.type,mode:data.type==='party'?(data.mode??'random'):undefined,capacity:PARTY.max,minPlayers:PARTY.min,phase:'forming',host:client.sessionId});this.transfer(client,id);
+      this.spaces.set(id,{id,title,type:data.type,mode:data.type==='party'?(data.mode??'random'):undefined,capacity:data.type==='party'?relayCapacity(data.mode):PARTY.max,minPlayers:PARTY.min,phase:'forming',host:client.sessionId});this.transfer(client,id);
     });
     this.onMessage('space:join',(client,data)=>{
       const player=this.state.players.get(client.sessionId),space=this.spaces.get(data?.id);
@@ -159,8 +161,9 @@ export class Courtyard extends Room {
       if(space.type==='party'){
         const previous=this.relayMatches.get(space.id)||this.partyMatches.get(space.id),members=this.members(space.id);
         if(previous&&previous.phase!=='final')return;
-        if(members.length<2||members.length>4||members.some(([,p])=>!p.connected)||(!previous&&members.some(([,p])=>!p.ready))){this.notice(client,'需要 2～4 人在线并全部准备。','space');return;}
-        const mode=previous instanceof RelayMatch?space.mode:previous?previous.nextMode():(space.mode||'random');
+        const mode=previous instanceof RelayMatch?space.mode:previous?previous.nextMode():(space.mode||'random'),capacity=relayCapacity(mode);
+        if(members.length<2||members.length>capacity||members.some(([,p])=>!p.connected)||(!previous&&members.some(([,p])=>!p.ready))){this.notice(client,`需要 2～${capacity} 人在线并全部准备。`,'space');return;}
+        space.capacity=capacity;
         this.partyMatches.delete(space.id);this.relayMatches.delete(space.id);
         if(isRelay(mode)){
           space.mode=mode;
@@ -303,7 +306,7 @@ export class Courtyard extends Room {
   notice(client,text,action=''){client.send('notice',{text,action});}
   members(space){return [...this.state.players.entries()].filter(([,p])=>p.space===space);}
   sendSpace(space,type,message){for(const client of this.clients)if(this.state.players.get(client.sessionId)?.space===space)client.send(type,message);}
-  roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);const party=this.relayMatches.get(space.id)||this.partyMatches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {}),...(party?{phase:party.phase,canStart:party.phase==='final'&&this.members(space.id).length>=2&&this.members(space.id).every(([,p])=>p.connected)}:{})};});}
+  roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);const party=this.relayMatches.get(space.id)||this.partyMatches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase,space.capacity),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {}),...(party?{phase:party.phase,canStart:party.phase==='final'&&this.members(space.id).length>=2&&this.members(space.id).every(([,p])=>p.connected)}:{})};});}
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
   async content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
@@ -375,7 +378,7 @@ export class Courtyard extends Room {
     finally{if(reserved)for(const key of keys)this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==14)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==15)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');

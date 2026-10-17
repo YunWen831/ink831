@@ -1,10 +1,10 @@
 import {randomUUID} from 'node:crypto';
-import {isRelay,relaySteps,relayKind,validDrawing} from '../../courtyard/relay-rules.js';
+import {isRelay,RELAY_MAX,relaySteps,relayKind,validDrawing} from '../../courtyard/relay-rules.js';
 import {cleanText} from './world-store.js';
 
 export class RelayMatch{
   constructor(members,{mode,send,connected=()=>true,host=()=>members[0]?.id,changed=()=>{},now=()=>performance.now()}={}){
-    if(!isRelay(mode)||members.length<2||members.length>4||new Set(members.map(p=>p.id)).size!==members.length)throw Error('Invalid relay');
+    if(!isRelay(mode)||members.length<2||members.length>RELAY_MAX||new Set(members.map(p=>p.id)).size!==members.length)throw Error('Invalid relay');
     this.id=randomUUID();this.mode=mode;this.members=members;this.send=send;this.connected=connected;this.host=host;this.changed=changed;this.now=now;
     this.steps=relaySteps(mode,members.length);this.books=members.map(p=>({owner:p.id,pages:[]}));this.drafts=new Map();this.step=0;this.phase='writing';this.setDeadline();this.lastClock=-1;
   }
@@ -33,8 +33,12 @@ export class RelayMatch{
   snapshot(id){
     if(!this.members.some(p=>p.id===id))return null;
     const base={id:this.id,mode:this.mode,phase:this.phase,step:this.step,steps:this.steps,members:this.members,host:this.host(),remaining:Math.max(0,Math.ceil((this.deadline-this.now())/1000))};
-    if(this.phase==='final')return {...base,books:this.books};
+    if(this.phase==='final')return {...base,books:this.books.map(b=>({owner:b.owner,pages:b.pages.map(({author,kind,skipped})=>({author,kind,skipped}))}))};
     const pages=this.book(id).pages;return {...base,kind:relayKind(this.mode,this.step),previous:this.mode==='story'?pages:pages.slice(-1),draft:this.drafts.get(id)||null};
+  }
+  page(id,data){
+    if(this.phase!=='final'||!this.connected(id)||!this.members.some(p=>p.id===id)||data?.id!==this.id||!Number.isInteger(data.book)||!Number.isInteger(data.page))return null;
+    const page=this.books[data.book]?.pages[data.page];return page?{id:this.id,book:data.book,page:data.page,value:page}:null;
   }
   publish(){for(const p of this.members)if(this.connected(p.id))this.send(p.id,'relay:state',this.snapshot(p.id));}
 }
