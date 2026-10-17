@@ -27,13 +27,18 @@ with tarfile.open(staging,'w:gz') as archive:
         entry=tarfile.TarInfo(name);entry.size=len(content);entry.mode=0o600
         archive.addfile(entry,io.BytesIO(content))
     add_bytes('world.json',raw)
+    for avatar in sorted((base/'data/avatars').glob('*.json')):
+        content=avatar.read_bytes();assert isinstance(json.loads(content)['frames'],list)
+        add_bytes('avatars/'+avatar.name,content)
+    for levels in sorted((base/'data/levels').glob('*.json')):
+        content=levels.read_bytes();assert isinstance(json.loads(content)['maps'],list)
+        add_bytes('levels/'+levels.name,content)
+    # Read identities last so an account created during the backup is included
+    # before any newly created avatar/level referencing that identity is restored.
     accounts=base/'data/accounts.json'
     if accounts.exists():
         content=accounts.read_bytes();assert json.loads(content)['version']==1
         add_bytes('accounts.json',content)
-    for avatar in sorted((base/'data/avatars').glob('*.json')):
-        content=avatar.read_bytes();assert isinstance(json.loads(content)['frames'],list)
-        add_bytes('avatars/'+avatar.name,content)
 staging.chmod(0o600);staging.replace(complete)
 for stale in sorted(folder.glob('state-????-??-??.tar.gz'))[:-14]:
     stale.unlink()

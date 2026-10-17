@@ -21,10 +21,10 @@ export function composeMaps(drafts){
   if(drafts.length<2||drafts.length>4)throw Error('需要 2～4 张已验证的地图');
   const level={width:MAP_WIDTH*drafts.length,height:MAP_HEIGHT,solids:[],hazards:[],crystals:[],checkpoints:[],goal:null,signs:[]};
   drafts.forEach((draft,index)=>{
-    const part=mapLevel(draft.cells,`${index+1} · ${draft.name}`),offset=index*MAP_WIDTH;
+    const part=mapLevel(draft.cells,`${index+1} · ${draft.title||draft.name}`),offset=index*MAP_WIDTH;
     for(const key of ['solids','hazards','crystals'])level[key].push(...part[key].map(r=>({...r,x:r.x+offset})));
     level.checkpoints.push(...part.checkpoints.map(p=>({...p,x:p.x+offset,trigger:{...p.trigger,x:p.trigger.x+offset}})));
-    level.signs.push({x:offset+80,y:445,text:`${index+1} / ${drafts.length} · ${draft.name}`});
+    level.signs.push({x:offset+80,y:445,text:`${index+1} / ${drafts.length} · ${draft.title||draft.name}`});
     level.goal={...part.goal,x:part.goal.x+offset};
   });return level;
 }

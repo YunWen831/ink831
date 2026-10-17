@@ -4,7 +4,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import express from 'express';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Courtyard, worldStore,accounts,avatars } from './hall.js';
+import { Courtyard, worldStore,accounts,avatars,levelStore } from './hall.js';
 import { accountApi } from './account-api.js';
 
 const joinRates = new Map();
@@ -52,7 +52,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.6.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.7.0' }));
 const sourceRoot=fileURLToPath(new URL('../../',import.meta.url));
 app.get('/',(req,res)=>res.redirect('/courtyard/'));
 app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
@@ -83,6 +83,6 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => {
   clearInterval(cleanup);
   await server.gracefullyShutdown(false);
   await worldStore.flush();
-  await accounts.flush();await avatars.flush();
+  await accounts.flush();await avatars.flush();await levelStore.flush();
   process.exit(0);
 });

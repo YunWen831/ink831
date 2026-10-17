@@ -10,12 +10,15 @@ import { ParkourMatch } from './parkour-match.js';
 import { MaterialUpload } from './material-upload.js';
 import { AccountStore,cookieToken,publicUser } from './accounts.js';
 import { AvatarStore,AvatarUpload } from './avatars.js';
+import { LevelStore } from './level-store.js';
+import { emptyMap } from '../../courtyard/parkour-map.js';
 import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
 
 export const worldStore = await new WorldStore(resolve(process.env.DATA_DIR || 'data')).load();
 export const accounts=await new AccountStore(resolve(process.env.DATA_DIR||'data')).load();
 export const avatars=new AvatarStore(resolve(process.env.DATA_DIR||'data'));
+export const levelStore=new LevelStore(resolve(process.env.DATA_DIR||'data'));
 const Player = schema({
   name:t.string().default(''),x:t.number().default(480),y:t.number().default(414),
   color:t.string().default(COLORS[0]),connected:t.boolean().default(true),ack:t.number().default(0),
@@ -40,6 +43,7 @@ export class Courtyard extends Room {
   reserved=new Set();
   ownsLobby=false;
   matches=new Map();
+  soloWorkshops=new Map();
 
   onCreate(){
     if(active)throw new Error('大厅暂时已满，请稍后再试');
@@ -59,13 +63,13 @@ export class Courtyard extends Room {
     },1000).unref();
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
-    this.matchTick=setInterval(()=>{for(const match of this.matches.values())match.tick();},1000/60).unref();
+    this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values()])match.tick();},1000/60).unref();
     for(const tile of worldStore.data.tiles){const key=tileKey(tile.col,tile.row);this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
-    this.onMessage('hello',client=>{this.content(client);const p=this.state.players.get(client.sessionId);this.matches.get(p?.space)?.open(client.sessionId);});
+    this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
     this.onMessage('input',(client,data)=>{
       const player=this.state.players.get(client.sessionId);
-      if(this.matches.has(player?.space))return;
+      if(this.matches.has(player?.space)||this.soloWorkshops.has(client.sessionId))return;
       if(!player?.connected||data?.space!==player.space||data.epoch!==player.epoch||!Array.isArray(data.steps)||data.steps.length>6)return;
       const now=performance.now(),user=client.userData;
       user.credit=Math.min(400,user.credit+now-user.creditAt);user.creditAt=now;
@@ -120,7 +124,7 @@ export class Courtyard extends Room {
       if(match){if(!match.launch(id=>this.state.players.get(id)?.connected))this.notice(client,'需要 2～4 人在线，并各自通关自己的地图。','space');else this.sendSpace(space.id,'space:launch',{id:space.id,type:space.type,phase:match.phase});this.broadcastRooms();return;}
       if(!partyStatus(this.members(space.id).map(([,p])=>p),space.phase).canStart){this.notice(client,'需要 2～4 人在线并全部准备。','space');return;}
       if(space.type==='parkour'){
-        const match=new ParkourMatch(this.members(space.id).map(([id,p])=>({id,name:p.name,color:p.color})),{changed:()=>this.broadcastRooms(),send:(id,type,data)=>{const target=this.clients.find(c=>c.sessionId===id);if(target)target.send(type,data);}});
+        const match=this.createWorkshop(this.members(space.id).map(([id,p])=>({id,name:p.name,color:p.color})));
         this.matches.set(space.id,match);space.phase='building';for(const [id] of this.members(space.id))match.open(id);
       }else space.phase='waiting-for-level';
       this.broadcastRooms();
@@ -169,14 +173,37 @@ export class Courtyard extends Room {
       try{const data=await avatars.save(client.userData.accountId,upload.finish());this.broadcast('avatar',data);}
       catch(error){this.notice(client,error.code?'人物保存失败，请重试。':error.message,'avatar');}
     });
-    const ownMatch=client=>this.matches.get(this.state.players.get(client.sessionId)?.space);
+    const ownMatch=client=>this.ownWorkshop(client);
+    this.onMessage('levels:list',async client=>{
+      if(!this.levelAction(client))return;
+      try{client.send('levels:list',{maps:await levelStore.list(client.userData.accountId)});}catch{this.notice(client,'关卡库暂时无法读取，请重试。','levels');}
+    });
+    this.onMessage('levels:open',async(client,data)=>{
+      if(!this.levelAction(client))return;
+      try{const record=await levelStore.get(client.userData.accountId,data?.id);if(!accounts.valid(client.userData.sessionHash))return;const match=this.editableWorkshop(client);if(!match?.load(client.sessionId,record))throw Error('请在编辑阶段载入关卡。');}
+      catch(error){this.notice(client,error.code?'关卡读取失败，请重试。':error.message,'levels');}
+    });
+    this.onMessage('levels:new',(client,data)=>{
+      if(!this.levelAction(client))return;
+      try{const match=this.editableWorkshop(client);if(!match?.load(client.sessionId,{cells:data?.cells??emptyMap(),title:data?.cells?'本机草稿':'新的关卡',verified:false}))this.notice(client,'请在编辑阶段新建关卡。','levels');}
+      catch{this.notice(client,'本机草稿已损坏，请新建关卡或载入账号存档。','levels');}
+    });
+    this.onMessage('levels:save',(client,data)=>this.saveLevel(client,data));
+    this.onMessage('levels:delete',async(client,data)=>{
+      if(!this.levelAction(client))return;
+      try{await levelStore.remove(client.userData.accountId,data?.id,data?.version);for(const match of [...this.matches.values(),...this.soloWorkshops.values()])for(const draft of match.drafts.values())if(draft.cloudId===data.id&&this.state.players.get(draft.id)?.userId===client.userData.accountId){draft.cloudId=null;draft.cloudVersion=0;}const maps=await levelStore.list(client.userData.accountId);for(const c of this.clients)if(c.userData?.accountId===client.userData.accountId){c.send('levels:deleted',{id:data.id});c.send('levels:list',{maps});}}
+      catch(error){this.notice(client,error.code?'关卡删除失败，请重试。':error.message,'levels');}
+    });
+    this.onMessage('parkour:solo:close',client=>{if(this.soloWorkshops.delete(client.sessionId))client.send('parkour:closed',{});});
+    this.onMessage('parkour:rebuild',client=>{const p=this.state.players.get(client.sessionId),s=this.spaces.get(p?.space);if(s?.host!==client.sessionId)return;if(this.matches.get(s.id)?.rebuild()){s.phase='building';this.sendSpace(s.id,'space:launch',{});this.broadcastRooms();}});
     this.onMessage('parkour:map',(client,data)=>{
       const match=ownMatch(client);if(!match||match.phase!=='building')return;if(!this.allow(client,'parkourEdit',100)){match.workshop(client.sessionId);return;}
+      if(data?.documentId!==match.drafts.get(client.sessionId)?.documentId){match.workshop(client.sessionId);return;}
       try{match.edit(client.sessionId,data?.cells);}catch{this.notice(client,'地图数据无效，请重新编辑。','parkour');}
     });
-    this.onMessage('parkour:verify',(client,data)=>{const match=ownMatch(client);if(!match||!this.allow(client,'parkourVerify',500))return;if(!match.verify(client.sessionId,data?.revision))this.notice(client,'请先保存最新地图。','parkour');});
+    this.onMessage('parkour:verify',(client,data)=>{const match=ownMatch(client);if(!match||data?.documentId!==match.drafts.get(client.sessionId)?.documentId||!this.allow(client,'parkourVerify',500))return;if(!match.verify(client.sessionId,data?.revision))this.notice(client,'请先保存最新地图。','parkour');});
     this.onMessage('parkour:input',(client,data)=>ownMatch(client)?.input(client.sessionId,data));
-    this.onMessage('parkour:invalidate',client=>ownMatch(client)?.invalidate(client.sessionId));
+    this.onMessage('parkour:invalidate',(client,data)=>{const match=ownMatch(client);if(data?.documentId===match?.drafts.get(client.sessionId)?.documentId)match.invalidate(client.sessionId);});
     this.onMessage('parkour:edit',client=>ownMatch(client)?.stop(client.sessionId));
     this.onMessage('parkour:reset',client=>{
       const p=this.state.players.get(client.sessionId),s=this.spaces.get(p?.space),match=ownMatch(client);
@@ -184,6 +211,27 @@ export class Courtyard extends Room {
       this.matches.delete(s.id);s.phase='forming';for(const [,p] of this.members(s.id))p.ready=false;
       this.sendSpace(s.id,'parkour:closed',{});this.broadcastRooms();
     });
+  }
+  ownWorkshop(client){return this.matches.get(this.state.players.get(client.sessionId)?.space)||this.soloWorkshops.get(client.sessionId);}
+  levelAction(client,key='levels'){if(!this.requireAccount(client,'levels'))return false;if(this.actionBudget(client,key))return true;this.notice(client,'关卡操作较多，请稍后重试。','levels');return false;}
+  createWorkshop(members,solo=false){
+    const match=new ParkourMatch(members,{changed:()=>{if(!solo)this.broadcastRooms();},send:(id,type,data)=>{const target=this.clients.find(c=>c.sessionId===id);if(target)target.send(type,data);},completed:(id,draft)=>{const client=this.clients.find(c=>c.sessionId===id);if(client&&draft.cloudId)this.saveLevel(client,{id:draft.cloudId,version:draft.cloudVersion,title:draft.title,cells:draft.cells,revision:draft.revision,documentId:draft.documentId},true);}});match.solo=solo;return match;
+  }
+  editableWorkshop(client){
+    let match=this.ownWorkshop(client);const p=this.state.players.get(client.sessionId);
+    if(!match&&p?.space==='lobby'){match=this.createWorkshop([{id:client.sessionId,name:p.name,color:p.color}],true);this.soloWorkshops.set(client.sessionId,match);}
+    return match?.phase==='building'?match:null;
+  }
+  async saveLevel(client,data,automatic=false){
+    if(!this.levelAction(client,'levelsSave'))return;
+    const match=this.ownWorkshop(client),draft=match?.drafts.get(client.sessionId);
+    if(match?.phase!=='building'||!draft||draft.revision!==data?.revision||draft.cells!==data.cells||draft.documentId!==data.documentId){this.notice(client,'请等地图同步后再保存。','levels');return;}
+    const snapshot={...draft};
+    try{
+      const record=await levelStore.save(client.userData.accountId,{id:data.id,version:data.version,title:data.title,cells:snapshot.cells},snapshot.verified);
+      if(draft.documentId===snapshot.documentId){draft.cloudId=record.id;draft.cloudVersion=record.version;draft.title=record.title;}
+      client.send('levels:saved',{...record,revision:snapshot.revision,documentId:snapshot.documentId,automatic});
+    }catch(error){this.notice(client,(automatic?'验证已通过；云端未更新：':'')+(error.code?'保存失败，请重试。':error.message),'levels');}
   }
   async saveMaterial(client,data){
     const player=this.state.players.get(client.sessionId);if(!player||!this.requireAccount(client,'material'))return;
@@ -213,6 +261,7 @@ export class Courtyard extends Room {
     for(const id of new Set([...this.state.players.values()].map(p=>p.userId).filter(Boolean))){try{const avatar=await avatars.get(id);if(avatar)client.send('avatar',avatar);}catch{this.notice(client,'一件人物贴图读取失败，请联系站长。');}}
   }
   transfer(client,destination){
+    if(this.soloWorkshops.delete(client.sessionId))client.send('parkour:closed',{});
     const player=this.state.players.get(client.sessionId),old=player.space;
     player.space=destination;player.ready=false;player.epoch++;Object.assign(player,spawn(this.members(destination).length%24,destination==='lobby'?this.collisionTiles:undefined));
     client.userData.credit=200;client.userData.creditAt=performance.now();
@@ -257,7 +306,7 @@ export class Courtyard extends Room {
     }finally{this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==6)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==7)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');
@@ -271,6 +320,6 @@ export class Courtyard extends Room {
   }
   onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
-  onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
+  onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);this.soloWorkshops.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
   onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby)active=false;}
 }

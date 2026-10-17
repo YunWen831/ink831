@@ -48,3 +48,11 @@ test('race snapshots remain compact even for late-index crystal cooldowns',()=>{
   for(const run of m.sessions.values())run.state.crystals[127]=.7;m.snapshot();
   for(const message of messages.slice(-4)){assert.equal(message.type,'parkour:state');assert.ok(Buffer.byteLength(JSON.stringify(message.data))<1000);assert.deepEqual(message.data.state.crystalCharges,[[127,.7]]);}
 });
+
+test('saved maps load into private editors, new revisions invalidate proof, progress hides layouts, and next-round editing keeps courses',()=>{
+  const {match:m,drive,advance}=harness();const saved={id:'saved-map',version:3,title:'云端地图',cells:canonicalMap(emptyMap()),verified:true};
+  const original=m.drafts.get('0').documentId;assert.ok(m.load('0',saved));assert.notEqual(m.drafts.get('0').documentId,original);assert.equal(m.drafts.get('0').cloudVersion,3);assert.ok(m.drafts.get('0').verified);
+  m.verify('1',0);drive(200,['1']);const status=m.status();assert.ok(status.players[1].progress>0);assert.equal('cells' in status.players[1],false);drive(500,['1']);assert.ok(m.launch(()=>true));advance(3100);drive(1500);assert.equal(m.phase,'results');
+  const cells=m.drafts.get('0').cells;assert.ok(m.rebuild());assert.equal(m.phase,'building');assert.equal(m.drafts.get('0').cells,cells);assert.ok(m.drafts.get('0').verified);assert.equal(m.sessions.size,0);
+  const edited=Array.from(cells);edited[10*48+8]='1';m.edit('0',edited.join(''));assert.equal(m.drafts.get('0').verified,false);
+});

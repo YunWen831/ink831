@@ -8,13 +8,13 @@ const wireState=state=>{
 };
 
 export class ParkourMatch{
-  constructor(members,{send,changed,now=()=>performance.now(),clock=Date.now}={}){
-    this.send=send;this.changed=changed;this.now=now;this.clock=clock;this.phase='building';this.drafts=new Map();this.sessions=new Map();this.level=null;this.startedAt=0;this.elapsed=0;this.last=now();this.accumulator=0;this.lastSnapshot=0;
-    members.forEach(p=>this.drafts.set(p.id,{id:p.id,name:p.name,color:p.color,cells:canonicalMap(emptyMap()),revision:0,verified:false}));
+  constructor(members,{send,changed,completed,now=()=>performance.now(),clock=Date.now}={}){
+    this.send=send;this.changed=changed;this.completed=completed;this.now=now;this.clock=clock;this.phase='building';this.drafts=new Map();this.sessions=new Map();this.level=null;this.startedAt=0;this.elapsed=0;this.last=now();this.accumulator=0;this.lastSnapshot=0;this.lastProgress=0;
+    members.forEach(p=>this.drafts.set(p.id,{id:p.id,name:p.name,title:p.name+'的关卡',color:p.color,cells:canonicalMap(emptyMap()),revision:0,verified:false,documentId:randomUUID(),cloudId:null,cloudVersion:0}));
   }
-  status(){return {phase:this.phase,startsAt:this.startedAt,players:[...this.drafts.values()].map(({id,name,color,verified})=>({id,name,color,verified,testing:this.sessions.get(id)?.kind==='verify'})),results:this.results||[]};}
+  status(){return {phase:this.phase,startsAt:this.startedAt,players:[...this.drafts.values()].map(({id,name,color,verified})=>{const run=this.sessions.get(id),testing=run?.kind==='verify';return {id,name,color,verified,testing,progress:testing?Math.max(0,Math.min(100,Math.floor(run.state.x/run.level.width*100))):0};}),results:this.results||[]};}
   notify(){this.changed?.();for(const id of this.drafts.keys())this.send(id,'parkour:status',this.status());}
-  workshop(id){const draft=this.drafts.get(id);if(draft)this.send(id,'parkour:workshop',{...draft,...this.status()});}
+  workshop(id){const draft=this.drafts.get(id);if(draft)this.send(id,'parkour:workshop',{...draft,...this.status(),solo:!!this.solo});}
   edit(id,cells){
     if(this.phase!=='building')return false;
     const draft=this.drafts.get(id);if(!draft)return false;
@@ -22,6 +22,13 @@ export class ParkourMatch{
     if(cells!==draft.cells){Object.assign(draft,{cells,revision:draft.revision+1,verified:false});this.sessions.delete(id);}
     this.workshop(id);this.notify();return true;
   }
+  load(id,record){
+    if(this.phase!=='building')return false;const draft=this.drafts.get(id);if(!draft)return false;
+    const cells=canonicalMap(record.cells);this.sessions.delete(id);
+    Object.assign(draft,{cells,title:record.title,revision:draft.revision+1,verified:record.verified===true,documentId:randomUUID(),cloudId:record.id||null,cloudVersion:record.version||0});
+    this.workshop(id);this.notify();return true;
+  }
+  rebuild(){if(this.phase!=='results')return false;this.phase='building';this.sessions.clear();this.results=[];this.level=null;this.startedAt=0;for(const id of this.drafts.keys())this.workshop(id);this.notify();return true;}
   newSession(kind,id,level,runId=randomUUID()){
     const run={id:runId,kind,level,state:createParkourState(level),ack:0,received:0,queue:[],input:{},inputAt:this.now(),finishAt:null};this.sessions.set(id,run);return run;
   }
@@ -33,7 +40,7 @@ export class ParkourMatch{
   }
   verify(id,revision){
     const draft=this.drafts.get(id);if(this.phase!=='building'||!draft||revision!==draft.revision)return false;
-    this.newSession('verify',id,mapLevel(draft.cells,draft.name));this.open(id);this.notify();return true;
+    this.newSession('verify',id,mapLevel(draft.cells,draft.title||draft.name));this.open(id);this.notify();return true;
   }
   stop(id){if(this.phase!=='building')return;this.sessions.delete(id);this.workshop(id);this.notify();}
   invalidate(id){const draft=this.drafts.get(id);if(this.phase==='building'&&draft?.verified){draft.verified=false;this.notify();}}
@@ -73,12 +80,13 @@ export class ParkourMatch{
         stepParkour(run.state,run.input,STEP,run.level);
         if(run.state.finished){
           if(run.kind==='verify'){
-            const draft=this.drafts.get(id);if(draft){draft.verified=true;this.send(id,'parkour:verified',{revision:draft.revision});}this.notify();
+            const draft=this.drafts.get(id);if(draft){draft.verified=true;this.send(id,'parkour:verified',{revision:draft.revision});this.completed?.(id,{...draft});}this.notify();
           }else{run.finishAt=Math.max(0,(this.clock()-this.startedAt)/1000);this.results.push({id,name:this.drafts.get(id)?.name||'玩家',time:run.finishAt,deaths:run.state.deaths});this.checkFinished();this.notify();}
         }
       }
     }
     if(this.phase==='racing'&&this.clock()-this.startedAt>10*60*1000){this.phase='results';this.notify();}
+    if(this.phase==='building'&&now-this.lastProgress>=500){this.lastProgress=now;for(const id of this.drafts.keys())this.send(id,'parkour:status',this.status());}
     if(now-this.lastSnapshot>=50){this.lastSnapshot=now;this.snapshot();}
   }
   checkFinished(){if(this.sessions.size&&[...this.sessions.values()].filter(r=>r.kind==='race').every(r=>r.state.finished)){this.phase='results';}}

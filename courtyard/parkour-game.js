@@ -1,14 +1,15 @@
-import { PRACTICE_LEVEL } from './parkour-level.js?v=0.6.0';
-import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.6.0';
-import { drawBubbles } from './bubbles.js?v=0.6.0';
-import { drawRunner } from './parkour-avatar.js?v=0.6.0';
-import { drawCourse,drawSky } from './parkour-scene.js?v=0.6.0';
+import { PRACTICE_LEVEL } from './parkour-level.js?v=0.7.0';
+import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.7.0';
+import { drawBubbles } from './bubbles.js?v=0.7.0';
+import { drawRunner } from './parkour-avatar.js?v=0.7.0';
+import { drawCourse,drawSky } from './parkour-scene.js?v=0.7.0';
 
 const copy=s=>{const crystals=[...(s.crystals||[])];for(const [index,time] of s.crystalCharges||[])crystals[index]=time;return {...s,crystals};};
 export function createPractice(canvas,options){
   const ctx=canvas.getContext('2d'),keys=new Set(),$=id=>document.getElementById(id),poses=new Map();
   let active=false,level=PRACTICE_LEVEL,state=createParkourState(level),last=0,accumulator=0,jump=false,dash=false,reset=false,touchJump=false,width=960,height=640,dpr=1,paused=false;
   let network=null,seq=0,pending=[],outgoing=[],lastSend=0,peers=[],phase='',startsAt=0,clockOffset=0,verified=false,results=[],trail=[];
+  let serverFinished=false,followId='',spectatorSignature='';
   const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   new ResizeObserver(()=>{const box=canvas.getBoundingClientRect();width=box.width;height=box.height;dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}).observe(canvas);
   function clear(){keys.clear();jump=false;dash=false;reset=false;touchJump=false;accumulator=0;}
@@ -27,9 +28,16 @@ export function createPractice(canvas,options){
   $('practiceRestart').addEventListener('click',()=>{if(network)reset=true;else state=createParkourState(level);canvas.focus({preventScroll:true});});
   $('practiceCheckpoint').addEventListener('change',()=>{if(network)return;state=createParkourState(level,Number($('practiceCheckpoint').value));clear();canvas.focus({preventScroll:true});});
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
+  $('spectateTarget').addEventListener('change',event=>followId=event.target.value);
   function render(now,elapsed){
+    const watching=network?.kind==='race'&&serverFinished&&phase==='racing',available=watching?peers.filter(p=>p.id!==options.self()&&!p.finished):[];
+    if(!available.some(p=>p.id===followId))followId=available[0]?.id||'';
+    const target=watching&&available.find(p=>p.id===followId),signature=JSON.stringify(available.map(p=>[p.id,p.name]));
+    $('spectateControl').hidden=!watching||!available.length;
+    if(signature!==spectatorSignature){spectatorSignature=signature;$('spectateTarget').replaceChildren(...available.map(p=>Object.assign(document.createElement('option'),{value:p.id,textContent:p.name})));}
+    $('spectateTarget').value=followId;
     const zoom=width<600?.95:Math.min(1.45,width/760),vw=width/zoom,vh=height/zoom;
-    const cameraX=Math.max(0,Math.min(Math.max(0,level.width-vw),state.x-vw*.35)),cameraY=Math.max(0,Math.min(Math.max(0,level.height-vh),state.y-vh*.58));
+    const focus=target||state,cameraX=Math.max(0,Math.min(Math.max(0,level.width-vw),focus.x-vw*.35)),cameraY=Math.max(0,Math.min(Math.max(0,level.height-vh),focus.y-vh*.58));
     ctx.setTransform(dpr,0,0,dpr,0,0);drawSky(ctx,width,height,cameraX);ctx.save();ctx.scale(zoom,zoom);ctx.translate(-cameraX,-cameraY);ctx.imageSmoothingEnabled=false;drawCourse(ctx,level,now,reduced,state.crystals);
     for(const peer of peers){
       if(peer.id===options.self())continue;const old=poses.get(peer.id)||peer,target={...peer,x:peer.x+Math.max(-10,Math.min(10,peer.vx*.025)),y:peer.y};
@@ -44,11 +52,11 @@ export function createPractice(canvas,options){
     let title='',subtitle='';
     if(!network&&paused){title='已暂停';subtitle='回到画面继续';}
     else if(network&&phase==='countdown'){title=String(Math.max(1,Math.ceil((startsAt-(Date.now()+clockOffset))/1000)));subtitle='准备出发';}
-    else if(state.finished){title=network?.kind==='verify'?(verified?'验证通过':'抵达，正在确认…'):'抵达！';subtitle=network?.kind==='verify'?'返回编辑，等大家验证完成':`${state.time.toFixed(1)} 秒 · ${state.deaths} 次失误`;}
+    else if(state.finished&&!target){title=network?.kind==='verify'?(verified?'验证通过':'抵达，正在确认…'):'抵达！';subtitle=network?.kind==='verify'?'返回编辑，等大家验证完成':`${state.time.toFixed(1)} 秒 · ${state.deaths} 次失误`;}
     if(network&&phase==='results'){title='本轮结束';subtitle=results.map((r,i)=>`${i+1}. ${r.name} ${r.time.toFixed(1)}s`).join('   ')||'本轮无人抵达终点';}
     if(title){ctx.fillStyle='#183247a8';ctx.fillRect(0,0,width,height);ctx.textAlign='center';ctx.fillStyle='#f1edda';ctx.font='600 25px "Microsoft YaHei",sans-serif';ctx.fillText(title,width/2,height/2-12);ctx.font='13px "Microsoft YaHei",sans-serif';subtitle.split('   ').forEach((line,i)=>ctx.fillText(line,width/2,height/2+18+i*22));}
     const time=network?.kind==='race'?Math.max(0,(Date.now()+clockOffset-startsAt)/1000):state.time;
-    $('practiceStats').textContent=`${(state.finished?state.time:time).toFixed(1)}s · ${state.deaths} 次失误`;
+    $('practiceStats').textContent=target?`已抵达 · 观战 ${target.name}`:`${(state.finished?state.time:time).toFixed(1)}s · ${state.deaths} 次失误`;
     $('practiceRestart').disabled=!!network&&state.finished;
     $('practiceStage').textContent=network?.kind==='race'?`${state.checkpoint+1} / ${level.checkpoints.length}`:level.checkpoints[state.checkpoint].name;
     canvas.setAttribute('aria-label',`${network?.kind==='race'?'跑酷竞速':network?'关卡验证':'跑酷练习'}，${state.finished?'已抵达终点':phase==='countdown'?'倒计时':'进行中'}`);
@@ -73,9 +81,9 @@ export function createPractice(canvas,options){
     }requestAnimationFrame(frame);
   }requestAnimationFrame(frame);
   return {
-    start(){network=null;level=PRACTICE_LEVEL;state=createParkourState(level);active=true;phase='';trail=[];clear();last=performance.now();canvas.focus({preventScroll:true});},
-    run(data){const resuming=active&&network?.id===data.id;network={id:data.id,kind:data.kind,players:new Map(data.players.map(p=>[p.id,p]))};level=data.level;state=copy(data.state);seq=data.ack||0;pending=[];outgoing=[];poses.clear();peers=[];phase=data.phase;startsAt=data.startsAt;verified=!!data.verified;active=true;trail=[];if(!resuming)clear();else accumulator=0;last=performance.now();canvas.focus({preventScroll:true});},
-    reconcile(data){if(!active||!network||data.id!==network.id)return;phase=data.phase;startsAt=data.startsAt;clockOffset=data.serverNow-Date.now();peers=data.racers.map(([id,x,y,vx,vy,flags,facing,checkpoint])=>({...network.players.get(id),id,x,y,vx,vy,facing,checkpoint,grounded:!!(flags&1),dash:flags&2?1:0,dashTime:flags&4?.1:0,dead:flags&8?.1:0,finished:!!(flags&16),wallSide:flags&32?-1:flags&64?1:0}));results=data.results;pending=pending.filter(p=>p.seq>data.ack);state=copy(data.state);for(const p of pending){if(p.input.reset){state.deaths++;respawn(state,level);}stepParkour(state,p.input,STEP,level);}},
-    verified(){verified=true;},stop(){active=false;network=null;pending=[];outgoing=[];poses.clear();clear();}
+    start(){network=null;serverFinished=false;followId='';level=PRACTICE_LEVEL;state=createParkourState(level);active=true;phase='';trail=[];clear();last=performance.now();canvas.focus({preventScroll:true});},
+    run(data){const resuming=active&&network?.id===data.id;network={id:data.id,kind:data.kind,players:new Map(data.players.map(p=>[p.id,p]))};level=data.level;state=copy(data.state);serverFinished=!!data.state.finished;if(!resuming)followId='';seq=data.ack||0;pending=[];outgoing=[];poses.clear();peers=[];phase=data.phase;startsAt=data.startsAt;verified=!!data.verified;active=true;trail=[];if(!resuming)clear();else accumulator=0;last=performance.now();canvas.focus({preventScroll:true});},
+    reconcile(data){if(!active||!network||data.id!==network.id)return;serverFinished=!!data.state.finished;phase=data.phase;startsAt=data.startsAt;clockOffset=data.serverNow-Date.now();peers=data.racers.map(([id,x,y,vx,vy,flags,facing,checkpoint])=>({...network.players.get(id),id,x,y,vx,vy,facing,checkpoint,grounded:!!(flags&1),dash:flags&2?1:0,dashTime:flags&4?.1:0,dead:flags&8?.1:0,finished:!!(flags&16),wallSide:flags&32?-1:flags&64?1:0}));results=data.results;pending=pending.filter(p=>p.seq>data.ack);state=copy(data.state);for(const p of pending){if(p.input.reset){state.deaths++;respawn(state,level);}stepParkour(state,p.input,STEP,level);}},
+    verified(){verified=true;},stop(){active=false;network=null;pending=[];outgoing=[];poses.clear();$('spectateControl').hidden=true;clear();}
   };
 }
