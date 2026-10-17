@@ -1,4 +1,5 @@
-import {preview} from './art.js?v=0.13.0';
+import {RECYCLE_MS} from './material-lifecycle.js?v=0.13.1';
+import {preview} from './art.js?v=0.13.1';
 export function createAdmin({endpoint,user,notify}){
   const $=id=>document.getElementById(id);let users=[],epoch=0,selected=null,owner='',working=false,searchTimer=0;
   const labels={ban:'封禁账号',unban:'解除封禁',logout:'强制下线',recovery:'重置登录',rename:'修改昵称',protection:'建筑权限','material-delete':'删除作品','material-restore':'恢复作品','legacy-demolish':'拆除旧建筑','legacy-replace':'覆盖旧建筑'};
@@ -12,7 +13,7 @@ export function createAdmin({endpoint,user,notify}){
   async function run(fn,message='adminMessage'){if(working)return;working=true;$(message).textContent='';try{await fn();}catch(error){$(message).textContent=error.message;}finally{working=false;}}
   function confirm(item,action,extra={}){
     selected={item,action,...extra};$('adminConfirmTitle').textContent=labels[action];$('adminConfirmTarget').textContent=item.username?'@'+item.username+' · '+item.nickname:item.name;
-    const text={ban:'该账号会退出所有设备，并暂停登录。',unban:'恢复该账号的登录权限。',logout:'撤销该账号当前所有登录；本人可以重新登录。',recovery:'撤销所有登录并停用旧密码。新找回码只显示一次，请私下交给本人重设密码。',rename:'修改大厅显示的昵称，登录账号保持原样。',protection:extra.allow?'允许其他玩家拆除或覆盖此账号放置的建筑。':'保护此账号放置的建筑，所有者仍可自行编辑。','material-delete':'作品移入七天回收站，已建方块继续保留贴图。','material-restore':'将作品恢复到材料库。'};
+    const text={ban:'该账号会退出所有设备，并暂停登录。',unban:'恢复该账号的登录权限。',logout:'撤销该账号当前所有登录；本人可以重新登录。',recovery:'撤销所有登录并停用旧密码。新找回码只显示一次，请私下交给本人重设密码。',rename:'修改大厅显示的昵称，登录账号保持原样。',protection:extra.allow?'允许其他玩家拆除或覆盖此账号放置的建筑。':'保护此账号放置的建筑，所有者仍可自行编辑。','material-delete':'作品移入12 小时回收站，已建方块继续保留贴图。','material-restore':'将作品恢复到材料库。'};
     $('adminConfirmText').textContent=text[action];$('adminNoteLabel').hidden=action!=='ban';$('adminNicknameLabel').hidden=action!=='rename';$('adminNote').value='';$('adminNickname').value=item.nickname||'';$('adminConfirmMessage').textContent='';$('adminConfirmButton').disabled=false;$('adminConfirmDialog').showModal();
   }
   async function refresh(){
@@ -31,7 +32,7 @@ export function createAdmin({endpoint,user,notify}){
     owner=id;$('adminMaterialsTitle').textContent=title;$('adminMaterialPreview').hidden=true;$('adminMaterialsMessage').textContent='';$('adminMaterialsList').replaceChildren();if(!$('adminMaterialsDialog').open)$('adminMaterialsDialog').showModal();
     try{const data=await request('materials?userId='+encodeURIComponent(id));if(owner!==id)return;
       for(const m of data.materials){const row=el('div',null,'level-row');row.dataset.materialId=m.id;const description=el('div');description.append(el('strong',m.name),el('small',m.ownerName+' · '+(m.deletedAt?'回收站':'材料库')));const show=button('预览',()=>run(async()=>{const d=await request('materials/'+encodeURIComponent(m.id));preview($('adminMaterialPreview'),d.material);$('adminMaterialPreview').hidden=false;},'adminMaterialsMessage'));
-        const restore=!!m.deletedAt;const action=button(restore?'恢复':'删除',()=>confirm(m,restore?'material-restore':'material-delete'));if(restore&&Date.now()-m.deletedAt>7*86400000)action.disabled=true;row.append(description,show,action);$('adminMaterialsList').append(row);
+        const restore=!!m.deletedAt;const action=button(restore?'恢复':'删除',()=>confirm(m,restore?'material-restore':'material-delete'));if(restore&&Date.now()-m.deletedAt>=RECYCLE_MS)action.disabled=true;row.append(description,show,action);$('adminMaterialsList').append(row);
       }if(!data.materials.length)$('adminMaterialsMessage').textContent='暂无画布。';
     }catch(error){$('adminMaterialsMessage').textContent=error.message;}
   }

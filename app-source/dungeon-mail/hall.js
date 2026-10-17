@@ -21,6 +21,7 @@ import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
 
 export const worldStore = await new WorldStore(resolve(process.env.DATA_DIR || 'data')).load();
+await worldStore.pruneMaterials();
 export const accounts=await new AccountStore(resolve(process.env.DATA_DIR||'data')).load();
 export const avatars=new AvatarStore(resolve(process.env.DATA_DIR||'data'));
 export const levelStore=new LevelStore(resolve(process.env.DATA_DIR||'data'));
@@ -74,6 +75,7 @@ export class Courtyard extends Room {
     },1000).unref();
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
+    this.materialSweep=setInterval(async()=>{try{const change=await worldStore.pruneMaterials();if(change.removed.length||change.retained.length)this.broadcast('materials:pruned',change);}catch{console.error('Material cleanup failed; will retry.');}},30000).unref();
     this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values(),...this.partyMatches.values(),...this.relayMatches.values()])match.tick();},1000/60).unref();
     for(const tile of worldStore.data.tiles){const key=tileKey(tile.col,tile.row);this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
     this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});
@@ -97,11 +99,13 @@ export class Courtyard extends Room {
     });
     this.onMessage('chat',(client,data)=>{
       const player=this.state.players.get(client.sessionId),text=cleanText(data?.text,120);
+      if(data?.channel!==undefined&&!['lobby','room'].includes(data.channel))return;
       if(!player||!text)return;
       if(!this.allow(client,'chat',1000)){this.notice(client,'发言稍微慢一点，等一秒再发送。');return;}
-      const message={id:randomUUID(),sender:client.sessionId,name:player.name,color:player.color,text,at:Date.now(),space:player.space};
-      this.chatHistory.add(player.space,message);
-      this.sendSpace(player.space,'chat',message);
+      const channel=data?.channel==='lobby'?'lobby':player.space;
+      const message={id:randomUUID(),sender:client.sessionId,name:player.name,color:player.color,text,at:Date.now(),space:channel};
+      this.chatHistory.add(channel,message);
+      if(channel==='lobby')this.broadcast('chat',message);else this.sendSpace(channel,'chat',message);
     });
     this.onMessage('relay:peek',client=>{if(this.allow(client,'relayPeek',300))this.relayMatches.get(this.state.players.get(client.sessionId)?.space)?.publish();});
     this.onMessage('relay:begin',(client,data)=>{
@@ -303,7 +307,7 @@ export class Courtyard extends Room {
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
   async content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
-    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),space:player.space,account:publicUser(accounts.data.users.find(u=>u.id===client.userData.accountId)),allowDemolition:worldStore.data.protection?.[client.userData.accountId]===true});
+    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),lobbyHistory:this.chatHistory.read('lobby'),space:player.space,account:publicUser(accounts.data.users.find(u=>u.id===client.userData.accountId)),allowDemolition:worldStore.data.protection?.[client.userData.accountId]===true});
     const relay=this.relayMatches.get(player.space);if(relay)client.send('relay:state',relay.snapshot(client.sessionId));
     const party=this.partyMatches.get(player.space);if(party)client.send('party:state',party.snapshot());
     for(const id of new Set([...this.state.players.values()].map(p=>p.userId).filter(Boolean))){try{const avatar=await avatars.get(id);if(avatar)client.send('avatar',avatar);}catch{this.notice(client,'一件人物贴图读取失败，请联系站长。');}}
@@ -371,7 +375,7 @@ export class Courtyard extends Room {
     finally{if(reserved)for(const key of keys)this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==13)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==14)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');
@@ -386,5 +390,5 @@ export class Courtyard extends Room {
   onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;client.userData.relayUpload=null;client.userData.muralUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.partyMatches.get(player?.space)?.publish();this.relayMatches.get(player?.space)?.publish();this.broadcastRooms();if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash))return;this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}const player=this.state.players.get(client.sessionId);if(player)player.connected=true;this.partyMatches.get(player?.space)?.publish();this.relayMatches.get(player?.space)?.publish();client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
   onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);this.soloWorkshops.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
-  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby){active=false;liveHall=null;}}
+  onDispose(){clearInterval(this.materialSweep);clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby){active=false;liveHall=null;}}
 }

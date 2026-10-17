@@ -1,4 +1,4 @@
-import {RELAY_MODES} from './relay-rules.js?v=0.13.0';
+import {RELAY_MODES} from './relay-rules.js?v=0.13.1';
 export const PARTY_GAMES=Object.freeze({
   bump:{name:'滑滑碰碰岛',rule:'空格冲撞，撞落得分；掉落两秒后回来。留意缓慢移动的圆形浮标。',action:'冲撞',metric:'撞落',unit:'人',seconds:65},
   delivery:{name:'快递大乱斗',rule:'空格拿货，送回同色收件箱；空手可拍落货物。金色急件须在倒计时内送达。',action:'拿 / 抢',metric:'运送积分',unit:'分',seconds:70},

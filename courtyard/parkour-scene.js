@@ -1,4 +1,4 @@
-import {platformAt,crumbleSolid} from './parkour-mechanics.js?v=0.13.0';
+import {platformAt,crumbleSolid} from './parkour-mechanics.js?v=0.13.1';
 export function drawSky(ctx,width,height,cameraX){
   const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,'#1e334d');sky.addColorStop(1,'#8badad');ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
   for(let layer=0;layer<2;layer++){
