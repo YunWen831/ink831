@@ -11,6 +11,14 @@ window.YUNWEN_PROJECTS = [
     imageAlt: 'Y课表软件插画'
   },
   {
+    title: '回声',
+    category: 'game',
+    description: '声呐潜行',
+    href: './echo/index.html',
+    image: './assets/echo-cover.svg',
+    imageAlt: '回声：黑暗中的声呐潜行游戏'
+  },
+  {
     title: '地牢来信',
     category: 'game',
     description: '建造 · 跑酷竞速',

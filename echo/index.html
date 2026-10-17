@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="回声 ECHO：在漆黑迷宫里用声呐潜行。看得见，就会被听见。">
+<meta name="theme-color" content="#04070d">
+<title>回声 ECHO · 声呐潜行</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./style.css?v=echo-1">
+</head>
+<body>
+<div class="stage">
+  <canvas id="game" role="img" aria-label="回声游戏画面"></canvas>
+  <div class="fx fx-vignette" aria-hidden="true"></div>
+  <div class="fx fx-scan" aria-hidden="true"></div>
+
+  <header id="hud" class="hud" aria-hidden="true">
+    <div class="hud-left">
+      <span class="hud-kicker" id="hud-mode">ECHO · 01</span>
+      <span class="hud-title" id="hud-level">醒</span>
+    </div>
+    <div class="hud-center">
+      <span class="hud-kicker">共鸣核心</span>
+      <span class="hud-cores" id="hud-cores">0 / 0</span>
+    </div>
+    <div class="hud-right">
+      <span class="hud-time" id="hud-time">0:00</span>
+      <button class="icon-btn" id="btn-mute" type="button" aria-label="静音 / 取消静音">♪</button>
+      <button class="icon-btn" id="btn-pause" type="button" aria-label="暂停">Ⅱ</button>
+    </div>
+  </header>
+
+  <div class="intro" id="intro" aria-hidden="true">
+    <p class="intro-kicker" id="intro-kicker">LEVEL 01</p>
+    <h2 class="intro-name" id="intro-name">醒</h2>
+    <p class="intro-hint" id="intro-hint">按空格发出第一道回声</p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="touch" id="touch" aria-hidden="true">
+    <div class="stick" id="stick"><div class="stick-knob" id="stick-knob"></div></div>
+    <button class="pulse-btn" id="btn-pulse" type="button" aria-label="发出声呐">声呐</button>
+    <span class="touch-hint">轻推潜行</span>
+  </div>
+
+  <section class="screen screen-title on" id="screen-title" aria-label="标题">
+    <div class="title-wrap">
+      <p class="eyebrow">YUNWEN · SONAR STEALTH</p>
+      <h1 class="logo"><span class="logo-cn">回声</span><span class="logo-en">ECHO</span></h1>
+      <p class="tagline">看得见，就会被听见。</p>
+      <div class="menu">
+        <button class="btn btn-primary" id="btn-start" type="button">开始潜行</button>
+        <button class="btn" id="btn-continue" type="button">继续</button>
+        <button class="btn" id="btn-endless" type="button">深渊回响</button>
+        <button class="btn btn-ghost" id="btn-levels" type="button">选择关卡</button>
+        <button class="btn btn-ghost" id="btn-settings" type="button">设置</button>
+      </div>
+      <p class="save-line" id="save-line"></p>
+      <p class="controls-line" id="controls-line">WASD / 方向键移动　Shift 潜行　空格 回声　Esc 暂停</p>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-levels" aria-label="选择关卡">
+    <div class="panel">
+      <div class="panel-head">
+        <div><p class="eyebrow">CAMPAIGN</p><h2>选择关卡</h2></div>
+        <button class="btn btn-ghost" type="button" data-back="title">返回</button>
+      </div>
+      <div class="level-grid" id="level-grid"></div>
+      <p class="panel-foot" id="endless-best"></p>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-settings" aria-label="设置">
+    <div class="panel panel-narrow">
+      <div class="panel-head">
+        <div><p class="eyebrow">SETTINGS</p><h2>设置</h2></div>
+        <button class="btn btn-ghost" type="button" data-back="title">返回</button>
+      </div>
+      <label class="row">
+        <span>音量</span>
+        <input id="opt-volume" type="range" min="0" max="100" step="1" value="70">
+        <output id="opt-volume-out">70</output>
+      </label>
+      <label class="row row-check">
+        <span>减弱动效<small>关闭镜头震动、扫描线与闪烁</small></span>
+        <input id="opt-motion" type="checkbox">
+      </label>
+      <div class="row">
+        <span>本地进度<small id="save-detail"></small></span>
+        <button class="btn btn-danger" id="opt-reset" type="button">重置</button>
+      </div>
+      <p class="panel-foot">进度只保存在这台设备的浏览器里。</p>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-pause" aria-label="暂停">
+    <div class="panel panel-narrow">
+      <div class="panel-head">
+        <div><p class="eyebrow">PAUSED</p><h2>停在这里</h2></div>
+      </div>
+      <div class="menu">
+        <button class="btn btn-primary" id="btn-resume" type="button">继续</button>
+        <button class="btn" id="btn-restart" type="button">重新开始本关</button>
+        <button class="btn btn-ghost" id="btn-quit" type="button">回到标题</button>
+      </div>
+      <p class="panel-foot">声音还在黑暗里等你。</p>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-dead" aria-label="被发现">
+    <div class="panel panel-narrow dead-panel">
+      <p class="eyebrow red">SIGNAL LOST</p>
+      <h2 class="dead-title">被听见了</h2>
+      <p class="panel-foot" id="dead-sub">重来一次。这次轻一点。</p>
+      <div class="menu">
+        <button class="btn btn-primary" id="btn-retry" type="button">重试</button>
+        <button class="btn btn-ghost" id="btn-dead-quit" type="button">回到标题</button>
+      </div>
+      <p class="auto-line" id="auto-line"></p>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-win" aria-label="完成">
+    <div class="panel panel-narrow win-panel">
+      <p class="eyebrow" id="win-kicker">ECHO COMPLETE</p>
+      <h2 class="win-title" id="win-title">回声消散</h2>
+      <p class="panel-foot" id="win-sub"></p>
+      <div class="stats">
+        <div><span>用时</span><b id="win-time">0:00</b></div>
+        <div><span>最佳</span><b id="win-best">—</b></div>
+        <div><span>回声</span><b id="win-pulses">0</b></div>
+      </div>
+      <div class="menu">
+        <button class="btn btn-primary" id="btn-next" type="button">下一关</button>
+        <button class="btn" id="btn-replay" type="button">再走一次</button>
+        <button class="btn btn-ghost" id="btn-win-quit" type="button">回到标题</button>
+      </div>
+    </div>
+  </section>
+
+  <pre id="probe" hidden></pre>
+</div>
+<noscript><div class="noscript">这个游戏需要 JavaScript。请在浏览器里启用后刷新。</div></noscript>
+<script src="./levels.js?v=echo-1"></script>
+<script src="./game.js?v=echo-1"></script>
+</body>
+</html>
