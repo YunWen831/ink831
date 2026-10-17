@@ -1,6 +1,6 @@
-import {canonicalMap,mapLevel,editableCell,MAP_COLS,MAP_TILE,MAP_WIDTH,MAP_HEIGHT} from './parkour-map.js?v=0.5.0';
-import {drawCourse,drawSky} from './parkour-scene.js?v=0.5.0';
-import {drawRunner} from './parkour-avatar.js?v=0.5.0';
+import {canonicalMap,mapLevel,editableCell,MAP_COLS,MAP_TILE,MAP_WIDTH,MAP_HEIGHT} from './parkour-map.js?v=0.6.0';
+import {drawCourse,drawSky} from './parkour-scene.js?v=0.6.0';
+import {drawRunner} from './parkour-avatar.js?v=0.6.0';
 
 export function createEditor(canvas,{send,save,name,color,onDirty}){
   const ctx=canvas.getContext('2d'),$=id=>document.getElementById(id);

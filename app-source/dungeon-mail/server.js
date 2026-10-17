@@ -2,10 +2,14 @@ import { Server as HttpServer } from 'node:http';
 import { Server } from '@colyseus/core';
 import { WebSocketTransport } from '@colyseus/ws-transport';
 import express from 'express';
-import { Courtyard, worldStore } from './hall.js';
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Courtyard, worldStore,accounts,avatars } from './hall.js';
+import { accountApi } from './account-api.js';
 
 const joinRates = new Map();
-const origins = new Set((process.env.ALLOWED_ORIGINS || 'https://yunwen831.github.io,http://127.0.0.1:4173,http://localhost:4173').split(','));
+const localPort=Number(process.env.PORT||2567);
+const origins = new Set((process.env.ALLOWED_ORIGINS || (process.env.NODE_ENV==='production'?'https://82.157.83.81,https://yunwen831.github.io':`https://82.157.83.81,https://yunwen831.github.io,http://127.0.0.1:4173,http://localhost:4173,http://127.0.0.1:${localPort},http://localhost:${localPort}`)).split(','));
 const allowedOrigin = origin => !origin || origins.has(origin);
 
 const app = express();
@@ -21,7 +25,7 @@ class GuardedHttpServer extends HttpServer {
         res.end(JSON.stringify({ error: 'Origin not allowed' }));
         return true;
       }
-      if (req.method === 'POST') {
+      if (req.method === 'POST' && req.url.startsWith('/matchmake/')) {
         const ip = req.headers['cf-connecting-ip'] || req.socket.remoteAddress;
         const now = Date.now();
         let entry = joinRates.get(ip);
@@ -47,7 +51,13 @@ app.use((req, res, next) => {
   if (req.method === 'OPTIONS') return res.sendStatus(204);
   next();
 });
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.5.0' }));
+app.use('/api/account',accountApi(accounts));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.6.0' }));
+const sourceRoot=fileURLToPath(new URL('../../',import.meta.url));
+app.get('/',(req,res)=>res.redirect('/courtyard/'));
+app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
+app.get('/assets/favicon.svg',(req,res)=>res.sendFile(resolve(sourceRoot,'assets/favicon.svg')));
+app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true}));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({
   gracefullyShutdown: false,
@@ -73,5 +83,6 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => {
   clearInterval(cleanup);
   await server.gracefullyShutdown(false);
   await worldStore.flush();
+  await accounts.flush();await avatars.flush();
   process.exit(0);
 });

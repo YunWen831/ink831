@@ -1,15 +1,20 @@
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.5.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.5.0';
-import { createScene } from './scene.js?v=0.5.0';
-import { createPainter, preview } from './art.js?v=0.5.0';
-import { createPractice } from './parkour-game.js?v=0.5.0';
-import { createEditor } from './parkour-editor.js?v=0.5.0';
-import { bubbleDuration } from './chat.js?v=0.5.0';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.6.0';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.6.0';
+import { createScene } from './scene.js?v=0.6.0';
+import { createPainter, preview } from './art.js?v=0.6.0';
+import { createPractice } from './parkour-game.js?v=0.6.0';
+import { createEditor } from './parkour-editor.js?v=0.6.0';
+import { bubbleDuration } from './chat.js?v=0.6.0';
+import { createAccounts } from './account.js?v=0.6.0';
+import { createAvatarPainter } from './avatar.js?v=0.6.0';
+import { AVATAR_LENGTH,validAvatar } from './avatar-data.js?v=0.6.0';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
 const keys=new Set(),players=new Map(),tiles=new Map(),emotes=new Map(),speech=new Map();
 const materials=new Map(BUILTIN_MATERIALS.map(m=>[m.id,m])),histories=new Map(),events=[];
+const avatars=new Map();let accountUser=null,libraryMode='all',deleteMaterialId='';
+const ownUserId=()=>players.get(room?.sessionId)?.userId||'';
 const store={get(key,session=false){try{return (session?sessionStorage:localStorage).getItem(key);}catch{return null;}},set(key,value,session=false){try{(session?sessionStorage:localStorage).setItem(key,value);}catch{}},remove(key){try{sessionStorage.removeItem(key);}catch{}}};
 const params=new URLSearchParams(location.search);
 let room=null,endpoint='',ready=false,busy=false,online=false,space='lobby',epoch=0,spaces=[],facilityMode='parkour',spaceBusy=false;
@@ -21,14 +26,14 @@ function log(message){events.push({at:new Date().toISOString(),message});if(even
 function toast(message){clearTimeout(toastTimer);$('toast').textContent=message;$('toast').hidden=false;toastTimer=setTimeout(()=>$('toast').hidden=true,3500);}
 function status(kind,label,hint){$('connectionStatus').dataset.state=kind;$('connectionStatus').textContent=label;$('networkHint').textContent=hint;$('worldDot').classList.toggle('online',kind==='online');}
 function resetInput(){keys.clear();joystick={x:0,y:0};$('joystickKnob').style.transform='';}
-function saveSession(){if(room)store.set('dungeon-mail-session',JSON.stringify({version:2,endpoint,token:room.reconnectionToken}),true);}
+function saveSession(){if(room)store.set('dungeon-mail-session',JSON.stringify({version:3,endpoint,token:room.reconnectionToken,userId:room.state?.players?.get(room.sessionId)?.userId||accountUser?.id||''}),true);}
 function controls(){
   const active=!!room&&online;
   $('enterButton').disabled=busy||!ready;
   for(const id of ['chatInput','sendChat','waveButton','inviteButton','readyButton','returnButton','leaveButton','homeButton','roomsButton','resetPartyButton','editorVerify'])$(id).disabled=!active||spaceBusy;
   const party=spaces.find(s=>s.id===space);$('startButton').disabled=!active||spaceBusy||localMapDirty||!party?.canStart||party.host!==room?.sessionId;
-  for(const button of document.querySelectorAll('[data-tool]'))button.disabled=!active||space!=='lobby';
-  for(const id of ['materialButton','paintButton','blockKind'])$(id).disabled=!active||space!=='lobby';
+  for(const button of document.querySelectorAll('[data-tool]'))button.disabled=!active||space!=='lobby'||(button.dataset.tool!=='walk'&&!ownUserId());
+  for(const id of ['materialButton','paintButton','blockKind','avatarButton'])$(id).disabled=!active||space!=='lobby'||!ownUserId();
   $('createSpaceButton').disabled=!active||spaceBusy;
 }
 function setTool(value){tool=value;resetInput();for(const b of document.querySelectorAll('[data-tool]')){b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));}
@@ -75,8 +80,8 @@ function applyState(state){
     space=own.space;epoch=own.epoch;seq=own.ack;pending=[];outgoing=[];resetPrediction=false;resetInput();
     if(changed){if(previousSpace!==space){localMapDirty=false;if(matchStatus){matchStatus=null;if(practicing)leavePractice();}}spaceBusy=false;setTool('walk');hover=null;speech.clear();emotes.clear();$('spacesDialog').close();if(previousSpace!==space){if(previousSpace!=='lobby')histories.delete(previousSpace);renderChat();}}
   }
-  tiles.clear();state.tiles?.forEach((b,key)=>tiles.set(key,{col:b.col,row:b.row,material:b.material,solid:b.solid}));
-  players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready});});
+  tiles.clear();state.tiles?.forEach((b,key)=>tiles.set(key,{col:b.col,row:b.row,material:b.material,solid:b.solid,ownerId:b.ownerId}));
+  players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready,userId:p.userId});});
   pending=pending.filter(step=>step.seq>own.ack);predicted={x:own.x,y:own.y};for(const step of pending)predicted=move(predicted,step.dx,step.dy,space==='lobby'?tiles:undefined);
   if(changed||$('coordinates').textContent==='等待进入')$('coordinates').textContent=`${Math.round(predicted.x)}, ${Math.round(predicted.y)}`;
   roster();if(changed||!$('peopleCard').hidden)updateSpaceUI();
@@ -93,21 +98,37 @@ function renderChat(){
   container.scrollTop=wasNearBottom?container.scrollHeight:oldScroll;
 }
 function selectMaterial(id){
-  selectedId=materials.has(id)?id:'stone';const material=materials.get(selectedId);$('selectedMaterial').textContent=material.name;preview($('selectedTexture'),material);store.set('dungeon-mail-material',selectedId);renderLibrary();
+  selectedId=materials.has(id)&&!materials.get(id).deletedAt?id:'stone';const material=materials.get(selectedId);$('selectedMaterial').textContent=material.name;preview($('selectedTexture'),material);store.set('dungeon-mail-material',selectedId);renderLibrary();
 }
 function renderLibrary(){
   $('materialGrid').replaceChildren();
+  for(const [id,mode] of [['libraryAll','all'],['libraryMine','mine'],['libraryTrash','trash']])$(id).setAttribute('aria-pressed',String(libraryMode===mode));
   for(const material of materials.values()){
+    const own=!!ownUserId()&&material.ownerId===ownUserId();
+    if(libraryMode==='trash'?!own||!material.deletedAt:material.deletedAt||libraryMode==='mine'&&!own)continue;
+    const item=document.createElement('div');item.className='material-entry';
     const button=document.createElement('button'),canvas=document.createElement('canvas'),name=document.createElement('strong'),author=document.createElement('small');button.className='material-item';button.classList.toggle('selected',material.id===selectedId);button.setAttribute('aria-label','选择材料：'+material.name);canvas.width=canvas.height=16;preview(canvas,material);name.textContent=material.name;author.textContent='by '+material.author;button.append(canvas,name,author);
-    button.addEventListener('click',()=>{selectMaterial(material.id);$('libraryDialog').close();setTool('place');$('world').focus({preventScroll:true});});$('materialGrid').append(button);
+    button.disabled=!!material.deletedAt;
+    button.addEventListener('click',()=>{selectMaterial(material.id);$('libraryDialog').close();setTool('place');$('world').focus({preventScroll:true});});item.append(button);
+    if(own){const manage=document.createElement('button');manage.type='button';manage.className='text-button material-manage';manage.textContent=material.deletedAt?'恢复':'删除';manage.disabled=!!material.deletedAt&&Date.now()-material.deletedAt>7*86400000;if(manage.disabled)manage.textContent='已过恢复期';manage.addEventListener('click',()=>{if(material.deletedAt){manage.disabled=true;room?.send('material:restore',{id:material.id});}else{deleteMaterialId=material.id;$('deleteMaterialName').textContent=material.name;$('deleteMaterialDialog').showModal();}});item.append(manage);}
+    $('materialGrid').append(item);
   }
+  if(!$('materialGrid').children.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent=libraryMode==='trash'?'回收站为空':'还没有画布';$('materialGrid').append(empty);}
 }
 const painter=createPainter(data=>{
   if(!room||!online){painter.failed('连接恢复后再保存作品。');return;}
   if(data.pixels.length<=2048)room.send('material:create',data);
   else{room.send('material:begin',{name:data.name,length:data.pixels.length});for(let offset=0;offset<data.pixels.length;offset+=2048)room.send('material:chunk',{index:offset/2048,pixels:data.pixels.slice(offset,offset+2048)});room.send('material:finish');}
 });
-function openPaint(){if(!room||!online)return;resetInput();$('libraryDialog').close();painter.open();}
+function openPaint(){if(!room||!online)return;if(!ownUserId()){accountsUI.open();return;}resetInput();$('libraryDialog').close();painter.open();}
+const accountsUI=createAccounts({endpoint:()=>endpoint,onUser:user=>{accountUser=user;controls();},notify:toast,onSession:async(join=true)=>{
+  const old=room;if(old){old.reconnection.enabled=false;cleanup();await old.leave().catch(()=>{});}
+  if(join&&accountUser)await enter();
+},onProtection:allow=>{if(room&&online&&ownUserId())room.send('building:protection',{allow});else{accountsUI.protection(false);toast('请先用账号进入大厅');}}});
+const avatarPainter=createAvatarPainter({userId:ownUserId,current:()=>avatars.get(ownUserId()),onSave:frames=>{
+  if(!room||!online||!ownUserId()){avatarPainter.failed('请登录并连接大厅后保存。');return;}
+  const pixels=frames.join('');room.send('avatar:begin',{length:AVATAR_LENGTH});for(let offset=0;offset<pixels.length;offset+=3072)room.send('avatar:chunk',{index:offset/3072,pixels:pixels.slice(offset,offset+3072)});room.send('avatar:finish');
+}});
 function renderRooms(){
   $('roomList').replaceChildren();const list=spaces.filter(s=>s.type===facilityMode);
   if(!list.length){const empty=document.createElement('p');empty.className='empty-list';empty.textContent='暂无房间';$('roomList').append(empty);}
@@ -142,15 +163,18 @@ function attach(joined){
   });
   joined.onMessage('spaces',data=>{if(room!==joined)return;spaces=data;renderRooms();updateSpaceUI();});
   joined.onMessage('content',data=>{
-    if(room!==joined)return;for(const material of data.materials)materials.set(material.id,material);spaces=data.spaces;histories.set(data.space,data.history);selectMaterial(materials.has(selectedId)?selectedId:'stone');renderRooms();if(data.space===space)renderChat();updateSpaceUI();
+    if(room!==joined)return;materials.clear();for(const material of [...BUILTIN_MATERIALS,...data.materials])materials.set(material.id,material);accountsUI.protection(data.allowDemolition===true);spaces=data.spaces;histories.set(data.space,data.history);selectMaterial(materials.has(selectedId)?selectedId:'stone');renderRooms();if(data.space===space)renderChat();updateSpaceUI();
     if(!invitationShown&&params.get('room')){invitationShown=true;const invitation=spaces.find(s=>s.id===params.get('room'));if(invitation){openFacility(invitation.type);toast('朋友的房间在列表里，点击加入就能过去。');}else toast('邀请的房间已结束，你可以留在大厅和大家玩。');}
   });
   joined.onMessage('material',data=>{if(room!==joined)return;materials.set(data.id,data);renderLibrary();if(data.creator===room.sessionId){selectMaterial(data.id);painter.saved();setTool('place');toast('已保存');}});
+  joined.onMessage('material:updated',data=>{if(room!==joined)return;materials.set(data.id,data);selectMaterial(selectedId);$('libraryMessage').textContent='';toast(data.deletedAt?'已移入回收站，建筑贴图保留':'画布已恢复');});
+  joined.onMessage('building:protection',data=>{if(room===joined){accountsUI.protection(data.allow===true);toast('建筑权限已保存');}});
+  joined.onMessage('avatar',data=>{if(room!==joined||!validAvatar(data?.frames))return;const old=avatars.get(data.userId);avatars.set(data.userId,data);if(avatars.size>128)avatars.delete(avatars.keys().next().value);if(data.userId===ownUserId()&&old?.revision!==data.revision&&avatarPainter.saving){avatarPainter.saved();toast('人物已保存');}});
   joined.onMessage('build:saved',()=>{if(room===joined)$('saveState').textContent='已保存';});
-  joined.onMessage('notice',data=>{if(room!==joined)return;toast(data.text);if(data.action==='build')$('saveState').textContent='';if(data.action==='material')painter.failed(data.text);if(data.action==='space'){spaceBusy=false;controls();renderRooms();$('spaceMessage').textContent=data.text;}});
-  joined.onDrop(()=>{if(room!==joined)return;online=false;resetInput();outgoing=[];pending=[];resetPrediction=true;spaceBusy=false;controls();painter.failed('连接中断，恢复后可以重新保存。');$('connectionShade').hidden=false;status('reconnecting','重连中','正在找回位置，最多等待 60 秒。');log('connection dropped');});
+  joined.onMessage('notice',data=>{if(room!==joined)return;toast(data.text);if(data.action==='build')$('saveState').textContent='';if(data.action==='material')painter.failed(data.text);if(data.action==='avatar')avatarPainter.failed(data.text);if(data.action==='library'){$('libraryMessage').textContent=data.text;renderLibrary();}if(data.action==='account')accountsUI.protection(!$('allowDemolition').checked);if(data.action==='space'){spaceBusy=false;controls();renderRooms();$('spaceMessage').textContent=data.text;}});
+  joined.onDrop(()=>{if(room!==joined)return;online=false;resetInput();outgoing=[];pending=[];resetPrediction=true;spaceBusy=false;controls();painter.failed('连接中断，恢复后可以重新保存。');avatarPainter.failed('连接中断，草稿已保留，恢复后可以重新保存。');$('connectionShade').hidden=false;status('reconnecting','重连中','正在找回位置，最多等待 60 秒。');log('connection dropped');});
   joined.onReconnect(()=>{if(room!==joined)return;online=true;reconnects++;lastPong=performance.now();resetPrediction=true;spaceBusy=false;$('reconnects').firstChild.textContent=String(reconnects);$('connectionShade').hidden=true;applyState(joined.state);saveSession();room.send('hello');controls();status('online','已连接','连接回来了，欢迎回来。');log('reconnected');});
-  joined.onLeave(code=>{if(room!==joined)return;cleanup();status('offline','已离开',code===4001?'服务器更新完成后，请重新进入公共大厅。':'已离开庭院，可以重新输入用户名进入。');log('left '+code);});
+  joined.onLeave(code=>{if(room!==joined)return;cleanup();if(code===4003){accountsUI.load();toast('登录状态已更新，请重新进入');}status('offline','已离开',code===4001?'服务器更新完成后，请重新进入公共大厅。':'可以再次进入庭院。');log('left '+code);});
   joined.onError(code=>{if(room===joined){log('room error '+code);toast('连接出现问题，请稍后重试。');}});
   applyState(joined.state);room.send('hello');$('world').focus({preventScroll:true});
 }
@@ -163,9 +187,9 @@ function cleanup(){
 }
 function friendly(error){const message=String(error?.message||error);if(/full|locked|已满|maxClients/i.test(message))return '大厅已满，请稍后再来。';if(/用户|昵称|刷新/.test(message))return message;return '连接失败，请重试。';}
 async function enter(){
-  if(busy||room)return;const name=$('nickname').value.trim();if(!name)return;
+  if(busy||room)return;const name=accountUser?.nickname||$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:5}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:6,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -173,11 +197,11 @@ async function checkEndpoint(){
     const wasInRoom=!!room;ready=false;controls();if(!wasInRoom)status('checking','检查中','正在检查联机入口。');
     try{
       const response=await fetch('./config.json?t='+Date.now(),{cache:'no-store',signal:AbortSignal.timeout(10000)});if(!response.ok)throw Error('config unavailable');
-      const config=await response.json(),url=new URL(config.endpoint);
+      const config=await response.json(),url=new URL(config.endpoint==='same-origin'?location.origin:config.endpoint);
       if(url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1'].includes(url.hostname)))throw Error('invalid endpoint');
       if(!globalThis.Colyseus)throw Error('client unavailable');
       const health=await fetch(url.origin+'/health',{cache:'no-store',signal:AbortSignal.timeout(12000)});if(!health.ok)throw Error('health unavailable');const data=await health.json();
-      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.5.'))throw Error('server updating');
+      if(data.service!=='dungeon-mail-courtyard'||!data.ok||!data.version.startsWith('0.6.'))throw Error('server updating');
       endpoint=url.origin;ready=true;if(!wasInRoom)status('ready','入口可用','输入用户名，就能进入大家共同的大厅。');log('endpoint ready');
     }catch(error){if(!wasInRoom)status('error','暂不可用','入口暂时不可用或正在更新，请稍后重新检查。');else toast('入口检查未通过，当前连接继续保留。');log('endpoint check failed '+error.message);}finally{controls();}
   })();try{await checkTask;}finally{checkTask=null;}
@@ -206,6 +230,10 @@ $('chatInput').addEventListener('keydown',event=>{if(event.key==='Escape'){event
 $('chatToggle').addEventListener('click',()=>{const show=$('chatBody').hidden;$('chatBody').hidden=!show;$('chatToggle').textContent=show?'−':'+';$('chatToggle').setAttribute('aria-expanded',String(show));$('chatToggle').setAttribute('aria-label',show?'收起聊天':'展开聊天');});
 for(const button of document.querySelectorAll('[data-tool]'))button.addEventListener('click',()=>{setTool(button.dataset.tool);$('world').focus({preventScroll:true});});
 $('paintButton').addEventListener('click',openPaint);$('newMaterialButton').addEventListener('click',openPaint);
+for(const id of ['accountButton','signInButton'])$(id).addEventListener('click',()=>{resetInput();accountsUI.open();});
+$('avatarButton').addEventListener('click',()=>{resetInput();if(ownUserId())avatarPainter.open();else accountsUI.open();});
+for(const [id,mode] of [['libraryAll','all'],['libraryMine','mine'],['libraryTrash','trash']])$(id).addEventListener('click',()=>{libraryMode=mode;$('libraryMessage').textContent='';renderLibrary();});
+$('confirmDeleteMaterial').addEventListener('click',()=>{if(room&&online&&deleteMaterialId)room.send('material:delete',{id:deleteMaterialId});deleteMaterialId='';$('deleteMaterialDialog').close();});
 $('materialButton').addEventListener('click',()=>{resetInput();renderLibrary();$('libraryDialog').showModal();});
 for(const button of document.querySelectorAll('[data-close]'))button.addEventListener('click',()=>button.closest('dialog').close());
 $('interactButton').addEventListener('click',()=>{if(nearFacility)openFacility(nearFacility);});
@@ -236,9 +264,9 @@ setInterval(()=>{
   $('areaLabel').textContent=space!=='lobby'?'小队':'大厅';
   if(room&&online&&performance.now()-lastPong>9000)status('reconnecting','响应较慢','暂时没有收到服务器响应，正在等待恢复。');
 },150);
-const scene=createScene($('world'),()=>({players,tiles,materials,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,practicing}));
+const scene=createScene($('world'),()=>({players,tiles,materials,avatars,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,practicing}));
 const practice=createPractice($('parkourWorld'),{stick:()=>joystick,online:()=>online,color:()=>players.get(room?.sessionId)?.color,self:()=>room?.sessionId,speech:id=>speech.get(id||room?.sessionId),send:(type,data)=>{if(room&&online)room.send(type,data);}});
-const draftKey=()=> 'dungeon-mail-parkour-draft-'+(players.get(room?.sessionId)?.name||$('nickname').value.trim());
+const draftKey=()=> 'dungeon-mail-parkour-draft-'+(ownUserId()||players.get(room?.sessionId)?.name||$('nickname').value.trim());
 const editor=createEditor($('editorWorld'),{send:(type,data)=>{if(room&&online)room.send(type,data);},onDirty:()=>{localMapDirty=true;controls();},save:cells=>store.set(draftKey(),cells),name:()=>players.get(room?.sessionId)?.name||'我的关卡',color:()=>players.get(room?.sessionId)?.color});
 function showParkour(mode){
   if(!practicing)mapWasHidden=$('minimap').hidden;practicing=true;arenaMode=mode;resetInput();outgoing=[];pending=[];hover=null;
@@ -275,12 +303,14 @@ $('world').addEventListener('pointerdown',event=>{
 });
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.5.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.6.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();
 if(matchMedia('(max-width:760px)').matches)document.querySelector('.network-card').open=false;
 await checkEndpoint();
+if(ready)await accountsUI.load();
 if(ready){let saved;try{saved=JSON.parse(store.get('dungeon-mail-session',true)||'null');}catch{}
-  if(saved?.version===2&&saved.endpoint===endpoint){busy=true;controls();status('checking','找回中','正在找回上次的位置。');try{attach(await new Colyseus.Client(endpoint).reconnect(saved.token));}catch{store.remove('dungeon-mail-session');status('ready','入口可用','上次的连接已结束，可以重新进入公共大厅。');}finally{busy=false;controls();}}
+  if(saved?.version===3&&saved.endpoint===endpoint&&saved.userId===(accountUser?.id||'')){busy=true;controls();status('checking','找回中','正在找回上次的位置。');try{attach(await new Colyseus.Client(endpoint).reconnect(saved.token));}catch{store.remove('dungeon-mail-session');status('ready','入口可用','上次的连接已结束，可以重新进入公共大厅。');}finally{busy=false;controls();}}
 }
+if(ready&&!room&&accountUser)await enter();

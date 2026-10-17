@@ -1,0 +1,22 @@
+import { mkdir,readFile,writeFile,rename } from 'node:fs/promises';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { AVATAR_LENGTH,AVATAR_FRAME_LENGTH,validAvatar } from '../../courtyard/avatar-data.js';
+
+export class AvatarUpload {
+  constructor(length){if(length!==AVATAR_LENGTH)throw new Error('人物画布尺寸不正确。');this.parts=[];this.length=0;this.expires=Date.now()+20000;}
+  append(index,pixels){if(Date.now()>this.expires||index!==this.parts.length||typeof pixels!=='string'||!pixels.length||pixels.length>3072||!/^[a-f0-9]+$/i.test(pixels)||this.length+pixels.length>AVATAR_LENGTH)throw new Error('人物上传中断，请重新保存。');this.parts.push(pixels);this.length+=pixels.length;}
+  finish(){if(this.length!==AVATAR_LENGTH||Date.now()>this.expires)throw new Error('人物尚未上传完整。');const text=this.parts.join(''),frames=Array.from({length:12},(_,i)=>text.slice(i*AVATAR_FRAME_LENGTH,(i+1)*AVATAR_FRAME_LENGTH));if(!validAvatar(frames))throw new Error('每一帧至少保留一个像素。');return frames;}
+}
+export class AvatarStore {
+  constructor(directory){this.directory=join(directory,'avatars');this.cache=new Map();this.queues=new Map();}
+  path(id){if(!/^[a-f0-9-]{36}$/.test(id))throw new Error('无效的账号。');return join(this.directory,id+'.json');}
+  keep(id,data){this.cache.delete(id);this.cache.set(id,data);if(this.cache.size>128)this.cache.delete(this.cache.keys().next().value);return data;}
+  async get(id){if(this.cache.has(id))return this.cache.get(id);try{const data=JSON.parse(await readFile(this.path(id),'utf8'));if(data.userId!==id||!validAvatar(data.frames)||typeof data.revision!=='string')throw new Error('Invalid avatar save');return this.keep(id,data);}catch(error){if(error.code==='ENOENT')return null;throw error;}}
+  save(id,frames){
+    if(!validAvatar(frames))return Promise.reject(new Error('人物画布不完整。'));
+    const task=(this.queues.get(id)||Promise.resolve()).then(async()=>{await mkdir(this.directory,{recursive:true,mode:0o700});const path=this.path(id),data={userId:id,revision:randomUUID(),frames};await writeFile(path+'.tmp',JSON.stringify(data),{mode:0o600});await rename(path+'.tmp',path);return this.keep(id,data);});
+    this.queues.set(id,task.catch(()=>{}));return task;
+  }
+  async flush(){await Promise.all(this.queues.values());}
+}

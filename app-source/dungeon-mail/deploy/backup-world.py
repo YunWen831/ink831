@@ -3,6 +3,8 @@ import datetime
 import gzip
 import json
 import pathlib
+import io
+import tarfile
 
 base = pathlib.Path('/home/ubuntu/dungeon-mail')
 raw = (base / 'data/world.json').read_bytes()
@@ -18,4 +20,21 @@ temporary.chmod(0o600)
 temporary.replace(target)
 for stale in sorted(folder.glob('world-????-??-??.json.gz'))[:-14]:
     stale.unlink()
-print('World backup saved:', target.name)
+complete = folder / ('state-' + day + '.tar.gz')
+staging = complete.with_suffix('.tmp')
+with tarfile.open(staging,'w:gz') as archive:
+    def add_bytes(name,content):
+        entry=tarfile.TarInfo(name);entry.size=len(content);entry.mode=0o600
+        archive.addfile(entry,io.BytesIO(content))
+    add_bytes('world.json',raw)
+    accounts=base/'data/accounts.json'
+    if accounts.exists():
+        content=accounts.read_bytes();assert json.loads(content)['version']==1
+        add_bytes('accounts.json',content)
+    for avatar in sorted((base/'data/avatars').glob('*.json')):
+        content=avatar.read_bytes();assert isinstance(json.loads(content)['frames'],list)
+        add_bytes('avatars/'+avatar.name,content)
+staging.chmod(0o600);staging.replace(complete)
+for stale in sorted(folder.glob('state-????-??-??.tar.gz'))[:-14]:
+    stale.unlink()
+print('World and account backup saved:', target.name,complete.name)

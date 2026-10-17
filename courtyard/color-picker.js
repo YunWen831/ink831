@@ -8,8 +8,8 @@ export function hexToHsv(hex){
   let h=d===0?0:max===r?60*(((g-b)/d)%6):max===g?60*((b-r)/d+2):60*((r-g)/d+4);if(h<0)h+=360;
   return {h,s:max===0?0:d/max,v:max};
 }
-export function createColorPicker(onChange){
-  const $=id=>document.getElementById(id),canvas=$('paintSpectrum'),ctx=canvas.getContext('2d'),channels=['R','G','B'];
+export function createColorPicker(onChange,prefix='paint'){
+  const $=id=>document.getElementById(id.replace(/^paint/,prefix)),canvas=$('paintSpectrum'),ctx=canvas.getContext('2d'),channels=['R','G','B'];
   let h=0,s=1,v=1,pointer=null;
   function render(){
     ctx.fillStyle=hsvToHex(h,1,1);ctx.fillRect(0,0,256,96);

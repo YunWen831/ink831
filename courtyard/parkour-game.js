@@ -1,8 +1,8 @@
-import { PRACTICE_LEVEL } from './parkour-level.js?v=0.5.0';
-import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.5.0';
-import { drawBubbles } from './bubbles.js?v=0.5.0';
-import { drawRunner } from './parkour-avatar.js?v=0.5.0';
-import { drawCourse,drawSky } from './parkour-scene.js?v=0.5.0';
+import { PRACTICE_LEVEL } from './parkour-level.js?v=0.6.0';
+import { createParkourState, stepParkour, respawn, STEP } from './parkour-physics.js?v=0.6.0';
+import { drawBubbles } from './bubbles.js?v=0.6.0';
+import { drawRunner } from './parkour-avatar.js?v=0.6.0';
+import { drawCourse,drawSky } from './parkour-scene.js?v=0.6.0';
 
 const copy=s=>{const crystals=[...(s.crystals||[])];for(const [index,time] of s.crystalCharges||[])crystals[index]=time;return {...s,crystals};};
 export function createPractice(canvas,options){

@@ -5,19 +5,23 @@ import { BUILTIN_MATERIALS, validPixels } from '../../courtyard/materials.js';
 import { isBuildCell, tileKey, MAX_TILES } from '../../courtyard/world.js';
 
 export const cleanText = (value, length) => typeof value === 'string' ? Array.from(value.replace(/[\u0000-\u001f\u007f]/g,' ').trim()).slice(0,length).join('') : '';
+const ownerId=value=>value===undefined||value===''||/^[a-f0-9-]{36}$/.test(value);
+const RECYCLE_MS=7*86400000;
 export function validateWorld(data) {
-  if (data?.version!==1 || !Array.isArray(data.materials) || !Array.isArray(data.tiles) || data.materials.length>128 || data.tiles.length>MAX_TILES) throw new Error('Invalid world save');
+  if (data?.version!==1 || !Array.isArray(data.materials) || !Array.isArray(data.tiles) || data.materials.length>512 || data.tiles.length>MAX_TILES) throw new Error('Invalid world save');
   const ids=new Set(BUILTIN_MATERIALS.map(m=>m.id));
   for(const m of data.materials){
     if(!/^[a-z0-9-]{8,40}$/.test(m.id)||ids.has(m.id)||!validPixels(m.pixels)||!cleanText(m.name,12)||m.name.length>24||typeof m.author!=='string'||m.author.length>24)throw new Error('Invalid material in save');
+    if(!ownerId(m.ownerId)||(m.deletedAt!==undefined&&(!Number.isFinite(m.deletedAt)||m.deletedAt<=0)))throw new Error('Invalid material ownership');
     ids.add(m.id);
   }
   const cells=new Set();
   for(const t of data.tiles){
     const key=tileKey(t.col,t.row);
     if(!isBuildCell(t.col,t.row)||cells.has(key)||!ids.has(t.material)||typeof t.solid!=='boolean')throw new Error('Invalid block in save');
-    cells.add(key);
+    if(!ownerId(t.ownerId))throw new Error('Invalid block ownership');cells.add(key);
   }
+  if(data.protection!==undefined&&(typeof data.protection!=='object'||data.protection===null||Array.isArray(data.protection)||Object.entries(data.protection).some(([id,value])=>!id||!ownerId(id)||typeof value!=='boolean')))throw new Error('Invalid protection settings');
   return data;
 }
 
@@ -38,17 +42,33 @@ export class WorldStore {
     });
     this.queue=task.catch(()=>{});return task;
   }
-  createMaterial(name,pixels,author){
+  createMaterial(name,pixels,author,owner=''){
     if(!cleanText(name,12)||!validPixels(pixels))return Promise.reject(new Error('请填写材料名，并至少画一个像素。'));
     return this.transact(data=>{
-      if(data.materials.length>=128)throw new Error('公共材料库已满（128 件），请先使用已有材料。');
-      const material={id:randomUUID(),name:cleanText(name,12),pixels,author:cleanText(author,12)};
+      data.materials=data.materials.filter(m=>!m.deletedAt||Date.now()-m.deletedAt<=RECYCLE_MS||data.tiles.some(t=>t.material===m.id));
+      if(data.materials.filter(m=>!m.deletedAt).length>=128||data.materials.length>=512)throw new Error('材料库已满，请先使用已有材料。');
+      const material={id:randomUUID(),name:cleanText(name,12),pixels,author:cleanText(author,12),ownerId:owner};
       data.materials.push(material);return material;
     });
   }
-  setTile(tile){return this.transact(data=>{
+  setTile(tile,actor){return this.transact(data=>{
+    if(actor!==undefined){
+      if(!actor)throw new Error('请登录后施工。');
+      const old=data.tiles.find(t=>tileKey(t.col,t.row)===tileKey(tile.col,tile.row));
+      if(old&&(!old.ownerId||(old.ownerId!==actor&&data.protection?.[old.ownerId]!==true)))throw new Error(old.ownerId?'这座建筑未开放他人拆除。':'旧建筑正在保留，归属由站长确认。');
+      if(tile.material&&!BUILTIN_MATERIALS.some(m=>m.id===tile.material)&&!data.materials.some(m=>m.id===tile.material&&!m.deletedAt))throw new Error('材料已删除，请选择其他材料。');
+      tile={...tile,ownerId:actor};
+    }
     data.tiles=data.tiles.filter(t=>tileKey(t.col,t.row)!==tileKey(tile.col,tile.row));
     if(tile.material)data.tiles.push(tile);return tile;
+  });}
+  protect(owner,allow){return this.transact(data=>{if(!owner||!ownerId(owner)||typeof allow!=='boolean')throw new Error('无效的建筑设置。');data.protection={...data.protection,[owner]:allow};return allow;});}
+  deleteMaterial(id,owner,restore=false){return this.transact(data=>{
+    const material=data.materials.find(m=>m.id===id);
+    if(!owner||!material?.ownerId||material.ownerId!==owner)throw new Error('只能管理自己保存的画布。');
+    if(restore){if(!material.deletedAt)return material;if(Date.now()-material.deletedAt>RECYCLE_MS)throw new Error('已超过七天恢复期限。');if(data.materials.filter(m=>!m.deletedAt).length>=128)throw new Error('材料库已满，请先删除其他画布。');delete material.deletedAt;}
+    else if(!material.deletedAt)material.deletedAt=Date.now();
+    return material;
   });}
   async flush(){await this.queue;}
 }

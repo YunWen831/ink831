@@ -1,8 +1,9 @@
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.5.0';
-import { RemoteMotion } from './motion.js?v=0.5.0';
-import { texture } from './art.js?v=0.5.0';
-import { drawBubbles } from './bubbles.js?v=0.5.0';
-import { bubbleDuration } from './chat.js?v=0.5.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.6.0';
+import { RemoteMotion } from './motion.js?v=0.6.0';
+import { avatarImage } from './avatar.js?v=0.6.0';
+import { texture } from './art.js?v=0.6.0';
+import { drawBubbles } from './bubbles.js?v=0.6.0';
+import { bubbleDuration } from './chat.js?v=0.6.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);
@@ -34,6 +35,8 @@ export function createScene(canvas,getWorld){
     ctx.fillStyle='#344d3530';ctx.beginPath();ctx.ellipse(x,y+2,10,4,0,0,Math.PI*2);ctx.fill();
     if(self){ctx.strokeStyle='#fffce5';ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(x,y+2,13,6,0,0,Math.PI*2);ctx.stroke();}
     ctx.translate(x,y);
+    const custom=avatarImage(world.avatars?.get(p.userId),pose.facing,p.moving&&!reduced?[1,2][Math.floor(pose.phase/Math.PI)%2]:0);
+    if(custom){ctx.drawImage(custom,-13,-39,26,39);}else{
     ctx.save();if(pose.facing==='left')ctx.scale(-1,1);
     const side=pose.facing==='left'||pose.facing==='right',back=pose.facing==='up';
     // Alternating feet and opposite arms make each step read in every direction.
@@ -50,7 +53,7 @@ export function createScene(canvas,getWorld){
     ctx.fillStyle='#6d7958';ctx.fillRect(-5,-34,9,2);
     if(!back){ctx.fillStyle='#35443a';ctx.fillRect(side?5:-3,-26,2,3);if(!side)ctx.fillRect(3,-26,2,3);ctx.fillStyle='#d6ad88';ctx.fillRect(side?6:0,-21,3,2);}
     ctx.fillStyle='#f0dfb5';ctx.fillRect(side?-5:-7,-18,side?12:14,3);ctx.fillRect(back?-5:side?0:-4,-15,3,6+Math.abs(swing)*.3);
-    ctx.restore();
+    ctx.restore();}
     const label=p.name+(self?' · 你':'');ctx.font='11px "Microsoft YaHei",sans-serif';ctx.textAlign='center';const tw=ctx.measureText(label).width;
     let labelY=-53,showLabel=true;
     if(!self){const collision=()=>labels.some(r=>x-tw/2-5<r.x+r.w&&x+tw/2+5>r.x&&y+labelY<r.y+r.h&&y+labelY+16>r.y);for(let i=0;i<3&&collision();i++)labelY-=18;showLabel=!collision();if(showLabel)labels.push({x:x-tw/2-5,y:y+labelY,w:tw+10,h:16});}

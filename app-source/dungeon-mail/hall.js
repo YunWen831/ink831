@@ -8,17 +8,21 @@ import { CHAT_SWEEP_MS } from '../../courtyard/chat.js';
 import { ChatHistory } from './chat-history.js';
 import { ParkourMatch } from './parkour-match.js';
 import { MaterialUpload } from './material-upload.js';
+import { AccountStore,cookieToken,publicUser } from './accounts.js';
+import { AvatarStore,AvatarUpload } from './avatars.js';
 import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
 
 export const worldStore = await new WorldStore(resolve(process.env.DATA_DIR || 'data')).load();
+export const accounts=await new AccountStore(resolve(process.env.DATA_DIR||'data')).load();
+export const avatars=new AvatarStore(resolve(process.env.DATA_DIR||'data'));
 const Player = schema({
   name:t.string().default(''),x:t.number().default(480),y:t.number().default(414),
   color:t.string().default(COLORS[0]),connected:t.boolean().default(true),ack:t.number().default(0),
   space:t.string().default('lobby'),ready:t.boolean().default(false),
-  epoch:t.number().default(0),
+  epoch:t.number().default(0),userId:t.string().default(''),
 },'Player');
-const Block = schema({col:t.number(),row:t.number(),material:t.string(),solid:t.boolean()},'Block');
+const Block = schema({col:t.number(),row:t.number(),material:t.string(),solid:t.boolean(),ownerId:t.string().default('')},'Block');
 const blockOf = tile => Object.assign(new Block(),tile);
 const HallState = schema({players:t.map(Player),tiles:t.map(Block)},'HallState');
 let active=false;
@@ -40,6 +44,19 @@ export class Courtyard extends Room {
   onCreate(){
     if(active)throw new Error('大厅暂时已满，请稍后再试');
     active=true;this.ownsLobby=true;this.roomId='courtyard';
+    const register=this.onMessage.bind(this);
+    this.onMessage=(type,handler,...args)=>register(type,(client,data)=>{
+      if(client.userData?.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}
+      return handler(client,data);
+    },...args);
+    this.sessionSweep=setInterval(()=>{
+      for(const client of this.clients){
+        const user=client.userData;if(!user?.sessionHash)continue;
+        if(!accounts.valid(user.sessionHash)){client.leave(4003);continue;}
+        const account=accounts.data.users.find(a=>a.id===user.accountId),player=this.state.players.get(client.sessionId);
+        if(account&&player)player.name=account.nickname;
+      }
+    },1000).unref();
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
     this.matchTick=setInterval(()=>{for(const match of this.matches.values())match.tick();},1000/60).unref();
@@ -110,12 +127,13 @@ export class Courtyard extends Room {
       this.sendSpace(space.id,'space:launch',{id:space.id,type:space.type,phase:space.phase});
     });
     this.onMessage('material:create',async(client,data)=>{
-      if(!this.state.players.has(client.sessionId))return;
+      if(!this.state.players.has(client.sessionId)||!this.requireAccount(client,'material'))return;
       if(!this.allow(client,'material',2500)){this.notice(client,'保存得太快了，请稍等一下。','material');return;}
       await this.saveMaterial(client,data);
     });
     this.onMessage('material:begin',(client,data)=>{
       client.userData.upload=null;
+      if(!this.requireAccount(client,'material'))return;
       if(!this.state.players.has(client.sessionId)||!this.allow(client,'material',2500)){this.notice(client,'保存得太快了，请稍等一下。','material');return;}
       try{client.userData.upload=new MaterialUpload(data?.name,data?.length);}catch(error){client.userData.upload=null;this.notice(client,error.message,'material');}
     });
@@ -128,6 +146,29 @@ export class Courtyard extends Room {
       try{await this.saveMaterial(client,{name:upload.name,pixels:upload.finish()});}catch(error){this.notice(client,error.message,'material');}
     });
     this.onMessage('build',(client,data)=>this.build(client,data));
+    this.onMessage('material:delete',(client,data)=>this.manageMaterial(client,data,false));
+    this.onMessage('material:restore',(client,data)=>this.manageMaterial(client,data,true));
+    this.onMessage('building:protection',async(client,data)=>{
+      if(!this.requireAccount(client,'account')||typeof data?.allow!=='boolean')return;
+      if(!this.actionBudget(client,'protection')){this.notice(client,'设置操作较多，请稍后重试。','account');return;}
+      try{await worldStore.protect(client.userData.accountId,data.allow);for(const c of this.clients)if(c.userData?.accountId===client.userData.accountId)c.send('building:protection',{allow:data.allow});}
+      catch{this.notice(client,'建筑设置保存失败，请重试。','account');}
+    });
+    this.onMessage('avatar:begin',(client,data)=>{
+      client.userData.avatarUpload=null;if(!this.requireAccount(client,'avatar'))return;
+      if(!this.allow(client,'avatar',3000)){this.notice(client,'请稍等一下再保存人物。','avatar');return;}
+      try{client.userData.avatarUpload=new AvatarUpload(data?.length);}catch(error){this.notice(client,error.message,'avatar');}
+    });
+    this.onMessage('avatar:chunk',(client,data)=>{
+      const upload=client.userData.avatarUpload;if(!upload)return;
+      try{upload.append(data?.index,data?.pixels);}catch(error){client.userData.avatarUpload=null;this.notice(client,error.message,'avatar');}
+    });
+    this.onMessage('avatar:finish',async client=>{
+      const upload=client.userData.avatarUpload;client.userData.avatarUpload=null;
+      if(!upload||!this.requireAccount(client,'avatar'))return;
+      try{const data=await avatars.save(client.userData.accountId,upload.finish());this.broadcast('avatar',data);}
+      catch(error){this.notice(client,error.code?'人物保存失败，请重试。':error.message,'avatar');}
+    });
     const ownMatch=client=>this.matches.get(this.state.players.get(client.sessionId)?.space);
     this.onMessage('parkour:map',(client,data)=>{
       const match=ownMatch(client);if(!match||match.phase!=='building')return;if(!this.allow(client,'parkourEdit',100)){match.workshop(client.sessionId);return;}
@@ -145,10 +186,18 @@ export class Courtyard extends Room {
     });
   }
   async saveMaterial(client,data){
-    const player=this.state.players.get(client.sessionId);if(!player)return;
-    try{const material=await worldStore.createMaterial(data?.name,data?.pixels,player.name);this.broadcast('material',{...material,creator:client.sessionId});}
+    const player=this.state.players.get(client.sessionId);if(!player||!this.requireAccount(client,'material'))return;
+    try{const material=await worldStore.createMaterial(data?.name,data?.pixels,player.name,client.userData.accountId);this.broadcast('material',{...material,creator:client.sessionId});}
     catch(error){this.notice(client,error.code?'材料暂时保存失败，请稍后再试。':error.message,'material');}
   }
+  requireAccount(client,action){if(client.userData?.accountId&&accounts.valid(client.userData.sessionHash))return true;this.notice(client,'请登录后保存作品或施工。',action);return false;}
+  async manageMaterial(client,data,restore){
+    if(!this.requireAccount(client,'library'))return;
+    if(!this.actionBudget(client,'library')){this.notice(client,'画布操作较多，请稍后重试。','library');return;}
+    try{const material=await worldStore.deleteMaterial(data?.id,client.userData.accountId,restore);this.broadcast('material:updated',material);}
+    catch(error){this.notice(client,error.code?'画布操作失败，请重试。':error.message,'library');}
+  }
+  actionBudget(client,key){const now=performance.now(),actions=(client.userData[key+'Actions']||[]).filter(at=>now-at<10000);client.userData[key+'Actions']=actions;if(actions.length>=20)return false;actions.push(now);return true;}
   allow(client,key,interval){
     const now=performance.now(),previous=client.userData.times[key]??-Infinity;
     if(now-previous<interval)return false;client.userData.times[key]=now;return true;
@@ -158,9 +207,10 @@ export class Courtyard extends Room {
   sendSpace(space,type,message){for(const client of this.clients)if(this.state.players.get(client.sessionId)?.space===space)client.send(type,message);}
   roomList(){return [...this.spaces.values()].map(space=>{const match=this.matches.get(space.id);return {...space,...partyStatus(this.members(space.id).map(([,p])=>p),space.phase),...(match?{phase:match.phase,canStart:match.canLaunch(id=>this.state.players.get(id)?.connected),verified:[...match.drafts.values()].filter(d=>d.verified).length}: {})};});}
   broadcastRooms(){this.broadcast('spaces',this.roomList());}
-  content(client){
+  async content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
-    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),space:player.space});
+    client.send('content',{materials:worldStore.data.materials,spaces:this.roomList(),history:this.chatHistory.read(player.space),space:player.space,account:publicUser(accounts.data.users.find(u=>u.id===client.userData.accountId)),allowDemolition:worldStore.data.protection?.[client.userData.accountId]===true});
+    for(const id of new Set([...this.state.players.values()].map(p=>p.userId).filter(Boolean))){try{const avatar=await avatars.get(id);if(avatar)client.send('avatar',avatar);}catch{this.notice(client,'一件人物贴图读取失败，请联系站长。');}}
   }
   transfer(client,destination){
     const player=this.state.players.get(client.sessionId),old=player.space;
@@ -181,37 +231,46 @@ export class Courtyard extends Room {
   async build(client,data){
     const player=this.state.players.get(client.sessionId);
     if(!player||player.space!=='lobby'){this.notice(client,'请回大厅建造。','build');return;}
+    if(!this.requireAccount(client,'build'))return;
     if(!this.allow(client,'build',125))return;
     const {col,row}=data||{},key=tileKey(col,row);
     if(!isBuildCell(col,row)){this.notice(client,'已到地图边界。','build');return;}
     if(Math.hypot(player.x-(col+.5)*TILE_SIZE,player.y-(row+.5)*TILE_SIZE)>BUILD_REACH){this.notice(client,'离得有点远，走近一些再施工。','build');return;}
     if(this.reserved.has(key)){this.notice(client,'这块位置正在同步，请稍等。','build');return;}
     const old=this.state.tiles.get(key);
-    const tile={col,row,material:data.material||null,solid:data.solid===true};
-    if(tile.material&&!BUILTIN_MATERIALS.some(m=>m.id===tile.material)&&!worldStore.data.materials.some(m=>m.id===tile.material)){this.notice(client,'请先选择已有材料。','build');return;}
+    if(old&&(!old.ownerId||(old.ownerId!==client.userData.accountId&&worldStore.data.protection?.[old.ownerId]!==true))){this.notice(client,old.ownerId?'这座建筑未开放他人拆除。':'旧建筑正在保留，归属由站长确认。','build');return;}
+    const tile={col,row,material:data.material||null,solid:data.solid===true,ownerId:client.userData.accountId};
+    if(tile.material&&!BUILTIN_MATERIALS.some(m=>m.id===tile.material)&&!worldStore.data.materials.some(m=>m.id===tile.material&&!m.deletedAt)){this.notice(client,'请先选择已有材料。','build');return;}
     if(!tile.material&&!old){this.notice(client,'这里还没有方块。','build');return;}
     if(tile.material&&tile.solid&&this.members('lobby').some(([,p])=>overlapsTile(p.x,p.y,col,row))){this.notice(client,'这里站着一位旅人，请换个位置。','build');return;}
     this.reserved.add(key);
     // Reserve solid cells during disk I/O so a player cannot walk into a new wall.
     if(tile.material&&tile.solid)this.collisionTiles.set(key,tile);
     try{
-      await worldStore.setTile(tile);
+      await worldStore.setTile(tile,client.userData.accountId);
       if(tile.material){this.state.tiles.set(key,blockOf(tile));this.collisionTiles.set(key,tile);}
       else{this.state.tiles.delete(key);this.collisionTiles.delete(key);}
       client.send('build:saved',{key});
-    }catch{
+    }catch(error){
       if(old)this.collisionTiles.set(key,old);else this.collisionTiles.delete(key);
-      this.notice(client,'建筑保存失败，请稍后再试。','build');
+      this.notice(client,error.code?'建筑保存失败，请稍后再试。':error.message,'build');
     }finally{this.reserved.delete(key);}
   }
-  onAuth(client,options){if(typeof options?.name!=='string'||!cleanText(options.name,12))throw new Error('请先输入用户名');if(options.clientVersion!==5)throw new Error('页面已更新，请刷新后进入');return true;}
-  onJoin(client,options){
-    const index=this.state.players.size,player=new Player();
-    player.name=cleanText(options.name,12);player.color=COLORS[index%COLORS.length];Object.assign(player,spawn(index,this.collisionTiles));
-    client.userData={credit:200,creditAt:performance.now(),times:{}};this.state.players.set(client.sessionId,player);
+  onAuth(client,options,context){
+    if(options?.clientVersion!==6)throw new Error('页面已更新，请刷新后进入');
+    const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
+    if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
+    if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');
+    return session?{userId:session.user.id,name:session.user.nickname,hash:session.hash}:{userId:'',name:cleanText(options.name,12),hash:''};
   }
-  onDrop(client){client.userData.upload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
-  onReconnect(client){const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
+  async onJoin(client,options,auth){
+    const index=this.state.players.size,player=new Player();
+    auth=auth||client.auth;player.name=auth.name;player.userId=auth.userId;player.color=COLORS[index%COLORS.length];Object.assign(player,spawn(index,this.collisionTiles));
+    client.userData={credit:200,creditAt:performance.now(),times:{},accountId:auth.userId,sessionHash:auth.hash};this.state.players.set(client.sessionId,player);
+    if(auth.userId){try{const avatar=await avatars.get(auth.userId);if(avatar)this.broadcast('avatar',avatar);}catch{this.notice(client,'人物贴图暂时无法读取。');}}
+  }
+  onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.broadcastRooms();this.allowReconnection(client,60).catch(()=>{});}
+  onReconnect(client){if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}const player=this.state.players.get(client.sessionId);if(player)player.connected=true;client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
   onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
-  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);if(this.ownsLobby)active=false;}
+  onDispose(){clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby)active=false;}
 }

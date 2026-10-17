@@ -10,3 +10,7 @@ output/playwright/
 .playwright-cli/
 Thumbs.db
 .DS_Store
+# Runtime identities, player artwork and dependencies never belong in Git.
+app-source/dungeon-mail/data/
+app-source/dungeon-mail/node_modules/
+app-source/dungeon-mail/.env
