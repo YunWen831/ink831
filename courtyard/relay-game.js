@@ -15,10 +15,14 @@ export function createRelay({send,self,online,onActive,replay,exit}){
   function editable(){return active&&state?.phase==='writing'&&!state.draft?.submitted&&online()&&!submitting;}
   function renderDrawing(){drawPage(canvas,strokes);$('relayUndo').disabled=!strokes.length;}
   function pageNode(page){const item=document.createElement('article'),author=document.createElement('small');author.textContent=(state.members.find(p=>p.id===page.author)?.name||'旅人')+(page.skipped?' · 超时草稿':'');item.append(author);if(page.kind==='drawing'){const image=document.createElement('canvas');image.width=640;image.height=420;drawPage(image,page.value);item.append(image);}else{const text=document.createElement('p');text.textContent=page.value||'（这一页留白）';item.append(text);}return item;}
+  let pageQueue=Promise.resolve(),lastPageRequest=0;
   function pageKey(book,index){return state.id+':'+book+':'+index;}
+  function requestPage(id,book,index,key){
+    pageQueue=pageQueue.then(async()=>{const delay=110-(performance.now()-lastPageRequest);if(delay>0)await new Promise(r=>setTimeout(r,delay));if(state?.id!==id||!pendingPages.has(key))return;lastPageRequest=performance.now();send('relay:page',{id,book,page:index});}).catch(()=>{});
+  }
   function loadPage(book,index){
     const key=pageKey(book,index);if(pages.has(key))return Promise.resolve(pages.get(key));if(pendingPages.has(key))return pendingPages.get(key).promise;
-    let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});const timer=setTimeout(()=>{pendingPages.delete(key);reject(Error('页面加载超时，请重试。'));},15000);pendingPages.set(key,{promise,resolve,reject,timer});send('relay:page',{id:state.id,book,page:index});return promise;
+    let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});const timer=setTimeout(()=>{pendingPages.delete(key);reject(Error('页面加载超时，请重试。'));},15000);pendingPages.set(key,{promise,resolve,reject,timer,retries:0});requestPage(state.id,book,index,key);return promise;
   }
   async function reveal(){
     if(state?.phase!=='final')return;const id=state.id,book=Number($('relayBook').value)||0,index=pageIndex;
@@ -70,7 +74,7 @@ export function createRelay({send,self,online,onActive,replay,exit}){
       }controls();
     },
     ack(data){if(state?.id!==data.id||state.step!==data.step||data.revision<revision)return;busy=false;submitting=false;state.draft={revision:data.revision,submitted:data.submitted};status(data.submitted?'已交稿，等待大家…':'草稿已同步');controls();},
-    page(data){if(state?.phase!=='final'||data.id!==state.id)return;const key=pageKey(data.book,data.page),pending=pendingPages.get(key);if(!pending)return;clearTimeout(pending.timer);pendingPages.delete(key);if(data.error)pending.reject(Error(data.error));else{pages.set(key,data.value);pending.resolve(data.value);}},
+    page(data){if(state?.phase!=='final'||data.id!==state.id)return;const key=pageKey(data.book,data.page),pending=pendingPages.get(key);if(!pending)return;if(data.error?.includes('翻页太快')&&pending.retries++<5){requestPage(data.id,data.book,data.page,key);return;}clearTimeout(pending.timer);pendingPages.delete(key);if(data.error)pending.reject(Error(data.error));else{pages.set(key,data.value);pending.resolve(data.value);}},
     clock(data){if(state?.id!==data.id||state.step!==data.step)return;$('relayClock').textContent=data.remaining+' 秒';if(state.draft?.submitted)status(`已交稿 · ${data.ready} / ${state.members.length} 人完成`);controls();},
     refresh(value){canReplay=!!value;controls();},
     failed(text){generation++;busy=false;submitting=false;dirty=true;status(text);controls();},
