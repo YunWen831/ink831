@@ -186,3 +186,69 @@ body.in-city.city-chat .side-panel{display:grid;position:fixed;right:18px;top:62
 .city-place-entry span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .city-place-icon{width:22px;height:22px;flex:none;border-radius:5px}
 @media (max-width:620px){.city-place-directory{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* 混乱都市 0.18：委托、强化、安全屋/诊所、黑市与老虎机 */
+.city-panel[data-kind="fixer"]{--accent:#f2c94c}
+.city-panel[data-kind="safehouse"]{--accent:#7fd6b0}
+.city-panel[data-kind="clinic"]{--accent:#f28f8f}
+.city-panel[data-kind="black-market"]{--accent:#b57ae0}
+.city-panel[data-kind="boon"]{--accent:#f2c94c}
+.city-contracts{margin:2px 0 14px}
+.city-contract-hint{font-size:11px;line-height:1.7;color:#93a9a5;margin:0 0 10px}
+.city-contract-active{position:relative;border:1px solid #6e5a2f;border-left:4px solid var(--contract,#f2c94c);border-radius:10px;background:linear-gradient(135deg,#251f13,#121a20);padding:13px 15px;margin-bottom:10px}
+.city-contract-active>span{font:10px ui-monospace,Consolas,monospace;letter-spacing:.18em;color:var(--contract,#f2c94c)}
+.city-contract-active>strong{display:block;font-size:17px;color:#f6edd8;margin:4px 0 3px}
+.city-contract-active>p{font-size:11px;line-height:1.7;color:#b6c4bd;margin:0}
+.city-contract-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.city-contract-grid .city-card{border-left:3px solid var(--contract,#f2c94c)}
+.city-boons{margin:12px 0 4px;padding:12px;border:1px solid #6e5a2f;border-radius:12px;background:radial-gradient(circle at 50% 0,#3a2f16,#111a21 70%)}
+.city-boon-hint{font-size:11px;line-height:1.7;color:#e8d8a8;margin:0 0 10px}
+.city-boon-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.city-boon-card{border-color:var(--boon,#f2c94c)!important;box-shadow:inset 0 2px 0 var(--boon,#f2c94c)}
+.city-boon-card .city-card-head strong{color:var(--boon,#f2c94c)}
+.city-boons-line{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:9px 10px;border:1px solid #2d4653;border-radius:9px;background:#0d1820}
+.city-boons-line>span{font:10px ui-monospace,Consolas,monospace;letter-spacing:.16em;color:#8fa6a2;margin-right:3px}
+.city-boons-line em{font-style:normal;font-size:10px;color:var(--boon,#f2c94c);border:1px solid var(--boon,#f2c94c);border-radius:999px;padding:3px 8px;background:#ffffff08}
+.city-slots{position:relative;margin-top:14px;padding:14px;border-radius:16px;background:linear-gradient(180deg,#1a1320,#0b1016);border:1px solid #4b3a5c;overflow:hidden}
+.city-slots::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 20px,#f07cff08 20px 21px);pointer-events:none}
+.city-slots-head{display:flex;align-items:baseline;gap:9px;position:relative}
+.city-slots-head span{font:9px ui-monospace,Consolas,monospace;letter-spacing:.3em;color:#f0c97b}
+.city-slots-head strong{font-size:16px;color:#f6e3ff}
+.city-slots-head em{font-style:normal;margin-left:auto;font-size:9px;color:#a98bb8}
+.city-reels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px auto 8px;max-width:330px;position:relative}
+.city-reel{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 6px;border-radius:11px;background:#0b141c;border:1px solid var(--reel,#f0c97b);box-shadow:inset 0 0 18px #00000099,0 0 14px #00000066}
+.city-reel-icon{width:52px;height:52px;display:block}
+.city-reel span{font-size:10px;color:var(--reel,#f0c97b)}
+.city-reels.rolling .city-reel{animation:city-reel-spin .45s cubic-bezier(.2,.85,.3,1)}
+@keyframes city-reel-spin{0%{transform:translateY(-16px);filter:blur(2px)}55%{transform:translateY(5px)}100%{transform:none;filter:none}}
+.city-slots-result{position:relative;text-align:center;font-size:11px;color:#d9c7e2;margin:2px 0 10px;min-height:16px}
+.city-slots-bets{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.city-slots-bets button{font-size:11px;padding:8px 4px;background:#2a1b36;border-color:#6b467f}
+@media (max-width:620px){
+  .city-contract-grid,.city-boon-grid{grid-template-columns:1fr}
+  .city-boon-grid{gap:6px}
+  .city-reels{max-width:290px}
+  .city-reel-icon{width:44px;height:44px}
+  .city-slots{padding:11px}
+}
+@media (min-width:621px){.city-die{width:66px;height:66px;margin:12px auto 6px;padding:9px;gap:3px}.city-casino{padding:12px}.city-casino-bets{gap:7px}.city-slots{margin-top:10px;padding:11px}.city-reels{margin:9px auto 5px}.city-slots-result{margin:0 0 7px}}
+
+/* 0.18.2：把都市钉死在视口内，避免移动端底部露出页面背景 */
+body.in-city .city-stage{position:fixed;inset:0;z-index:25}
+@media (max-width:620px){
+  .city-top{gap:4px}
+  .city-top>div:first-child{max-width:74px;overflow:hidden}
+  .city-menus{gap:2px;flex-wrap:nowrap;min-width:0;flex-shrink:1}
+  .city-stage .city-menus button{padding:6px 4px;font-size:9px;max-width:62px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .city-stage #cityService{max-width:76px}
+  .city-stage #cityHelp{width:24px;max-width:24px;padding:6px 0}
+}
+/* 0.19：城市规则与混乱度 */
+#cityChaos{color:#9bbdc3}
+#cityChaos[data-level="2"]{color:#f2c94c}
+#cityChaos[data-level="3"]{color:#f0a35c}
+#cityChaos[data-level="4"],#cityChaos[data-level="5"]{color:#f3786b;text-shadow:0 0 10px #f3786b55}
+.city-rule-hint{font-size:10px;line-height:1.6;color:#9db3b0;margin:4px 0 0}
+.city-race-line{display:flex;flex-direction:column;gap:5px;margin-top:6px;font-size:11px;color:#d9e4e5}
+.city-race-line em{font-style:normal;color:#f2c94c}
+.city-upgrade-meta{font-size:10px;color:#9db3b0;line-height:1.6}
