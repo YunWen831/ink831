@@ -22,12 +22,14 @@ import { LevelStore } from './level-store.js';
 import { emptyMap } from '../../courtyard/parkour-map.js';
 import { BUILTIN_MATERIALS } from '../../courtyard/materials.js';
 import { WorldStore, cleanText } from './world-store.js';
+import { CityLeaderboard } from './city-leaderboard.js';
 
 export const worldStore = await new WorldStore(resolve(process.env.DATA_DIR || 'data')).load();
 await worldStore.pruneMaterials();
 export const accounts=await new AccountStore(resolve(process.env.DATA_DIR||'data')).load();
 export const avatars=new AvatarStore(resolve(process.env.DATA_DIR||'data'));
 export const levelStore=new LevelStore(resolve(process.env.DATA_DIR||'data'));
+export const cityLeaderboard=await new CityLeaderboard(resolve(process.env.DATA_DIR||'data')).load();
 const Player = schema({
   name:t.string().default(''),x:t.number().default(480),y:t.number().default(414),
   color:t.string().default(COLORS[0]),connected:t.boolean().default(true),ack:t.number().default(0),
@@ -87,12 +89,13 @@ export class Courtyard extends Room {
     this.onMessage('city:join',client=>{
       const p=this.state.players.get(client.sessionId);if(p?.space!=='lobby'||!this.allow(client,'cityJoin',1000))return;
       if(this.members('city').length>=8){this.notice(client,'都市已满，最多8人，稍后再来。','city');return;}
-      if(!this.city){this.city=new CityMatch({connected:id=>{const q=this.state.players.get(id);return !!q?.connected&&q.space==='city';},send:(id,type,data)=>this.clients.find(c=>c.sessionId===id)?.send(type,data)});this.spaces.set('city',{id:'city',title:'混乱都市',type:'city',capacity:8,minPlayers:1,phase:'city',host:''});}
-      this.city.add({id:client.sessionId,name:p.name,color:p.color,userId:p.userId});this.transfer(client,'city');
+      if(!this.city){this.city=new CityMatch({connected:id=>{const q=this.state.players.get(id);return !!q?.connected&&q.space==='city';},send:(id,type,data)=>this.clients.find(c=>c.sessionId===id)?.send(type,data),onResult:entry=>{const top=cityLeaderboard.record(entry);for(const [id] of this.members('city'))this.clients.find(c=>c.sessionId===id)?.send('city:leaderboard',top);}});this.spaces.set('city',{id:'city',title:'混乱都市',type:'city',capacity:8,minPlayers:1,phase:'city',host:''});}
+      this.city.add({id:client.sessionId,name:p.name,color:p.color,userId:p.userId});this.transfer(client,'city');client.send('city:leaderboard',cityLeaderboard.top());
     });
     this.onMessage('city:input',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityInput',35))this.city?.input(client.sessionId,data);});
     this.onMessage('city:action',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityAction',100))this.city?.action(client.sessionId,data);});
     this.onMessage('city:peek',client=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityPeek',300))client.send('city:state',this.city.snapshot(client.sessionId));});
+    this.onMessage('city:leaderboard',client=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityPeek',300))client.send('city:leaderboard',cityLeaderboard.top());});
     this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
     this.onMessage('car:toggle',(client,data)=>{

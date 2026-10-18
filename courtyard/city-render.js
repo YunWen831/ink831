@@ -1,16 +1,16 @@
-import {CITY,BLOCKS,PLACES,ZONES,DISTRICTS,ROADS,BOONS,CONTRACT_META,GUNS,GOODS,EVENTS,BARKS,wallRange} from './city-rules.js?v=0.19.1';
+import {CITY,BLOCKS,PLACES,ZONES,DISTRICTS,ROADS,BOONS,CONTRACT_META,GUNS,GOODS,EVENTS,BARKS,wallRange} from './city-rules.js?v=0.26.1';
 import {rigImage} from './avatar-render.js?v=0.16.0';
 import {drawCar} from './lobby-render.js?v=0.16.0';
-import {CityTimeline} from './city-motion.js?v=0.19.1';
+import {CityTimeline} from './city-motion.js?v=0.26.1';
 
-const colors = {job: '#70dbb1', arms: '#f39485', market: '#c4a0ef', 'black-market': '#b57ae0', bank: '#f2d57d', casino: '#d7a1db', garage: '#84c8e8', escape: '#b5f493', fixer: '#f2c94c', safehouse: '#7fd6b0', clinic: '#f28f8f'};
-const signs = {job: '工', arms: '武', market: '店', 'black-market': '黑', bank: '银', casino: '赌', garage: '车', escape: '离', fixer: '委', safehouse: '安', clinic: '医'};
+const colors = {job: '#70dbb1', arms: '#f39485', market: '#c4a0ef', 'black-market': '#b57ae0', bank: '#f2d57d', casino: '#d7a1db', garage: '#84c8e8', escape: '#b5f493', fixer: '#f2c94c', safehouse: '#7fd6b0', clinic: '#f28f8f', goose: '#f2c94c', cyber: '#6fd7e5'};
+const signs = {job: '工', arms: '武', market: '店', 'black-market': '黑', bank: '银', casino: '赌', garage: '车', escape: '离', fixer: '委', safehouse: '安', clinic: '医', goose: '鹅', cyber: '体'};
 const ROAD = 100;
-const LANDMARKS = new Set(['central-plaza', 'finance-plaza', 'old-park', 'finance-park', 'ent-plaza', 'harbor-water', 'harbor-pier-west', 'harbor-pier-south', 'harbor-pier-east']);
+const LANDMARKS = new Set(['central-plaza', 'finance-plaza', 'old-park', 'finance-park', 'ent-plaza', 'harbor-water', 'harbor-pier-west', 'harbor-pier-south', 'harbor-pier-east','ent-goose-stadium']);
 
 export function createCityRenderer(canvas, {state, self, aim, avatars = () => new Map(), speech = () => null, pointer = () => null, firing = () => false, fireAt = () => 0}) {
-  const ctx = canvas.getContext('2d'), poses = new Map(), timeline = new CityTimeline();
-  let w = 960, h = 640, dpr = 1, last = 0, view = {x: 0, y: 0, z: 1}, snapshotKey = '', match = '', hitAt = 0, renderNow = 0;
+  const ctx = canvas.getContext('2d'), poses = new Map(), timeline = new CityTimeline(), raceSmooth = new Map();
+  let w = 960, h = 640, dpr = 1, last = 0, view = {x: 0, y: 0, z: 1}, snapshotKey = '', match = '', hitAt = 0, renderNow = 0, shake = 0, hurtAt = 0, flashAt = 0, flashColor = '#ffce8e', killAt = 0, cameraReady = false, hurtDir = 0, hurtDirAt = 0;
 
   new ResizeObserver(() => {
     const b = canvas.getBoundingClientRect();
@@ -345,24 +345,66 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
   }
 
   function drawStadium(b) {
+    const race = state()?.gooseRace;
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
     ctx.fillStyle = '#4a3950';
     ctx.fillRect(b.x, b.y, b.w, b.h);
-    ctx.fillStyle = '#2c3a33';
-    ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w * .38, b.h * .34, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#62774f';
-    ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w * .28, b.h * .22, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#c1b99a66';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.ellipse(b.x + b.w / 2, b.y + b.h / 2, b.w * .34, b.h * .29, 0, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = '#e6dcc3';
-    ctx.fillRect(b.x + b.w / 2 - 2, b.y + b.h / 2 - 26, 4, 52);
+    ctx.fillStyle = '#6b4a38';
+    ctx.beginPath(); ctx.ellipse(cx, cy, b.w * .43, b.h * .39, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8a6248';
+    ctx.beginPath(); ctx.ellipse(cx, cy, b.w * .4, b.h * .35, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#4d6b48';
+    ctx.beginPath(); ctx.ellipse(cx, cy, b.w * .25, b.h * .19, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#d8cfa866';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, b.w * .38 - i * 8, b.h * .33 - i * 6, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // 起跑线
+    ctx.fillStyle = '#e8e1c6';
+    for (let i = 0; i < 6; i++) ctx.fillRect(cx - 7 + (i % 2) * 7, cy - b.h * .33 - 2 - i * 6, 7, 5);
+    // 大屏
+    ctx.fillStyle = '#0d1820';
+    ctx.fillRect(cx - 88, b.y + 14, 176, 26);
+    ctx.strokeStyle = '#8a7a55'; ctx.lineWidth = 2; ctx.strokeRect(cx - 88, b.y + 14, 176, 26);
+    ctx.fillStyle = race?.phase === 'result' ? '#a9f0c8' : race?.phase === 'racing' ? '#ffb08f' : '#f2d57d';
+    ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText(race ? (race.phase === 'betting' ? '下注 ' + race.startsIn + 's' : race.phase === 'racing' ? '冲线中' : race.winnerName + ' 获胜') : '赛鹅', cx, b.y + 32);
+    // 赛道上的鹅
+    if (race) {
+      race.geese.forEach((g, i) => {
+        const p = raceSmooth.get(g.id) ?? g.progress;
+        const angle = -Math.PI / 2 + (race.phase === 'betting' ? (i - (race.geese.length - 1) / 2) * .035 : p * Math.PI * 2);
+        const rx = b.w * .38 - i * 8, ry = b.h * .33 - i * 6;
+        const x = cx + Math.cos(angle) * rx, y = cy + Math.sin(angle) * ry;
+        ctx.save(); ctx.translate(x, y);
+        ctx.fillStyle = '#00000055'; ctx.beginPath(); ctx.ellipse(0, 6, 10, 4, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#eee8d6'; ctx.beginPath(); ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(4, -12, 4, 12);
+        ctx.beginPath(); ctx.arc(6, -13, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#eeb768'; ctx.fillRect(10, -14, 5, 3);
+        ctx.fillStyle = g.color; ctx.fillRect(-6, -5, 11, 4);
+        ctx.fillStyle = '#17232a'; ctx.beginPath(); ctx.arc(7, -14, 1.2, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        label(g.name, x, y - 20, g.color, 8);
+      });
+      if (race.phase === 'result' && race.winner) {
+        const winner = race.geese.find(g => g.id === race.winner);
+        if (winner) {
+          ctx.strokeStyle = winner.color + '99'; ctx.lineWidth = 3;
+          ctx.beginPath(); ctx.ellipse(cx, cy, b.w * .44, b.h * .4, 0, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+    }
     for (let i = 0; i < 4; i++) {
-      const x = b.x + 34 + i * (b.w - 68) / 3, y = b.y + 10;
+      const x = b.x + 34 + i * (b.w - 68) / 3, y = b.y + 52;
       ctx.fillStyle = '#2b3038'; ctx.fillRect(x - 2, y, 4, 22);
       ctx.fillStyle = '#ffe5a1'; ctx.beginPath(); ctx.arc(x, y - 2, 5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#ffe5a133'; ctx.beginPath(); ctx.arc(x, y - 2, 17, 0, Math.PI * 2); ctx.fill();
     }
-    label(b.label || '赛鹅竞技场', b.x + b.w / 2, b.y + b.h - 12, '#f0c6ff', 12);
+    label(b.label || '赛鹅竞技场', b.x + b.w / 2, b.y + b.h - 10, '#f0c6ff', 12);
   }
 
   function drawSilo(b) {
@@ -848,6 +890,8 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       ctx.fillStyle = '#6b5238'; ctx.fillRect(x, y, 18, 14);
       ctx.strokeStyle = '#3f3023'; ctx.lineWidth = 1; ctx.strokeRect(x, y, 18, 14); ctx.beginPath(); ctx.moveTo(x, y + 7); ctx.lineTo(x + 18, y + 7); ctx.stroke();
     }
+    // 赛鹅场压在娱乐广场和霓虹舞台之上，保证赛道与赛鹅始终可见。
+    for (const b of BLOCKS) if (b.style === 'stadium' && inView(b.x + b.w / 2, b.y + b.h / 2, 360)) drawStadium(b);
   }
 
   function person(p, now, type = 'player') {
@@ -892,6 +936,29 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     if (p.shield) {
       ctx.strokeStyle = '#8ae0e6aa';
       ctx.beginPath(); ctx.ellipse(0, -20, 22, 32, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (type === 'player' && p.bounty) {
+      const pulse = .55 + .3 * Math.sin(now / 260);
+      ctx.strokeStyle = `rgba(255,105,86,${pulse})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.ellipse(0, 2, 24, 10, 0, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#e0675e';
+      ctx.beginPath(); ctx.moveTo(0, -72); ctx.lineTo(7, -60); ctx.lineTo(-7, -60); ctx.closePath(); ctx.fill();
+      label('悬赏 ¥' + p.bounty, 0, -82, '#ff9b8a', 11);
+    }
+    const huntContract = state()?.self?.contract;
+    if (type === 'player' && huntContract?.kind === 'player' && huntContract.target === p.id) {
+      ctx.strokeStyle = '#ff7d6c';
+      ctx.lineWidth = 2.5;
+      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+        ctx.beginPath();
+        ctx.moveTo(sx * 26, sy * 26 - 20);
+        ctx.lineTo(sx * 26, sy * 13 - 20);
+        ctx.moveTo(sx * 26, sy * 26 - 20);
+        ctx.lineTo(sx * 13, sy * 26 - 20);
+        ctx.stroke();
+      }
+      label('猎杀目标', 0, -96, '#ffb09a', 10);
     }
     if (p.hp < 100 || type === 'zombie') {
       ctx.fillStyle = '#17202a';
@@ -973,6 +1040,15 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     } else if (kind === 'clinic') {
       c.strokeRect(-10, -10, 20, 20);
       c.fillRect(-2, -7, 4, 14); c.fillRect(-7, -2, 14, 4);
+    } else if (kind === 'goose') {
+      c.beginPath(); c.ellipse(-1, 5, 11, 8, -.2, 0, Math.PI * 2); c.fill();
+      c.fillRect(5, -14, 6, 17); c.beginPath(); c.arc(8, -14, 5, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#e0a24f'; c.beginPath(); c.moveTo(12, -15); c.lineTo(18, -12); c.lineTo(12, -11); c.fill();
+      c.fillStyle = '#1a2531'; c.beginPath(); c.arc(9, -15, 1.4, 0, Math.PI * 2); c.fill();
+    } else if (kind === 'cyber') {
+      c.beginPath(); c.arc(0, -9, 5, 0, Math.PI * 2); c.stroke();
+      c.beginPath(); c.moveTo(0, -4); c.lineTo(0, 13); c.moveTo(-9, 2); c.lineTo(9, 2); c.moveTo(-7, 13); c.lineTo(0, 8); c.lineTo(7, 13); c.stroke();
+      c.fillStyle = '#6fd7e5'; c.beginPath(); c.moveTo(-2, 5); c.lineTo(2, 5); c.lineTo(-1, 10); c.lineTo(4, 2); c.lineTo(0, 2); c.closePath(); c.fill();
     } else if (kind === 'black-market') {
       c.strokeRect(-9, -5, 18, 15);
       c.beginPath(); c.arc(0, -5, 6, Math.PI, 0); c.stroke();
@@ -1016,35 +1092,39 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         if (age > .29) continue;
         const a = Math.max(0, 1 - age / .29);
         const sx = e.x, sy = e.y - 17;
-        const ex = e.x + Math.cos(e.angle) * e.range, ey = e.y + Math.sin(e.angle) * e.range - 17;
-        const head = Math.min(1, age / .055);
-        const hx = sx + (ex - sx) * head, hy = sy + (ey - sy) * head;
+        const spread = e.gun === 'shotgun' ? 5 : 1;
         ctx.save();
-        ctx.strokeStyle = `rgba(255,230,164,${a * .18})`;
-        ctx.lineWidth = 5;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
-        ctx.strokeStyle = `rgba(255,246,214,${a * .9})`;
-        ctx.lineWidth = 1.6;
-        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        for (let i = 0; i < spread; i++) {
+          const off = (i - (spread - 1) / 2) * .045;
+          const ex = e.x + Math.cos(e.angle + off) * e.range, ey = e.y + Math.sin(e.angle + off) * e.range - 17;
+          ctx.strokeStyle = `rgba(255,230,164,${a * .2})`;
+          ctx.lineWidth = spread > 1 ? 3 : 5;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+          ctx.strokeStyle = `rgba(255,246,214,${a * .9})`;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        }
+        const head = Math.min(1, age / .055);
+        const hx = sx + Math.cos(e.angle) * e.range * head, hy = sy + Math.sin(e.angle) * e.range * head;
         ctx.fillStyle = `rgba(255,250,225,${a})`;
         ctx.beginPath(); ctx.arc(hx, hy, 2.5, 0, Math.PI * 2); ctx.fill();
-        if (age < .075) {
-          ctx.fillStyle = `rgba(255,214,120,${(1 - age / .075) * .9})`;
-          ctx.beginPath(); ctx.arc(sx, sy, 9 - age * 50, 0, Math.PI * 2); ctx.fill();
-        }
-        if (age < .18) {
-          ctx.strokeStyle = e.hit ? `rgba(255,155,105,${1 - age / .18})` : `rgba(220,210,175,${1 - age / .18})`;
+        if (age < .08) {
+          const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, 22);
+          g.addColorStop(0, `rgba(255,244,190,${(1 - age / .08) * .95})`);
+          g.addColorStop(.35, `rgba(255,188,92,${(1 - age / .08) * .55})`);
+          g.addColorStop(1, 'rgba(255,150,60,0)');
+          ctx.fillStyle = g;
+          ctx.beginPath(); ctx.arc(sx, sy, 22, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = `rgba(255,228,152,${(1 - age / .08) * .8})`;
           ctx.lineWidth = 2;
-          for (let k = 0; k < 4; k++) {
-            const a2 = k * Math.PI / 2 + .4;
-            ctx.beginPath();
-            ctx.moveTo(ex, ey);
-            ctx.lineTo(ex + Math.cos(a2) * (e.hit ? 11 : 6), ey + Math.sin(a2) * (e.hit ? 11 : 6));
-            ctx.stroke();
+          for (let k = 0; k < 6; k++) {
+            const a2 = k * Math.PI / 3 + .3;
+            ctx.beginPath(); ctx.moveTo(sx + Math.cos(a2) * 5, sy + Math.sin(a2) * 5); ctx.lineTo(sx + Math.cos(a2) * (18 - age * 90), sy + Math.sin(a2) * (18 - age * 90)); ctx.stroke();
           }
         }
         ctx.restore();
         if (e.hit && Math.hypot(e.x - me.x, e.y - me.y) < 70) hitAt = now;
+        if (Math.hypot(e.x - me.x, e.y - me.y) < 180) shake = Math.max(shake, e.gun === 'shotgun' ? 3.5 : 1.2);
         continue;
       }
       if (e.kind === 'swing') {
@@ -1057,8 +1137,42 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         ctx.restore();
         continue;
       }
+      if (e.kind === 'flash') {
+        const far = Math.hypot(e.x - me.x, e.y - me.y);
+        if (far < 520) { flashAt = now; flashColor = '#ffffff'; shake = Math.max(shake, 5); }
+        ctx.save(); ctx.globalAlpha = Math.max(0, 1 - age / .45);
+        ctx.strokeStyle = '#fff8d4'; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(e.x, e.y, 20 + age * 220, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+        continue;
+      }
+      if (e.kind === 'hit') {
+        if (age > .5) continue;
+        const near = Math.hypot(e.x - me.x, e.y - me.y) < 36;
+        if (near) {
+          hurtAt = now; shake = Math.max(shake, 4);
+          const attacker = (s.players || []).find(q => q.id === e.by) || (s.npcs || []).find(q => q[0] === e.by);
+          if (attacker) { hurtDir = Math.atan2((attacker.y ?? attacker[3]) - me.y, (attacker.x ?? attacker[2]) - me.x); hurtDirAt = now; }
+        }
+        const seed = [...String(e.id || 'x')].reduce((n, ch) => n + ch.charCodeAt(0), 0);
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - age / .5);
+        for (let i = 0; i < 7; i++) {
+          const a2 = seed * .17 + i * .9 + age * 2.6, r = 6 + age * 48 + (i % 3) * 5;
+          ctx.fillStyle = near ? '#ff8f7a' : '#ffd08a';
+          ctx.beginPath(); ctx.arc(e.x + Math.cos(a2) * r, e.y + Math.sin(a2) * r * .7, 2.2 + (i % 3) * .9, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = '#ffe0b0'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(e.x, e.y, 7 + age * 34, 0, Math.PI * 2); ctx.stroke();
+        ctx.restore();
+        if (e.damage) label('-' + e.damage, e.x, e.y - 24 - age * 34, near ? '#ff9b8a' : '#ffd08a', 13);
+        continue;
+      }
       if (e.kind === 'explosion') {
         if (age > .55) continue;
+        const far = Math.hypot(e.x - me.x, e.y - me.y);
+        shake = Math.max(shake, Math.max(0, 13 - far / 55));
+        flashAt = now; flashColor = '#ffb36b';
         ctx.save();
         ctx.globalAlpha = Math.max(0, 1 - age / .55);
         ctx.fillStyle = '#ff9a5b55';
@@ -1066,16 +1180,22 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         ctx.strokeStyle = '#ffb47a';
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(e.x, e.y, 20 + age * 150, 0, Math.PI * 2); ctx.stroke();
+        for (let i = 0; i < 12; i++) {
+          const a2 = i * .9 + age * 1.8, r = 18 + age * 120;
+          ctx.fillStyle = i % 2 ? '#ffb45f' : '#e25b3d';
+          ctx.beginPath(); ctx.arc(e.x + Math.cos(a2) * r, e.y + Math.sin(a2) * r * .65, 3.5 - age * 4, 0, Math.PI * 2); ctx.fill();
+        }
         ctx.restore();
         continue;
       }
       if (age > .35) continue;
       ctx.save();
       ctx.globalAlpha = Math.max(0, 1 - age / .35);
-      ctx.strokeStyle = '#f4d9a2';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = e.kind === 'checkpoint' ? '#7fe0a6' : e.kind === 'bounty' ? '#ff7d6c' : '#f4d9a2';
+      ctx.lineWidth = e.kind === 'bounty' ? 4 : 2;
       ctx.beginPath(); ctx.arc(e.x, e.y, 10 + age * 50, 0, Math.PI * 2); ctx.stroke();
       if (e.kind === 'dice' && e.text) label('骰子 ' + e.text, e.x, e.y - 28, '#ffe2a6');
+      if (e.kind === 'bounty') label('悬赏', e.x, e.y - 34, '#ff9b8a');
       ctx.restore();
     }
   }
@@ -1086,7 +1206,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     const rect = canvas.getBoundingClientRect();
     const x = ptr.clientX - rect.left, y = ptr.clientY - rect.top;
     const gun = GUNS[s.self.gun];
-    const bloom = firing() ? 8 : 4;
+    const bloom = firing() ? (gun?.pellets ? 18 : gun?.name === '冲锋枪' ? 14 : gun?.name === '轻机枪' ? 12 : 9) : 4;
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.lineCap = 'round';
@@ -1122,7 +1242,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     last = now;
     renderNow = now;
     const key = s.snapshotAt ?? s.time;
-    if (match !== s.id) { match = s.id; timeline.clear(); poses.clear(); snapshotKey = ''; hitAt = 0; }
+    if (match !== s.id) { match = s.id; timeline.clear(); poses.clear(); raceSmooth.clear(); snapshotKey = ''; hitAt = 0; cameraReady = false; }
     if (key !== snapshotKey) {
       snapshotKey = key;
       const at = s.snapshotAt ?? now, ids = new Set();
@@ -1131,13 +1251,31 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       for (const c of s.cars) { ids.add('c:' + c[0]); timeline.update('c:' + c[0], {x: c[1], y: c[2], heading: c[3]}, at, c[6]); }
       timeline.prune(ids);
     }
+    if (s.gooseRace) for (const g of s.gooseRace.geese) {
+      const current = raceSmooth.get(g.id);
+      raceSmooth.set(g.id, current === undefined ? g.progress : current + (g.progress - current) * Math.min(1, dt * 8));
+    }
     const me = s.self, z = w < 600 ? .78 : .84, margin = 160;
+    if (me.hp <= 0) cameraReady = false;
+    let focus = me;
+    if (me.hp <= 0 && me.death) {
+      const killer = (s.players || []).find(q => q.id === me.death.byId) || (s.npcs || []).find(q => q[0] === me.death.byId);
+      focus = killer ? {x: killer.x ?? killer[2], y: killer.y ?? killer[3]} : {x: me.death.x, y: me.death.y};
+    }
     const viewW = w / z, viewH = h / z;
-    view = {z, x: Math.max(-margin, Math.min(Math.max(-margin, CITY.width - viewW + margin), me.x - viewW / 2)), y: Math.max(-margin, Math.min(Math.max(-margin, CITY.height - viewH + margin), me.y - viewH / 2))};
+    const look = me.hp > 0 ? (me.car ? 95 : 52) : 0, lookAngle = me.car ? (me.heading || 0) : aim();
+    const targetX = Math.max(-margin, Math.min(Math.max(-margin, CITY.width - viewW + margin), focus.x + Math.cos(lookAngle) * look - viewW / 2));
+    const targetY = Math.max(-margin, Math.min(Math.max(-margin, CITY.height - viewH + margin), focus.y + Math.sin(lookAngle) * look - viewH / 2));
+    if (!cameraReady) { view = {z, x: targetX, y: targetY}; cameraReady = true; }
+    else { const follow = 1 - Math.exp(-dt * 8.5); view = {z, x: view.x + (targetX - view.x) * follow, y: view.y + (targetY - view.y) * follow}; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     ctx.scale(z, z);
-    ctx.translate(-view.x, -view.y);
+    shake = Math.max(0, shake - dt * 42);
+    if (now - fireAt() >= 0 && now - fireAt() < 90) shake = Math.max(shake, GUNS[s.self.gun]?.pellets ? 3.4 : 1.6);
+    const jitterX = shake > .15 ? (Math.random() - .5) * shake : 0;
+    const jitterY = shake > .15 ? (Math.random() - .5) * shake : 0;
+    ctx.translate(-view.x + jitterX, -view.y + jitterY);
     ctx.imageSmoothingEnabled = false;
     drawGround();
     drawRoads();
@@ -1159,7 +1297,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     drawProps(me, now);
     for (const p of PLACES) {
       if (p.x < view.x - 60 || p.y < view.y - 60 || p.x > view.x + w / z + 60 || p.y > view.y + h / z + 60) continue;
-      const skin = p.black ? 'black-market' : p.kind, color = colors[skin], radius = p.kind === 'escape' ? 23 : p.kind === 'fixer' ? 23 : 20;
+      const skin = p.black ? 'black-market' : p.goose ? 'goose' : p.kind, color = colors[skin], radius = p.kind === 'escape' ? 23 : p.kind === 'fixer' ? 23 : 20;
       ctx.fillStyle = color + '16';
       ctx.beginPath(); ctx.arc(p.x, p.y, p.kind === 'escape' ? 48 : p.kind === 'fixer' ? 42 : 33, 0, Math.PI * 2); ctx.fill();
       drawPlaceIcon(ctx, skin, p.x, p.y, radius, color);
@@ -1189,12 +1327,13 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         label('配送目的地', p.x, p.y - 55, '#ffe298');
       }
       const raceTarget = me.contract?.kind === 'race' ? me.contract.checkpoints?.[me.contract.index] : null;
-      if (me.contract && (me.contract.to === p.id || me.contract.place === p.id || raceTarget === p.id)) {
+      const heistTarget = me.contract?.kind === 'heist' ? (me.contract.stage === 2 ? me.contract.drop : me.contract.place) : null;
+      if (me.contract && (me.contract.to === p.id || me.contract.place === p.id || raceTarget === p.id || heistTarget === p.id)) {
         const pulse = .55 + .3 * Math.sin(now / 260);
         ctx.strokeStyle = `rgba(242,201,76,${pulse})`;
         ctx.lineWidth = 4;
         ctx.strokeRect(p.x - 42, p.y - 42, 84, 84);
-        label(me.contract.kind === 'delivery' ? '交付委托' : me.contract.kind === 'race' ? '狂飙检查点' : '悬赏目标', p.x, p.y - 58, '#ffe298', 11);
+        label(me.contract.kind === 'delivery' ? '交付委托' : me.contract.kind === 'race' ? '狂飙检查点' : me.contract.kind === 'heist' ? (me.contract.stage === 2 ? '赃款交接点' : '劫案目标') : '悬赏目标', p.x, p.y - 58, '#ffe298', 11);
       }
     }
     if (me.contract?.kind === 'race' && me.contract.checkpoints?.length) {
@@ -1226,6 +1365,22 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       if (Math.hypot(x - me.x, y - me.y) < 80) label(kind === 'cash' ? '¥' + value : GUNS[kind]?.name || GOODS[kind]?.name || kind, x, y - 18);
     }
     for (const [, kind, x, y] of s.objects) {
+      if (kind === 'smoke') {
+        const pulse = 1 + Math.sin(now / 220 + x) * .06;
+        for (let i = 0; i < 9; i++) {
+          const a = i * 2.1 + now / 1400, r = 18 + (i % 3) * 20;
+          ctx.fillStyle = i % 2 ? 'rgba(184,195,192,.22)' : 'rgba(214,222,216,.18)';
+          ctx.beginPath(); ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r * .7, (34 + (i % 4) * 7) * pulse, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = 'rgba(80,95,92,.22)'; ctx.beginPath(); ctx.arc(x, y, 74, 0, Math.PI * 2); ctx.fill();
+        continue;
+      }
+      if (kind === 'mine') {
+        ctx.fillStyle = '#4f4a40'; ctx.beginPath(); ctx.ellipse(x, y, 13, 8, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#c7b98c'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI * 2); ctx.stroke();
+        if (Math.sin(now / 180) > 0) { ctx.fillStyle = '#ff6e61'; ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+        continue;
+      }
       if (kind === 'fire') {
         const flick = 1 + Math.sin(now / 90 + x) * .12;
         ctx.fillStyle = '#f2703f2e'; ctx.beginPath(); ctx.arc(x, y, 70 * flick, 0, Math.PI * 2); ctx.fill();
@@ -1255,11 +1410,20 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     }
     drawAim(me, s);
     for (const car of s.cars) {
-      const [id, cx, cy, ch, hp, owner, driver, kind, speed, contract] = car;
+      const [id, cx, cy, ch, hp, owner, driver, kind, speed, contract, chase] = car;
       const {x, y, heading} = driver === self() ? {x: cx, y: cy, heading: ch} : timeline.sample('c:' + id, now) || {x: cx, y: cy, heading: ch};
       ctx.save();
       ctx.translate(x, y);
-      drawCar(ctx, {heading, color: hp <= 0 ? '#4b4e53' : kind === 'truck' ? '#56624f' : kind === 'van' ? '#c8a36c' : owner === self() ? '#72bda5' : '#8498b7'});
+      drawCar(ctx, {heading, color: hp <= 0 ? '#4b4e53' : kind === 'police' ? '#3f6d9b' : kind === 'truck' ? '#56624f' : kind === 'van' ? '#c8a36c' : owner === self() ? '#72bda5' : '#8498b7'});
+      if (kind === 'police' && hp > 0) {
+        const pulse = Math.sin(now / 130) > 0;
+        ctx.fillStyle = pulse ? '#ff5b55' : '#5db8ff';
+        ctx.beginPath(); ctx.arc(-12, -18, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = pulse ? '#5db8ff' : '#ff5b55';
+        ctx.beginPath(); ctx.arc(12, -18, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = pulse ? '#ff5b5533' : '#5db8ff33';
+        ctx.beginPath(); ctx.arc(0, -18, 20, 0, Math.PI * 2); ctx.fill();
+      }
       if (kind === 'truck') {
         ctx.fillStyle = '#3f4a3b'; ctx.fillRect(-25, -10, 50, 20);
         ctx.fillStyle = '#7b8a6a'; ctx.fillRect(-21, -7, 42, 14);
@@ -1267,7 +1431,9 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         ctx.fillStyle = '#d7cbaa44'; for (let i = -18; i < 10; i += 10) ctx.fillRect(i, -6, 2, 12);
       }
       ctx.restore();
-      if (contract) {
+      if (kind === 'police' && chase) {
+        label(hp <= 0 ? '警车残骸' : '警车追捕', x, y - 42, hp <= 0 ? '#9fb0b5' : '#9fd8ff', 10);
+      } else if (contract) {
         const pulse = .6 + .3 * Math.sin(now / 260);
         ctx.strokeStyle = `rgba(242,201,76,${pulse})`; ctx.lineWidth = 3;
         ctx.beginPath(); ctx.arc(x, y, 34 + Math.sin(now / 330) * 2, 0, Math.PI * 2); ctx.stroke();
@@ -1279,6 +1445,28 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
     const people = s.players.map(p => p.id === self() ? {...p, x: me.x, y: me.y} : {...p, ...timeline.sample('p:' + p.id, now)});
     for (const p of people) if (!p.car) person(p, now);
     for (const n of s.npcs) person({id: n[0], x: n[2], y: n[3], hp: n[4], heading: n[5], bark: n[6], ...timeline.sample('n:' + n[0], now)}, now, n[1]);
+    const progress = s.self.progress;
+    if (progress && s.self.hp > 0) {
+      const frac = Math.max(0, Math.min(1, 1 - (progress.left || 0) / (progress.total || 1)));
+      const color = {work: '#70dbb1', bank: '#f2d57d', car: '#84c8e8', mug: '#f39485', escape: '#b5f493'}[progress.kind] || '#f2d57d';
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(me.x, me.y - 8, 36, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+      ctx.globalAlpha = .22; ctx.beginPath(); ctx.arc(me.x, me.y - 8, 36, 0, Math.PI * 2); ctx.stroke();
+      ctx.globalAlpha = 1; label(({work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离'}[progress.kind] || '操作') + ' ' + Math.round(frac * 100) + '%', me.x, me.y - 52, color, 10);
+      ctx.restore();
+    }
+    if (s.self.reload > 0 && s.self.hp > 0) {
+      const total = GUNS[s.self.gun]?.reload || 1, frac = Math.max(0, Math.min(1, 1 - s.self.reload / total));
+      ctx.save(); ctx.strokeStyle = '#9fd8ff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(me.x, me.y - 8, 44, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac); ctx.stroke();
+      ctx.restore();
+    }
+    if (now - hurtDirAt < 720) {
+      ctx.save(); ctx.globalAlpha = 1 - (now - hurtDirAt) / 720;
+      ctx.strokeStyle = '#ff6f5f'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.arc(me.x, me.y - 12, 58, hurtDir - .38, hurtDir + .38); ctx.stroke();
+      ctx.restore();
+    }
     for (const bomb of s.bombs) {
       const [, x, y, at, kind, radius] = bomb;
       const r = radius || 80;
@@ -1302,6 +1490,23 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       ctx.beginPath(); ctx.arc(s.event.x, s.event.y, 54, 0, Math.PI * 2); ctx.stroke();
     }
     drawEffects(me, now, s);
+    if (s.helicopter) {
+      const h = s.helicopter;
+      const glow = ctx.createRadialGradient(h.x, h.y, 20, h.x, h.y, 240);
+      glow.addColorStop(0, 'rgba(255,246,190,.2)');
+      glow.addColorStop(1, 'rgba(255,246,190,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(h.x, h.y, 240, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,246,190,.3)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(h.x, h.y, 70, 0, Math.PI * 2); ctx.stroke();
+      ctx.save(); ctx.translate(h.x, h.y);
+      ctx.fillStyle = '#1d2a32'; ctx.beginPath(); ctx.ellipse(0, 0, 23, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#9fb6b8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-40, 0); ctx.lineTo(40, 0); ctx.stroke();
+      ctx.rotate(now / 80); ctx.strokeStyle = '#c9d6d4'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(-38, 0); ctx.lineTo(38, 0); ctx.moveTo(0, -38); ctx.lineTo(0, 38); ctx.stroke();
+      ctx.restore();
+      label('警方直升机', h.x, h.y - 32, '#ffe9a0', 10);
+    }
     if (s.event?.kind === 'blackout') {
       const gradient = ctx.createRadialGradient(me.x, me.y, 80, me.x, me.y, 480);
       gradient.addColorStop(0, '#050b1200');
@@ -1315,6 +1520,37 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       gradient.addColorStop(0, 'rgba(180,40,30,0)');
       gradient.addColorStop(1, `rgba(160,30,24,${heat})`);
       ctx.fillStyle = gradient;
+      ctx.fillRect(view.x, view.y, w / z, h / z);
+    }
+    if (now - hurtAt < 280) {
+      const gradient = ctx.createRadialGradient(me.x, me.y, 110, me.x, me.y, 620);
+      gradient.addColorStop(0, 'rgba(190,30,24,0)');
+      gradient.addColorStop(1, `rgba(190,30,24,${(1 - (now - hurtAt) / 280) * .26})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(view.x, view.y, w / z, h / z);
+    }
+    if (s.self.bounty) {
+      const pulse = .1 + .05 * Math.sin(now / 240);
+      const gradient = ctx.createRadialGradient(me.x, me.y, 120, me.x, me.y, 640);
+      gradient.addColorStop(0, 'rgba(210,50,35,0)');
+      gradient.addColorStop(1, `rgba(210,50,35,${pulse})`);
+      ctx.fillStyle = gradient;
+      ctx.fillRect(view.x, view.y, w / z, h / z);
+    }
+    const hpRatio = s.self.hp / (s.self.maxHp || 100);
+    if (hpRatio < .32 && s.self.hp > 0) {
+      const power = (.32 - hpRatio) / .32, pulse = .75 + .25 * Math.sin(now / 220);
+      const gradient = ctx.createRadialGradient(me.x, me.y, 80, me.x, me.y, 560);
+      gradient.addColorStop(0, 'rgba(190,20,16,0)');
+      gradient.addColorStop(1, `rgba(190,20,16,${power * .24 * pulse})`);
+      ctx.fillStyle = gradient; ctx.fillRect(view.x, view.y, w / z, h / z);
+    }
+    if (now - flashAt < 130) {
+      ctx.fillStyle = flashColor === '#ffffff' ? `rgba(255,255,255,${(1 - (now - flashAt) / 130) * .48})` : `rgba(255,206,142,${(1 - (now - flashAt) / 130) * .2})`;
+      ctx.fillRect(view.x, view.y, w / z, h / z);
+    }
+    if (s.self.flash > 0) {
+      ctx.fillStyle = `rgba(255,255,255,${Math.min(.7, s.self.flash * .35)})`;
       ctx.fillRect(view.x, view.y, w / z, h / z);
     }
     const since = now - fireAt();
@@ -1392,7 +1628,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       const iconSize = canvas.width > 300 ? 8 : 4;
       c.font = 'bold 9px system-ui';
       for (const p of PLACES) {
-        const tx = p.x * sx, ty = p.y * sy, skin = p.black ? 'black-market' : p.kind;
+        const tx = p.x * sx, ty = p.y * sy, skin = p.black ? 'black-market' : p.goose ? 'goose' : p.kind;
         drawPlaceIcon(c, skin, tx, ty, iconSize, colors[skin]);
         if (canvas.width > 300) {
           const right = tx > canvas.width - 40;
@@ -1415,7 +1651,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
               c.beginPath(); c.arc(q.x * sx, q.y * sy, canvas.width > 300 ? 7 : 3, 0, Math.PI * 2); c.fill();
             });
           }
-          const target = PLACES.find(q => q.id === (contract.kind === 'race' ? contract.checkpoints?.[contract.index] : (contract.to || contract.place)));
+          const target = PLACES.find(q => q.id === (contract.kind === 'race' ? contract.checkpoints?.[contract.index] : contract.kind === 'heist' ? (contract.stage === 2 ? contract.drop : contract.place) : (contract.to || contract.place)));
           if (target) {
             c.strokeStyle = '#f2c94c';
             c.lineWidth = 2;
@@ -1428,6 +1664,13 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
         for (const q of s.map || []) {
           c.fillStyle = '#b9c7d0';
           c.fillRect(q[1] * sx - 2, q[2] * sy - 2, 4, 4);
+        }
+        for (const q of s.players || []) {
+          if (!q.bounty && !(s.self.contract?.kind === 'player' && s.self.contract.target === q.id)) continue;
+          c.strokeStyle = '#ff7d6c';
+          c.lineWidth = 2;
+          c.beginPath(); c.arc(q.x * sx, q.y * sy, canvas.width > 300 ? 7 : 3, 0, Math.PI * 2); c.stroke();
+          if (canvas.width > 300) { c.fillStyle = '#ff9b8a'; c.font = 'bold 9px system-ui'; c.textAlign = 'center'; c.fillText('赏', q.x * sx, q.y * sy + 3); }
         }
         c.fillStyle = '#ffe4a0';
         c.beginPath(); c.arc(s.self.x * sx, s.self.y * sy, canvas.width > 300 ? 5 : 3, 0, Math.PI * 2); c.fill();

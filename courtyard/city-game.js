@@ -1,17 +1,22 @@
-import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,dist} from './city-rules.js?v=0.19.1';
-import {CityPrediction} from './city-motion.js?v=0.19.1';
-import {createCityRenderer} from './city-render.js?v=0.19.1';
+import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,BODY_UPGRADES,dist} from './city-rules.js?v=0.26.1';
+import {CityPrediction} from './city-motion.js?v=0.26.1';
+import {createCityRenderer} from './city-render.js?v=0.26.1';
+import {createCityAudio} from './city-audio.js?v=0.26.1';
 
-const SERVICE = new Set(['arms', 'market', 'bank', 'casino', 'garage', 'job', 'fixer', 'safehouse', 'clinic']);
+const SERVICE = new Set(['arms', 'market', 'bank', 'casino', 'garage', 'job', 'fixer', 'safehouse', 'clinic', 'cyber']);
 const GUN_IDS = new Set(Object.keys(GUNS));
 const padNumber = n => String(n);
 
 export function createCityGame({send, self, online, onActive, exit, avatars, speech}) {
   const $ = id => document.getElementById(id), canvas = $('cityWorld'), keys = new Set();
-  let state = null, active = false, seq = 0, actionSeq = 0, aim = 0, fire = false, interact = false, stick = {x: 0, y: 0}, mode = '', panelKey = '', lastTime = 0, lastPacket = 0, lastMap = 0, lastHud = 0, mapPoints = [], message = '', predicted = null, snapshotAt = 0, obstacles = [], fireAt = 0, lastLocalShot = 0, quickKey = '', promptKey = '', shopTab = 'all', lastDice = null, lastDiceId = '', lastSlots = null, lastSlotsId = '', escapedAt = 0, boonKey = '';
+  let state = null, active = false, seq = 0, actionSeq = 0, aim = 0, fire = false, interact = false, stick = {x: 0, y: 0}, mode = '', panelKey = '', lastTime = 0, lastPacket = 0, lastMap = 0, lastHud = 0, mapPoints = [], message = '', predicted = null, snapshotAt = 0, obstacles = [], fireAt = 0, lastLocalShot = 0, quickKey = '', promptKey = '', shopTab = 'all', lastDice = null, lastDiceId = '', lastSlots = null, lastSlotsId = '', escapedAt = 0, boonKey = '', raceStake = 50, lastRacePhase = '', feedKey = '', sirenAt = 0, suppressInteract = false, brake = false, lastGun = '', engineAt = 0, leaderboardRows = [];
   const pointer = {clientX: 0, clientY: 0, inside: false};
   const fxAt = new Map();
   const prediction = new CityPrediction();
+  const audio = createCityAudio();
+  const unlockAudio = () => audio.unlock();
+  window.addEventListener('pointerdown', unlockAudio, { once: true, capture: true });
+  window.addEventListener('keydown', unlockAudio, { once: true, capture: true });
 
   $('cityPads').hidden = !matchMedia('(pointer: coarse)').matches;
   const blocked = () => !online() || document.hidden || !!document.querySelector('dialog[open]') || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName);
@@ -19,6 +24,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
 
   function clear() {
     keys.clear();
+    suppressInteract = false;
     fire = false;
     interact = false;
     stick = {x: 0, y: 0};
@@ -26,6 +32,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   }
   function action(kind, fields = {}) {
     if (!state || !online()) return;
+    audio.unlock();
+    if (kind === 'reload') audio.reload();
     send('city:action', {id: state.id, seq: ++actionSeq, kind, ...fields});
     canvas.focus({preventScroll: true});
   }
@@ -51,9 +59,9 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     return c;
   }
 
-  const ITEM_COLORS = {medkit:'#e0675e',ammo:'#d9b45a',vest:'#5c8ed4',banana:'#efd45b',decoy:'#d58ad8',perfume:'#6fbf95',blink:'#6fd7e5',barricade:'#e59a5b',repair:'#b7c3c7',bribe:'#d6b07a',grenade:'#8fa38a',molotov:'#e8995b',knife:'#c5d1d3',pistol:'#d0b79b',shotgun:'#c8a27c',smg:'#aab9bd',rifle:'#a9bdc2',car:'#72bda5',fists:'#d0b79b'};
-  const SERVICE_KICKER = {arms:'ARMORY',market:'NIGHT MARKET','black-market':'BLACK MARKET',bank:'BANK',casino:'CASINO',garage:'GARAGE',job:'JOBS',escape:'EXIT',fixer:'FIXER',safehouse:'SAFEHOUSE',clinic:'CLINIC'};
-  const SERVICE_TAGLINE = {arms:'铁与火，明码标价。',market:'怪东西，也许正好用得上。','black-market':'不问来路，加价三成。',bank:'存款安全，金库不太安全。',casino:'骰子一响，黄金万两；老虎机一停，口袋见底。',garage:'从二手车，到更旧的二手车。',job:'打工，或者送一单。',escape:'带得走，才算你的。',fixer:'委托、悬赏、脏活。完成一单，选一项强化。',safehouse:'把命续在这里，下次从这里醒。',clinic:'缝针、护甲，现金结账。'};
+  const ITEM_COLORS = {medkit:'#e0675e',ammo:'#d9b45a',vest:'#5c8ed4',banana:'#efd45b',decoy:'#d58ad8',perfume:'#6fbf95',blink:'#6fd7e5',barricade:'#e59a5b',repair:'#b7c3c7',bribe:'#d6b07a',grenade:'#8fa38a',molotov:'#e8995b',smoke:'#b8c3c0',mine:'#8a6a4f',adrenaline:'#e76f6a',flashbang:'#f4e5a0',armorplate:'#6f9fc4',knife:'#c5d1d3',revolver:'#d0b79b',dmr:'#a9bdc2',lmg:'#8fa6a6',pistol:'#d0b79b',shotgun:'#c8a27c',smg:'#aab9bd',rifle:'#a9bdc2',car:'#72bda5',fists:'#d0b79b'};
+  const SERVICE_KICKER = {arms:'ARMORY',market:'NIGHT MARKET','black-market':'BLACK MARKET',bank:'BANK',casino:'CASINO',goose:'GOOSE DERBY',garage:'GARAGE',job:'JOBS',escape:'EXIT',fixer:'FIXER',safehouse:'SAFEHOUSE',clinic:'CLINIC',cyber:'BODY LAB'};
+  const SERVICE_TAGLINE = {arms:'铁与火，明码标价。',market:'怪东西，也许正好用得上。','black-market':'不问来路，加价三成。',bank:'存款安全，金库不太安全。',casino:'骰子一响，黄金万两；老虎机一停，口袋见底。',goose:'六只鹅，一条赛道，谁都能冲线。',garage:'从二手车，到更旧的二手车。',job:'打工，或者送一单。',escape:'带得走，才算你的。',fixer:'委托、悬赏、脏活。完成一单，选一项强化。',safehouse:'把命续在这里，下次从这里醒。',clinic:'缝针、护甲，现金结账。',cyber:'血肉苦弱。最大生命、护甲、速度、负重，全部可以加钱。'};
 
   function roundRect(g, x, y, w, h, r) {
     g.beginPath();
@@ -124,8 +132,29 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       g.fillStyle = '#b8553d'; g.fillRect(-5, 2, 10, 8);
       g.fillStyle = '#f0a24f'; g.beginPath(); g.moveTo(0, -13); g.quadraticCurveTo(8, -20, 2, -23); g.quadraticCurveTo(-5, -19, 0, -13); g.fill();
       g.fillStyle = '#ffe09a'; g.beginPath(); g.moveTo(1, -14); g.quadraticCurveTo(5, -18, 2, -20); g.quadraticCurveTo(-1, -17, 1, -14); g.fill();
-    } else if (id === 'pistol' || id === 'rifle' || id === 'shotgun' || id === 'smg') {
-      const long = id === 'rifle' || id === 'shotgun', smg = id === 'smg';
+    } else if (id === 'smoke') {
+      g.fillStyle = '#8b9a96'; roundRect(g, -6, -4, 12, 18, 3); g.fill();
+      g.fillStyle = '#d7dfd9'; g.fillRect(-4, -9, 8, 6);
+      g.fillStyle = '#c9d3cf88'; for (let i = 0; i < 4; i++) { g.beginPath(); g.arc(-9 + i * 7, -14 - (i % 2) * 5, 5 + i, 0, Math.PI * 2); g.fill(); }
+    } else if (id === 'mine') {
+      g.fillStyle = '#5d5448'; g.beginPath(); g.ellipse(0, 2, 12, 8, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#c7b98c'; g.lineWidth = 2; g.beginPath(); g.arc(0, 2, 7, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = '#e0675e'; g.beginPath(); g.arc(0, 2, 2.5, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = '#8f9a8a'; for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; g.beginPath(); g.moveTo(Math.cos(a) * 8, 2 + Math.sin(a) * 5); g.lineTo(Math.cos(a) * 14, 2 + Math.sin(a) * 9); g.stroke(); }
+    } else if (id === 'adrenaline') {
+      g.strokeStyle = '#e76f6a'; g.lineWidth = 3; g.beginPath(); g.moveTo(-12, 12); g.lineTo(8, -8); g.stroke();
+      g.fillStyle = '#f1d5c4'; g.fillRect(7, -12, 7, 3);
+      g.fillStyle = '#e76f6a'; g.fillRect(-3, 3, 6, 5);
+      g.strokeStyle = '#8fa6a2'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(-10, 3); g.lineTo(-3, 10); g.stroke();
+    } else if (id === 'flashbang') {
+      g.fillStyle = '#b9b69a'; roundRect(g, -6, -6, 12, 20, 3); g.fill();
+      g.fillStyle = '#f4e5a0'; g.fillRect(-4, -11, 8, 6);
+      g.fillStyle = '#fff8c8'; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; g.beginPath(); g.moveTo(Math.cos(a) * 3, -14 + Math.sin(a) * 3); g.lineTo(Math.cos(a) * 10, -14 + Math.sin(a) * 10); g.strokeStyle = '#fff8c8'; g.lineWidth = 1.5; g.stroke(); }
+    } else if (id === 'armorplate') {
+      g.fillStyle = '#6f9fc4'; g.beginPath(); g.moveTo(0, -13); g.lineTo(12, -6); g.lineTo(9, 10); g.lineTo(0, 15); g.lineTo(-9, 10); g.lineTo(-12, -6); g.closePath(); g.fill();
+      g.strokeStyle = '#d6e8f5'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, -8); g.lineTo(7, -3); g.lineTo(5, 8); g.lineTo(0, 10); g.stroke();
+    } else if (id === 'pistol' || id === 'rifle' || id === 'shotgun' || id === 'smg' || id === 'revolver' || id === 'dmr' || id === 'lmg') {
+      const long = id === 'rifle' || id === 'shotgun' || id === 'dmr' || id === 'lmg', smg = id === 'smg', revolver = id === 'revolver';
       g.fillStyle = id === 'smg' ? '#aab9bd' : '#d0b79b'; g.fillRect(long ? -15 : smg ? -11 : -12, -5, long ? 28 : smg ? 19 : 20, 7);
       g.fillRect(long ? -5 : -4, 2, 6, smg ? 12 : 10);
       g.fillRect(long ? -15 : -12, -2, long ? 15 : 10, 4);
@@ -133,6 +162,9 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       if (id === 'rifle') { g.fillStyle = '#8d9b9f'; g.fillRect(7, -8, 9, 2); }
       if (id === 'shotgun') { g.fillStyle = '#6d4b35'; g.fillRect(3, 2, 14, 4); g.fillStyle = '#8d9b9f'; g.fillRect(10, -7, 5, 2); }
       if (id === 'smg') { g.fillStyle = '#55646b'; g.fillRect(-1, 2, 5, 12); g.fillRect(9, -7, 4, 3); }
+      if (revolver) { g.fillStyle = '#6f6a5e'; g.beginPath(); g.arc(-1, -1, 5, 0, Math.PI * 2); g.fill(); g.fillStyle = '#d0b79b'; g.fillRect(-1, -15, 16, 4); }
+      if (id === 'dmr') { g.fillStyle = '#3d4d55'; g.fillRect(-2, -12, 14, 3); g.fillStyle = '#a9bdc2'; g.fillRect(-5, -10, 3, 4); g.fillRect(9, -10, 3, 4); }
+      if (id === 'lmg') { g.fillStyle = '#55646b'; g.fillRect(-4, 2, 15, 10); g.fillStyle = '#8fa6a6'; g.fillRect(-12, 4, 4, 4); g.fillRect(-12, 10, 4, 4); }
     } else if (id === 'car') {
       g.fillStyle = '#72bda5'; roundRect(g, -15, -3, 30, 10, 3); g.fill();
       g.beginPath(); g.moveTo(-10, -3); g.lineTo(-5, -11); g.lineTo(7, -11); g.lineTo(12, -3); g.fill();
@@ -152,7 +184,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
 
   function drawServiceIcon(g, kind) {
     g.clearRect(0, 0, 64, 64);
-    const color = {job:'#70dbb1',arms:'#f39485',market:'#c4a0ef','black-market':'#a76bd0',bank:'#f2d57d',casino:'#e97cf0',garage:'#84c8e8',escape:'#b5f493',fixer:'#f2c94c',safehouse:'#7fd6b0',clinic:'#f28f8f'}[kind] || '#b6c4c2';
+    const color = {job:'#70dbb1',arms:'#f39485',market:'#c4a0ef','black-market':'#a76bd0',bank:'#f2d57d',casino:'#e97cf0',garage:'#84c8e8',escape:'#b5f493',fixer:'#f2c94c',safehouse:'#7fd6b0',clinic:'#f28f8f',goose:'#f2c94c',cyber:'#6fd7e5'}[kind] || '#b6c4c2';
     g.fillStyle = '#0b1721'; roundRect(g, 1, 1, 62, 62, 14); g.fill();
     g.strokeStyle = color; g.lineWidth = 2; roundRect(g, 1, 1, 62, 62, 14); g.stroke();
     g.save(); g.translate(32, 32); g.scale(1.55, 1.55); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 2.2; g.lineCap = 'round';
@@ -165,6 +197,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     else if (kind === 'fixer') { g.strokeRect(-10, -10, 20, 20); g.beginPath(); g.moveTo(-4, -4); g.lineTo(5, -4); g.moveTo(-4, 0); g.lineTo(5, 0); g.moveTo(-4, 4); g.lineTo(2, 4); g.stroke(); g.fillStyle = color; g.beginPath(); g.arc(9, 9, 5, 0, Math.PI * 2); g.fill(); g.fillStyle = '#13202a'; g.font = 'bold 7px system-ui'; g.textAlign = 'center'; g.fillText('¥', 9, 11.5); }
     else if (kind === 'safehouse') { g.beginPath(); g.moveTo(-13, 0); g.lineTo(0, -12); g.lineTo(13, 0); g.stroke(); g.strokeRect(-9, 0, 18, 12); g.beginPath(); g.moveTo(-3, 4); g.lineTo(-3, 12); g.lineTo(4, 12); g.lineTo(4, 4); g.stroke(); g.beginPath(); g.arc(0, -1, 4, 0, Math.PI * 2); g.stroke(); }
     else if (kind === 'clinic') { g.strokeRect(-10, -10, 20, 20); g.fillStyle = color; g.fillRect(-2, -7, 4, 14); g.fillRect(-7, -2, 14, 4); }
+    else if (kind === 'goose') { g.beginPath(); g.ellipse(-1, 5, 11, 8, -.2, 0, Math.PI * 2); g.fill(); g.fillRect(5, -14, 6, 17); g.beginPath(); g.arc(8, -14, 5, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e0a24f'; g.beginPath(); g.moveTo(12, -15); g.lineTo(18, -12); g.lineTo(12, -11); g.fill(); g.fillStyle = '#1a2531'; g.beginPath(); g.arc(9, -15, 1.4, 0, Math.PI * 2); g.fill(); }
+    else if (kind === 'cyber') { g.beginPath(); g.arc(0, -9, 5, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(0, -4); g.lineTo(0, 13); g.moveTo(-9, 2); g.lineTo(9, 2); g.moveTo(-7, 13); g.lineTo(0, 8); g.lineTo(7, 13); g.stroke(); g.fillStyle = '#6fd7e5'; g.beginPath(); g.moveTo(-2, 5); g.lineTo(2, 5); g.lineTo(-1, 10); g.lineTo(4, 2); g.lineTo(0, 2); g.closePath(); g.fill(); }
     else { g.strokeRect(-9, -4, 16, 9); g.beginPath(); g.moveTo(7, -3); g.lineTo(13, -8); g.lineTo(13, -1); g.stroke(); g.beginPath(); g.moveTo(-17, -8); g.lineTo(11, -8); g.moveTo(-3, -8); g.lineTo(-3, -5); g.stroke(); }
     g.restore();
   }
@@ -177,7 +211,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
 
   function serviceHero(place, p, discount) {
     const hero = el('div', undefined, 'city-service-hero');
-    const skin = place.black ? 'black-market' : place.kind;
+    const skin = place.black ? 'black-market' : place.goose ? 'goose' : place.kind;
     hero.dataset.kind = skin;
     hero.append(serviceIcon(skin));
     const copy = el('div', undefined, 'city-service-copy');
@@ -232,6 +266,80 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       bets.append(bet);
     }
     wrap.append(bets, slotStage(p));
+    return wrap;
+  }
+
+  function bodyShop(p) {
+    const wrap = el('div', undefined, 'city-body');
+    wrap.append(el('p', '义体强化在本局永久保留；每项最高 Lv.3。', 'city-contract-hint'));
+    const grid = el('div', undefined, 'city-shop-grid');
+    for (const [id, up] of Object.entries(BODY_UPGRADES)) {
+      const level = p.body?.[id] || 0;
+      const cost = level < 3 ? Math.ceil(up.costs[level] * (state.modifier?.sale || 1)) : 0;
+      const detail = id === 'vitality' ? `最大生命 ${p.maxHp || 100} → ${(p.maxHp || 100) + 20}`
+        : id === 'plating' ? `护甲上限 ${p.armorCap || 100} → ${(p.armorCap || 100) + 25}`
+        : id === 'muscle' ? `移动速度 +${(level + 1) * 6}%`
+        : `背包容量 ${p.invCap || 12} → ${(p.invCap || 12) + 4}`;
+      const meta = el('div', undefined, 'city-card-meta');
+      meta.append(el('span', level < 3 ? '¥' + cost : 'MAX', 'city-price'));
+      meta.append(el('span', 'Lv.' + level + '/3', 'city-owned'));
+      const item = card(up.name, detail, meta, [
+        button(level >= 3 ? '已满级' : p.cash < cost ? '现金不足' : '强化', () => action('body', { item: id }), level >= 3 || p.cash < cost || !!p.car)
+      ], serviceIcon('cyber'));
+      item.style.setProperty('--boon', up.color);
+      grid.append(item);
+    }
+    wrap.append(grid);
+    wrap.append(el('p', '义体强化不会因死亡丢失；撤离后本局结束。', 'city-contract-hint'));
+    return wrap;
+  }
+
+  function gooseRaceStage(place, p) {
+    const r = state?.gooseRace;
+    const wrap = el('div', undefined, 'city-goose-panel');
+    if (!r) { wrap.append(el('p', '赛鹅场正在布置赛道，下一场马上开始。', 'city-goose-hint')); return wrap; }
+    const head = el('div', undefined, 'city-goose-head');
+    head.append(el('span', 'GOOSE DERBY'), el('strong', '赛鹅大奖赛'), el('em', r.bettors ? r.bettors + ' 人已下注' : '全场播报'));
+    wrap.append(head);
+    const clock = el('div', undefined, 'city-goose-clock');
+    clock.dataset.phase = r.phase;
+    clock.textContent = r.phase === 'betting' ? '下注截止 ' + r.startsIn + 's' : r.phase === 'racing' ? '冲线中 · ' + Math.max(0, r.endsIn) + 's' : (r.winnerName || '比赛结束') + ' 获胜';
+    wrap.append(clock);
+    const stakes = el('div', undefined, 'city-goose-stakes');
+    for (const stake of [50, 200, 500]) {
+      const b = button('¥' + stake, () => { raceStake = stake; panelKey = ''; updatePanel(); });
+      b.setAttribute('aria-pressed', String(raceStake === stake));
+      b.disabled = r.phase !== 'betting';
+      stakes.append(b);
+    }
+    wrap.append(stakes);
+    const lanes = el('div', undefined, 'city-goose-lanes');
+    for (const g of r.geese) {
+      const lane = el('div', undefined, 'city-goose-lane');
+      lane.style.setProperty('--goose', g.color);
+      if (r.own?.goose === g.id) lane.classList.add('picked');
+      const dot = el('i', undefined, 'city-goose-dot');
+      const name = el('strong', g.name);
+      const odds = el('small', 'x' + g.odds);
+      const track = el('div', undefined, 'city-goose-track');
+      const fill = el('i');
+      fill.style.width = (r.phase === 'betting' ? 0 : Math.round((g.progress || 0) * 100)) + '%';
+      track.append(fill);
+      const own = r.own?.goose === g.id;
+      const b = button(own ? '已押' : r.phase === 'betting' ? '押 ¥' + raceStake : '封盘', () => action('betGoose', { item: g.id, amount: raceStake }), !own && (r.phase !== 'betting' || !!r.own || p.cash < raceStake));
+      lane.append(dot, name, odds, track, b);
+      lanes.append(lane);
+    }
+    wrap.append(lanes);
+    const result = el('div', undefined, 'city-goose-result');
+    if (r.phase === 'result') {
+      const podium = (r.result || []).slice(0, 3).map(q => q.place + '. ' + q.name).join(' · ');
+      const own = r.own;
+      result.append(el('strong', r.winnerName + ' 夺冠'), el('span', ' · ' + podium + (own ? (own.goose === r.winner ? ' · 你押中了' : ' · 你押了 ' + own.amount) : '')));
+    } else if (r.own) result.textContent = '已押 ' + (r.geese.find(g => g.id === r.own.goose)?.name || '') + ' ¥' + r.own.amount + ' · 赔率 x' + r.own.odds;
+    else result.textContent = '比赛开始后自动结算；押中按赔率返还。';
+    wrap.append(result);
+    wrap.append(el('p', '赛鹅场在娱乐区东南角。下注窗口结束前选一只鹅；一场只能押一次。', 'city-goose-hint'));
     return wrap;
   }
 
@@ -329,16 +437,20 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     const wrap = el('div', undefined, 'city-contracts');
     if (p.contract) {
       const meta = CONTRACT_META[p.contract.kind] || { name: '委托', color: '#f0c97b' };
-      const target = PLACES.find(q => q.id === (p.contract.to || p.contract.place));
+      const targetId = p.contract.kind === 'heist' && p.contract.stage === 2 ? p.contract.drop : p.contract.to || p.contract.place;
+      const target = PLACES.find(q => q.id === targetId);
       const info = el('div', undefined, 'city-contract-active');
       info.style.setProperty('--contract', meta.color);
-      info.append(el('span', '进行中 · ' + meta.name), el('strong', p.contract.name), el('p', p.contract.description + (target ? ' → ' + target.name : '') + ' · 奖励 ¥' + p.contract.pay));
+      info.append(el('span', '进行中 · ' + meta.name), el('strong', p.contract.name || meta.name), el('p', (p.contract.description || meta.description) + (target ? ' → ' + target.name : '') + ' · 奖励 ¥' + p.contract.pay));
       if (p.contract.kind === 'race') {
         const cps = (p.contract.checkpoints || []).map(id => PLACES.find(q => q.id === id)?.name).filter(Boolean);
         info.append(el('div', '检查点 ' + Math.min((p.contract.index || 0) + 1, cps.length) + '/' + cps.length + '：' + cps.join(' → ') + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's', 'city-race-line'));
       }
+      if (p.contract.kind === 'player') info.append(el('div', '目标：' + (p.contract.targetName || '玩家') + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's · 目标撑到结束则失败', 'city-race-line'));
+      if (p.contract.kind === 'heist') { const stage = p.contract.stage || 0; const drop = PLACES.find(q => q.id === p.contract.drop); info.append(el('div', '阶段 ' + (stage + 1) + '/3：' + (stage === 0 ? '到 ' + (PLACES.find(q => q.id === p.contract.place)?.name || '银行') + ' 按住 E 取得钥匙卡' : stage === 1 ? '打开金库' : '把赃款送到 ' + (drop?.name || '撤离点')) + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's', 'city-race-line')); }
       wrap.append(info);
       if (p.contract.kind === 'vehicle') wrap.append(el('p', '地图上带金色边的是委托车辆；开到任意车行旁，下车后按 E 交货。', 'city-contract-hint'));
+      wrap.append(button('放弃当前委托', () => action('abandonContract')));
       return wrap;
     }
     wrap.append(el('p', '在 Fixer 接一单：急送、悬赏或偷车。完成任意委托，都能从三项强化里选一项。', 'city-contract-hint'));
@@ -352,7 +464,44 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       grid.append(item);
     }
     if (!(p.contracts || []).length) grid.append(el('p', '委托板暂时空了，稍后再来。'));
+    wrap.append(grid, button('换一批委托', () => action('refreshContracts'), !!p.car));
+    return wrap;
+  }
+
+  function sellShelf(p) {
+    const entries = Object.entries(p.inv).filter(([id, n]) => n > 0 && id !== p.gun && (Object.hasOwn(GUNS, id) || Object.hasOwn(GOODS, id)));
+    const wrap = el('div', undefined, 'city-sell');
+    wrap.append(el('h3', '黑市回收 · 半价'));
+    if (!entries.length) { wrap.append(el('p', '当前没有可以回收的多余物品。', 'city-contract-hint')); return wrap; }
+    const grid = el('div', undefined, 'city-shop-grid');
+    for (const [id, count] of entries) {
+      const base = GUNS[id]?.price ?? GOODS[id]?.price ?? 0;
+      const price = Math.max(20, Math.round(base * .5 * (state.modifier?.sale || 1)));
+      grid.append(card((GUNS[id]?.name || GOODS[id]?.name || id) + ' ×' + count, '回收价 ¥' + price, null, [
+        button('回收一件', () => action('sell', { item: id }))
+      ], itemIcon(id)));
+    }
     wrap.append(grid);
+    wrap.append(el('p', '当前装备的武器不会出现在回收列表里。', 'city-contract-hint'));
+    return wrap;
+  }
+
+  function leaderboardTable() {
+    const wrap = el('div', undefined, 'city-leaderboard');
+    wrap.append(el('p', '按撤离时带走的总资产排名：现金 + 存款。只记录成功撤离的局。', 'city-contract-hint'));
+    if (!leaderboardRows.length) { wrap.append(el('p', '还没有撤离记录。成为第一个带着 ¥10000 离开的人。', 'city-leaderboard-empty')); return wrap; }
+    const table = el('table');
+    const head = el('tr');
+    for (const text of ['#', '玩家', '总资产', '用时', '击杀', '委托', '规则']) head.append(el('th', text));
+    table.append(head);
+    leaderboardRows.forEach((row, i) => {
+      const tr = el('tr');
+      if (i < 3) tr.className = 'top' + (i + 1);
+      const mins = Math.floor((row.seconds || 0) / 60), secs = Math.floor((row.seconds || 0) % 60);
+      tr.append(el('td', String(i + 1)), el('td', row.name || '匿名'), el('td', '¥' + (row.total || 0)), el('td', mins + ':' + String(secs).padStart(2, '0')), el('td', String(row.stats?.kills || 0)), el('td', String(row.stats?.contracts || 0)), el('td', row.rule || '—'));
+      table.append(tr);
+    });
+    wrap.append(table);
     return wrap;
   }
 
@@ -366,12 +515,27 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     action(GUN_IDS.has(entry[0]) ? 'equip' : 'use', {item: entry[0]});
   }
 
+  function openShop() {
+    if (!serviceHere()) return;
+    if (mode === 'shop') { closeShop(); return; }
+    mode = 'shop'; panelKey = ''; shopTab = 'all';
+    $('cityShop').hidden = false;
+    document.body.classList.add('city-shop-open');
+    updatePanel();
+  }
+  function closeShop() {
+    if (mode === 'shop') { mode = ''; panelKey = ''; }
+    $('cityShop').hidden = true;
+    document.body.classList.remove('city-shop-open');
+  }
   function panel(type) {
+    if (type === 'shop') { openShop(); return; }
+    closeShop();
+    if (type === 'leaderboard' && state) send('city:leaderboard');
     clear();
     mode = type;
     panelKey = '';
-    if (type === 'shop') shopTab = 'all';
-    $('cityPanelTitle').textContent = {shop: '附近服务', bag: '背包与快捷道具', map: '城市地图', help: '入城手册', leave: '放弃本次行动？', boon: '委托奖励'}[type];
+    $('cityPanelTitle').textContent = {bag: '背包与快捷道具', map: '城市地图', help: '入城手册', leave: '放弃本次行动？', boon: '委托奖励', leaderboard: '都市排行榜'}[type];
     updatePanel();
     if (!$('cityPanel').open) $('cityPanel').showModal();
   }
@@ -379,26 +543,34 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   function updatePanel() {
     if (!state || !mode) return;
     const p = state.self, place = PLACES.find(q => q.id === p.near);
-    const dialog = $('cityPanel');
-    dialog.dataset.kind = mode === 'shop' && place ? place.kind : mode;
-    const key = JSON.stringify([mode, place?.id, shopTab, lastDiceId, lastSlotsId, p.cash, p.bank, p.inv, p.gun, p.ammo, p.reserve, p.hp, p.armor, p.reload, p.car, p.message, p.contract, p.contracts, p.boons, p.boonChoices, p.mods, p.respawnPoint, state.modifier?.id, state.chaos, state.offers, state.sent, state.event?.kind]);
+    if (mode === 'shop' && (p.hp <= 0 || p.escaped || !place || !SERVICE.has(place.kind))) { closeShop(); return; }
+    const shop = mode === 'shop';
+    const host = shop ? $('cityShop') : $('cityPanel');
+    host.dataset.kind = shop && place ? (place.goose ? 'goose' : place.kind) : mode;
+    const key = JSON.stringify([mode, place?.id, shopTab, lastDiceId, lastSlotsId, p.cash, p.bank, p.inv, p.gun, p.ammo, p.reserve, p.hp, p.armor, p.reload, p.car, p.message, p.contract, p.contracts, p.boons, p.boonChoices, p.mods, p.body, p.maxHp, p.armorCap, p.invCap, p.respawnPoint, state.modifier?.id, state.chaos, state.gooseRace?.phase, state.gooseRace?.startsIn, state.gooseRace?.winner, state.gooseRace?.own?.goose, state.gooseRace?.own?.amount, state.gooseRace?.geese?.map(g => g.progress), raceStake, state.offers, state.sent, state.event?.kind]);
     if (key === panelKey) return;
     panelKey = key;
-    const body = $('cityPanelBody');
+    const body = shop ? $('cityShopBody') : $('cityPanelBody');
+    const shopScroll = shop ? $('cityShopBody').scrollTop : 0;
     body.replaceChildren();
-    if (mode === 'shop' && place) $('cityPanelTitle').textContent = place.name;
-    else $('cityPanelTitle').textContent = {bag: '背包与快捷道具', map: '城市地图', help: '入城手册', leave: '放弃本次行动？', boon: '委托奖励'}[mode] || '附近服务';
+    if (shop) $('cityShopTitle').textContent = place ? place.name : '附近服务';
+    else $('cityPanelTitle').textContent = {bag: '背包与快捷道具', map: '城市地图', help: '入城手册', leave: '放弃本次行动？', boon: '委托奖励', leaderboard: '都市排行榜'}[mode] || '附近服务';
     if (p.message) body.append(el('p', p.message, 'city-panel-message'));
 
     if (mode === 'help') {
       const items = [
         '赚够 ¥' + CITY.goal + ' 随身现金，在绿色撤离点按住 E 8 秒离开；银行存款可在撤离前取出使用。',
-        'WASD / 方向键移动，Shift 冲刺，鼠标瞄准，按住左键攻击，R 装填。霰弹枪一次打出 6 颗弹丸，冲锋枪射速极快。',
-        'E 拾取 / 抢车 / 交货 / 按住开金库或撤离；F 打开附近服务、下车；B 背包，M 地图，1–6 快捷使用道具。',
+        'WASD / 方向键移动，Shift 冲刺，空格手刹（驾驶时），鼠标瞄准，按住左键攻击，R 装填，Q 快速换回上一把枪。霰弹枪一次打出 6 颗弹丸，冲锋枪射速极快。',
+        'E 拾取 / 抢车 / 交货 / 按住开金库或撤离；靠近服务点按 E 或 F 打开半屏商店，商店打开时仍可移动。B 背包，M 地图，1–6 快捷使用道具。',
         '中央广场的 Fixer 发布急送、悬赏、偷车、狂飙委托；完成委托后从三项强化中选择一项，本局永久生效。',
         '每局城市规则不同：严打周、现金雨、黑市繁荣、肥鹅之夜、停电或无政府之夜。规则会影响警察、掉落、价格和事件。',
         '犯罪会推高全城混乱度。混乱度越高，警察和事件越凶，但委托奖励也越高；想赚大钱就得承担风险。',
         '黑市可以把当前枪械改装到 Lv.3：每级伤害 +15%、装填更快。狂飙委托要开车按顺序穿过三个检查点。',
+        '义体诊所用现金强化身体：心脏 +20 最大生命、皮下装甲 +25 护甲上限、肌肉 +6% 移速、负重 +4 背包，每项三级，本局保留。',
+        'Fixer 会发布玩家猎杀悬赏：确认目标后 120 秒内击倒他；被悬赏的人撑到结束可拿生存奖金。被悬赏时人物头顶会出现红色金额。',
+        '赛鹅竞技场每 25 秒开一场：下注窗口内选鹅，比赛开始后赛道上的六只鹅会实时冲线，押中按赔率结算。右上角会显示下一场倒计时。',
+        '通缉按热度槽计算：每次犯罪累积热度，8 点一星；脱离警察 4 秒后热度才下降。2 星起警察才会锁定你，4 星出警车，5 星设路障并出动直升机。',
+        '新道具：烟雾弹遮蔽视线，感应地雷自动引爆，肾上腺素 8 秒加速，闪光弹震盲，护甲板补 40 甲。左轮、精确步枪和轻机枪是黑市限定。',
         '安全屋可设置重生点；诊所花现金回血或补护甲；黑市什么都有，但加价 35%。',
         '赌场除了骰子，还有老虎机：三连返还，炸弹清空。所有筹码都是局内虚拟币。',
         '死亡掉落背包、武器和 70% 随身现金；4 秒后复活。新入城/复活有 10 秒保护，主动犯罪或攻击会结束保护。',
@@ -420,7 +592,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       const directory = el('div', undefined, 'city-place-directory');
       for (const place of PLACES) {
         const entry = el('div', undefined, 'city-place-entry');
-        entry.append(serviceIcon(place.black ? 'black-market' : place.kind, 'city-place-icon'), el('span', place.name));
+        entry.append(serviceIcon(place.black ? 'black-market' : place.goose ? 'goose' : place.kind, 'city-place-icon'), el('span', place.name));
         directory.append(entry);
       }
       body.append(directory, el('p', '金色圆点是你；地图上只标服务类型，完整名称见下方目录。'));
@@ -429,7 +601,9 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     }
     if (mode === 'bag') {
       body.append(card(GUNS[p.gun].name + ((p.mods?.gun || 0) ? ' · 改装 Lv.' + p.mods.gun : ''), `弹匣 ${p.ammo} / 备用 ${p.reserve}${p.reload > 0 ? ' · 装填中 ' + p.reload.toFixed(1) + 's' : ''}${(p.mods?.gun || 0) ? ' · 伤害 +' + (p.mods.gun * 15) + '%' : ''}`, null, [button('装填', () => action('reload'), !GUNS[p.gun].mag || p.reload > 0)], itemIcon(p.gun)));
+      if (p.contract) body.append(card('当前委托 · ' + p.contract.name, p.contract.description || '', null, [button('放弃委托', () => action('abandonContract'))], serviceIcon('fixer')));
       const inv = Object.entries(p.inv).filter(([, n]) => n > 0);
+      body.append(el('p', '背包容量 ' + inv.reduce((a, [, n]) => a + n, 0) + '/' + (p.invCap || 12), 'city-contract-hint'));
       if (inv.length) {
         const grid = el('div', undefined, 'city-shop-grid');
         for (const [id, count] of inv) {
@@ -466,6 +640,10 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       return;
     }
 
+    if (mode === 'leaderboard') {
+      body.append(leaderboardTable());
+      return;
+    }
     if (mode === 'boon') {
       body.append(boonBoard(p));
       return;
@@ -489,13 +667,15 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       ], serviceIcon('safehouse')));
       body.append(card('安全屋守则', '重生点只记录位置，不保留现金与背包；贵重物品请存银行或尽快撤离。', null, [], serviceIcon('safehouse')));
     } else if (place.kind === 'clinic') {
-      const cost = Math.max(60, Math.ceil((100 - p.hp) * 2));
-      body.append(card('缝合伤口', p.hp >= 100 ? '状态良好，不需要治疗。' : `恢复全部生命，费用 ¥${cost}。`, el('span', '¥' + cost, 'city-price'), [
-        button(p.hp >= 100 ? '状态良好' : p.cash < cost ? '现金不足' : '治疗', () => action('heal', { item: 'hp' }), p.hp >= 100 || p.cash < cost || !!p.car)
+      const cost = Math.max(60, Math.ceil(((p.maxHp || 100) - p.hp) * 2));
+      body.append(card('缝合伤口', p.hp >= (p.maxHp || 100) ? '状态良好，不需要治疗。' : `恢复全部生命，费用 ¥${cost}。`, el('span', '¥' + cost, 'city-price'), [
+        button(p.hp >= (p.maxHp || 100) ? '状态良好' : p.cash < cost ? '现金不足' : '治疗', () => action('heal', { item: 'hp' }), p.hp >= (p.maxHp || 100) || p.cash < cost || !!p.car)
       ], serviceIcon('clinic')));
       body.append(card('防弹护甲', '补充 60 点护甲，费用 ¥300。', el('span', '¥300', 'city-price'), [
         button(p.cash < 300 ? '现金不足' : '购买护甲', () => action('heal', { item: 'armor' }), p.cash < 300 || !!p.car)
       ], serviceIcon('clinic', 'danger')));
+    } else if (place.kind === 'cyber') {
+      body.append(bodyShop(p));
     } else if (place.kind === 'arms' || place.kind === 'market') {
       const black = place.black === true;
       const all = black
@@ -525,9 +705,11 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
           button(lv >= 3 ? '已满级' : p.gun === 'fists' ? '先装备枪械' : p.cash < upCost ? '现金不足' : '改装', () => action('upgrade', {item: 'gun'}), lv >= 3 || p.gun === 'fists' || p.cash < upCost || !!p.car)
         ], itemIcon(p.gun === 'fists' ? 'pistol' : p.gun)));
         body.append(el('p', '改装只对当前装备的枪械生效；黑市不问来路，也不开发票。', 'city-contract-hint'));
+        body.append(sellShelf(p));
       }
       body.append(grid);
     } else if (place.kind === 'bank') {
+      if (p.contract?.kind === 'heist') body.append(card('劫案阶段 ' + ((p.contract.stage || 0) + 1) + '/3', p.contract.stage === 0 ? '关闭面板后按住 E 取得钥匙卡。' : p.contract.stage === 1 ? '钥匙卡到手，可以拉响警报开金库。' : '赃款已到手，送到地图标记的撤离点。', null, [], serviceIcon('bank')));
       const account = el('div', undefined, 'city-bank-line');
       account.append(el('strong', '¥' + p.cash), el('span', '存款 ¥' + p.bank));
       body.append(card('个人账户', '存款不会因死亡丢失；撤离需要随身现金。', account, [
@@ -537,15 +719,15 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         button('取全部', () => action('withdraw', {amount: 'all'}), !p.bank)
       ], serviceIcon('bank')));
       body.append(card('抢劫金库', '持武器，拉响警报后按住 E 12 秒；收益 1600，会触发通缉。', null, [
-        button(p.gun === 'fists' ? '需要武器' : '拉响警报 · 按住 E', () => { action('robBank'); $('cityPanel').close(); }, p.gun === 'fists' || !!p.car)
+        button(p.gun === 'fists' ? '需要武器' : '拉响警报 · 按住 E', () => { action('robBank'); closeShop(); }, p.gun === 'fists' || !!p.car)
       ], serviceIcon('bank', 'danger')));
     } else if (place.kind === 'job') {
-      body.append(card('临时打工', '站在原地工作 10 秒，赚 260。', null, [button('开始打工', () => { action('work'); $('cityPanel').close(); }, !!p.job)], serviceIcon('job')));
+      body.append(card('临时打工', '站在原地工作 10 秒，赚 260。', null, [button('开始打工', () => { action('work'); closeShop(); }, !!p.job)], serviceIcon('job')));
       body.append(card('城市配送', p.job ? `配送中 → ${PLACES.find(q => q.id === p.job.to)?.name || p.job.to}` : '接单后开车或步行送达，按路程计酬。', null, [
-        button(p.job ? '先完成当前配送' : '接单', () => { action('delivery'); $('cityPanel').close(); }, !!p.job)
+        button(p.job ? '先完成当前配送' : '接单', () => { action('delivery'); closeShop(); }, !!p.job)
       ], itemIcon('car')));
     } else if (place.kind === 'casino') {
-      body.append(casinoStage(place, p));
+      body.append(place.goose ? gooseRaceStage(place, p) : casinoStage(place, p));
     } else if (place.kind === 'garage') {
       const price = Math.ceil(900 * discount * (state.modifier?.sale || 1));
       body.append(card('二手小车', '买下后停在车行门口，走近按 E 上车。', el('span', '¥' + price, 'city-price'), [
@@ -555,6 +737,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       const need = Math.max(0, CITY.goal - p.cash);
       body.append(card('撤离点', need ? `还需要 ¥${need} 随身现金。` : '满足条件。关闭面板后按住 E 8 秒。', null, [button('知道了', () => $('cityPanel').close())], serviceIcon('escape')));
     }
+    if (shop) $('cityShopBody').scrollTop = shopScroll;
   }
 
   function reloadLabel() {
@@ -599,15 +782,16 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       } else if (p.progress) {
         hints.push({work: '打工进行中 · 留在原地', bank: '开金库 · 按住 E', car: '抢车 · 按住 E', mug: '抢劫 · 按住 E', escape: '撤离 · 按住 E'}[p.progress.kind] || '任务进行中');
       } else {
-        if (place && SERVICE.has(place.kind)) { hints.push('F · ' + place.name); act = 'service'; }
+        const serviceSpot = !!(place && SERVICE.has(place.kind));
+        if (serviceSpot) { hints.push('E / F · ' + place.name); act = 'service'; }
         if (p.contract?.kind === 'delivery' && p.contract.to === place?.id) hints.unshift('按 E 交付委托');
         if (p.contract?.kind === 'bounty' && p.contract.place === place?.id) hints.unshift('委托目标就在' + place.name + '附近');
         if (p.contract?.kind === 'race') { const target = PLACES.find(q => q.id === p.contract.checkpoints?.[p.contract.index]); if (target && place?.id === target.id) hints.unshift('狂飙检查点 ' + ((p.contract.index || 0) + 1) + '/' + p.contract.checkpoints.length + ' · 留在圈内'); }
+        if (p.contract?.kind === 'heist') { const target = p.contract.stage === 2 ? p.contract.drop : p.contract.place; if (place?.id === target) hints.unshift(p.contract.stage === 0 ? '按住 E 取得钥匙卡 4 秒' : p.contract.stage === 1 ? '打开金库' : '按 E 交付赃款'); }
         if (place?.kind === 'escape') hints.push(p.cash >= CITY.goal ? '按住 E 撤离 8 秒' : `撤离需要 ¥${CITY.goal} · 当前 ¥${p.cash}`);
         if (loot) hints.push(loot[1] === 'cash' ? 'E 拾取 ¥' + loot[4] : 'E 拾取 ' + (GUNS[loot[1]]?.name || GOODS[loot[1]]?.name || loot[1]));
-        if (car) hints.push(car[5] === self() ? '按住 E 上车' : '按住 E 抢车');
-        if (civilian && p.gun !== 'fists') hints.push('按住 E 抢劫路人');
-        if (place?.kind === 'job' && !p.job) hints.push('E 开始打工');
+        if (!serviceSpot && car) hints.push(car[5] === self() ? '按住 E 上车' : '按住 E 抢车');
+        if (!serviceSpot && civilian && p.gun !== 'fists') hints.push('按住 E 抢劫路人');
         if (!hints.length && place) hints.push(place.name);
       }
     }
@@ -627,8 +811,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     const p = state.self;
     $('cityCash').textContent = '¥' + p.cash;
     $('cityBank').textContent = '存款 ' + p.bank;
-    $('cityHp').textContent = 'HP ' + p.hp + (p.armor ? ' · 甲 ' + p.armor : '');
-    $('cityWanted').textContent = p.wanted ? '★'.repeat(p.wanted) : '暂无通缉';
+    $('cityHp').textContent = 'HP ' + p.hp + '/' + (p.maxHp || 100) + (p.armor ? ' · 甲 ' + p.armor + '/' + (p.armorCap || 100) : '');
+    $('cityWanted').textContent = p.wanted ? '★'.repeat(p.wanted) + ' · 热度 ' + Math.round(p.heat || 0) : '暂无通缉';
     const chaosLevel = state.chaosLevel || 0;
     $('cityChaos').textContent = '混乱 ' + chaosLevel + ' · ' + (state.chaos || 0) + '%';
     $('cityChaos').dataset.level = String(chaosLevel);
@@ -639,15 +823,41 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     $('cityEvent').textContent = ruleText + (state.event ? EVENTS[state.event.kind].name + ' · ' + Math.ceil(state.event.ends - state.time) + 's' : '下一事件 ' + state.next + 's');
     $('cityEvent').title = state.modifier ? state.modifier.description : '';
     $('cityEvent').dataset.active = String(!!state.event);
+    const feed = (state.feed || []).filter(e => !['race', 'join', 'leave'].includes(e.kind) && state.time - (e.at || 0) < 16), nextFeedKey = feed.map(e => e.id).join('|');
+    if (nextFeedKey !== feedKey) {
+      feedKey = nextFeedKey;
+      const box = $('cityFeed');
+      box.replaceChildren();
+      for (const entry of feed.slice(-3)) {
+        const line = el('div', entry.text, 'city-feed-line');
+        line.dataset.kind = entry.kind || 'info';
+        box.append(line);
+      }
+      box.hidden = !feed.length;
+    }
+    const gooseRaceState = state.gooseRace;
+    if (gooseRaceState && p.near === 'goose-stadium') {
+      $('cityRace').hidden = false;
+      $('cityRace').dataset.phase = gooseRaceState.phase;
+      $('cityRace').textContent = gooseRaceState.phase === 'betting' ? '赛鹅 · ' + gooseRaceState.startsIn + 's 后开跑' : gooseRaceState.phase === 'racing' ? '赛鹅 · 冲线中' : '赛鹅 · ' + (gooseRaceState.winnerName || '') + ' 获胜';
+    } else $('cityRace').hidden = true;
     const venue = PLACES.find(q => q.id === p.near);
     $('cityService').textContent = venue ? venue.name : '服务';
     $('cityService').disabled = !venue || p.hp <= 0 || !!p.car;
     $('cityReload').hidden = !GUNS[p.gun].mag || !!p.car;
     $('cityCarExit').hidden = !p.car;
+    const ownCar = p.car ? state.cars.find(c => c[0] === p.car) : null;
+    $('citySpeed').hidden = !p.car;
+    $('cityBrake').hidden = !p.car;
+    if (p.car) $('citySpeed').textContent = Math.round((ownCar?.[8] || 0) * .18) + ' km/h';
     const race = p.contract?.kind === 'race';
-    const contractTarget = p.contract ? PLACES.find(q => q.id === (race ? p.contract.checkpoints?.[p.contract.index] : (p.contract.to || p.contract.place))) : null;
-    const contractText = !p.contract ? '' : race ? '狂飙 · 检查点 ' + Math.min((p.contract.index || 0) + 1, (p.contract.checkpoints || []).length) + '/' + (p.contract.checkpoints || []).length + (contractTarget ? ' → ' + contractTarget.name : '') + ' · ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's' : '委托 · ' + p.contract.name + (contractTarget ? ' → ' + contractTarget.name : p.contract.kind === 'vehicle' ? ' → 任意车行' : '');
-    $('cityTask').textContent = p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? EVENTS[state.event.kind].hint : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
+    const heistTarget = p.contract?.kind === 'heist' ? (p.contract.stage === 2 ? p.contract.drop : p.contract.place) : null;
+    const contractTarget = p.contract ? PLACES.find(q => q.id === (race ? p.contract.checkpoints?.[p.contract.index] : heistTarget || p.contract.to || p.contract.place)) : null;
+    const contractText = !p.contract ? '' : race ? '狂飙 · 检查点 ' + Math.min((p.contract.index || 0) + 1, (p.contract.checkpoints || []).length) + '/' + (p.contract.checkpoints || []).length + (contractTarget ? ' → ' + contractTarget.name : '') + ' · ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's' : p.contract.kind === 'player' ? '猎杀 · ' + (p.contract.targetName || '玩家') + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's' : p.contract.kind === 'heist' ? '劫案 · ' + (p.contract.stage === 0 ? '取得钥匙卡' : p.contract.stage === 1 ? '打开金库' : '送达 ' + (contractTarget?.name || '撤离点')) + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's' : '委托 · ' + p.contract.name + (contractTarget ? ' → ' + contractTarget.name : p.contract.kind === 'vehicle' ? ' → 任意车行' : '');
+    $('cityTask').dataset.hunted = String(!!p.bounty);
+    $('cityTask').classList.toggle('city-task-hunted', !!p.bounty);
+    const bountyText = p.bounty ? '你被 ' + (p.bounty.hunter || '某人') + ' 悬赏 ¥' + p.bounty.amount + ' · 撑住 ' + Math.max(0, Math.ceil((p.bounty.until || 0) - state.time)) + 's' : '';
+    $('cityTask').textContent = p.bounty ? bountyText : p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? EVENTS[state.event.kind].hint : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
     const nextMessage = p.message || state.feed.at(-1)?.text || '';
     if (nextMessage !== message) {
       message = nextMessage;
@@ -656,7 +866,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     $('cityRespawn').hidden = p.hp > 0 && !p.escaped;
     $('cityRespawnTitle').textContent = p.escaped ? '成功撤离' : '你倒下了';
     const autoBack = p.escaped ? Math.max(0, 12 - Math.ceil((performance.now() - escapedAt) / 1000)) : 0;
-    $('cityRespawnText').textContent = p.escaped ? `带走现金 ¥${p.result.cash} · 存款 ¥${p.result.bank} · 用时 ${p.result.seconds}s · ${autoBack}s 后返回大厅` : `${Math.ceil(p.respawn)}秒后重新投放；物品与70%随身现金掉落`;
+    const death = p.death;
+    $('cityRespawnText').textContent = p.escaped ? `带走现金 ¥${p.result.cash} · 存款 ¥${p.result.bank} · 用时 ${p.result.seconds}s · ${autoBack}s 后返回大厅` : `${death ? '被 ' + death.by + ' 用 ' + death.gun + ' 击倒 · 伤害 ' + death.damage + ' · 掉落 ¥' + death.lost + ' · ' : ''}${Math.ceil(p.respawn)}秒后重新投放，观战中`;
     $('cityResultBack').hidden = !p.escaped;
     if (p.boonChoices?.length && !$('cityPanel').open && !p.escaped) {
       const key = p.boonChoices.join(',');
@@ -672,11 +883,16 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     const x = stop ? 0 : (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0) + stick.x;
     const y = stop ? 0 : (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0) + stick.y;
     const n = Math.max(1, Math.hypot(x, y));
-    return {x: x / n, y: y / n, angle: aim, fire: !stop && fire, interact: !stop && (interact || keys.has('e')), sprint: !stop && keys.has('shift')};
+    return {x: x / n, y: y / n, angle: aim, fire: !stop && fire, interact: !stop && !suppressInteract && (interact || keys.has('e')), sprint: !stop && keys.has('shift'), brake: !stop && (brake || keys.has(' '))};
   }
   function packet() { if (active && state && online()) send('city:input', {id: state.id, seq: ++seq, ...controls()}); }
   function predict(dt) { if (state) predicted = prediction.advance(dt, controls(), state.self, obstacles); }
 
+  function worldInteractNearby() {
+    if (!state) return false;
+    const m = me();
+    return state.loot.some(q => dist({x: q[2], y: q[3]}, m) < 42);
+  }
   function serviceHere() {
     const p = state?.self;
     if (!p || p.car || p.hp <= 0 || p.escaped || p.progress) return null;
@@ -693,7 +909,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   window.addEventListener('keydown', e => {
     if (!active || blocked() || e.ctrlKey || e.altKey || e.metaKey) return;
     const k = e.key.toLowerCase();
-    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'e', 'shift'].includes(k)) {
+    if (['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'e', 'shift', ' '].includes(k)) {
       e.preventDefault();
       keys.add(k);
     }
@@ -702,11 +918,18 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       useQuick(quickEntries()[Number(k) - 1]);
       return;
     }
+    if (k === 'e' && !e.repeat) {
+      if (mode === 'shop') { closeShop(); suppressInteract = true; return; }
+      if (serviceHere() && !worldInteractNearby()) { openShop(); suppressInteract = true; return; }
+    }
+    if (k === 'escape' && mode === 'shop') { closeShop(); return; }
     if (k === 'f' && !e.repeat) {
       if (state.self.car) { action('exitCar'); return; }
-      if (serviceHere()) { panel('shop'); return; }
+      if (mode === 'shop') { closeShop(); return; }
+      if (serviceHere()) { openShop(); return; }
     }
     if (k === 'r' && !e.repeat) action('reload');
+    if (k === 'q' && !e.repeat && !state.self.car && lastGun) action('equip', {item: lastGun});
     if (k === 'b' && !e.repeat) panel('bag');
     if (k === 'm' && !e.repeat) panel('map');
     if (k === 'enter') {
@@ -716,7 +939,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       $('chatInput').focus();
     }
   });
-  window.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+  window.addEventListener('keyup', e => { const k = e.key.toLowerCase(); keys.delete(k); if (k === 'e') suppressInteract = false; });
   window.addEventListener('blur', clear);
   document.addEventListener('visibilitychange', () => { clear(); packet(); });
 
@@ -763,18 +986,32 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   }
   pad('cityMovePad', 'move');
   pad('cityAimPad', 'aim');
-  $('cityInteract').addEventListener('pointerdown', e => { e.preventDefault(); $('cityInteract').setPointerCapture(e.pointerId); interact = true; });
-  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('cityInteract').addEventListener(t, () => { interact = false; });
+  $('cityInteract').addEventListener('pointerdown', e => {
+    e.preventDefault(); $('cityInteract').setPointerCapture(e.pointerId);
+    if (mode === 'shop') { closeShop(); suppressInteract = true; }
+    else if (serviceHere() && !worldInteractNearby()) { openShop(); suppressInteract = true; }
+    else interact = true;
+  });
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('cityInteract').addEventListener(t, () => { interact = false; suppressInteract = false; });
 
-  for (const [id, type] of [['cityBag', 'bag'], ['cityMapButton', 'map'], ['cityService', 'shop'], ['cityHelp', 'help']]) $(id).onclick = () => panel(type);
+  for (const [id, type] of [['cityBag', 'bag'], ['cityMapButton', 'map'], ['cityLeaderboard', 'leaderboard'], ['cityService', 'shop'], ['cityHelp', 'help']]) $(id).onclick = () => panel(type);
   $('cityLeave').onclick = () => state?.self.escaped ? exit() : panel('leave');
   $('cityResultBack').onclick = exit;
+  const soundButton = $('citySound');
+  const paintSound = () => { if (!soundButton) return; soundButton.textContent = audio.muted ? '🔇' : '🔊'; soundButton.setAttribute('aria-pressed', String(!audio.muted)); };
+  if (soundButton) {
+    soundButton.onclick = () => { audio.unlock(); audio.setMuted(!audio.muted); paintSound(); if (!audio.muted) audio.ui(); };
+    paintSound();
+  }
   $('cityReload').onclick = () => action('reload');
   $('cityCarExit').onclick = () => action('exitCar');
+  $('cityBrake').addEventListener('pointerdown', e => { e.preventDefault(); $('cityBrake').setPointerCapture(e.pointerId); brake = true; });
+  for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('cityBrake').addEventListener(t, () => { brake = false; });
   $('cityPanelClose').onclick = () => $('cityPanel').close();
+  $('cityShopClose').onclick = closeShop;
   $('cityPanel').addEventListener('close', () => { mode = ''; canvas.focus({preventScroll: true}); });
   $('cityChat').onclick = () => toggleChat();
-  $('cityPromptAction').onclick = () => { if (serviceHere()) panel('shop'); };
+  $('cityPromptAction').onclick = () => { if (serviceHere()) openShop(); };
 
   function frame(now) {
     requestAnimationFrame(frame);
@@ -787,12 +1024,15 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       if ((!gun.mag || state.self.ammo > 0) && state.self.reload <= 0 && now - lastLocalShot >= gun.interval * 1000) {
         lastLocalShot = now;
         fireAt = now;
+        audio.shot(state.self.gun);
       }
     }
     if (now - lastPacket >= 50) { packet(); lastPacket = now; }
     if (now - lastMap > 500) { renderer.map($('cityMiniMap'), renderState()); lastMap = now; }
     if (now - lastHud > 100) { hud(); lastHud = now; }
     const p = state.self;
+    if (now - engineAt > 120) { const car = p.car ? state.cars.find(c => c[0] === p.car) : null; audio.engine(!!p.car && !blocked(), car?.[8] || 0); engineAt = now; }
+    if (p.wanted >= 2 && now - sirenAt > 2400 && state.cars.some(c => c[7] === 'police' && Math.hypot(c[1] - p.x, c[2] - p.y) < 650)) { sirenAt = now; audio.alarm(); }
     if (p.escaped && escapedAt && now - escapedAt > 12000) exit();
   }
   requestAnimationFrame(frame);
@@ -800,6 +1040,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   return {
     get active() { return active; },
     receive(data) {
+      const previousSelf = state?.self, previousEvent = state?.event;
       if (data.id !== state?.id) {
         seq = 0;
         actionSeq = 0;
@@ -812,11 +1053,21 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         lastSlotsId = '';
         escapedAt = 0;
         boonKey = '';
+        lastRacePhase = '';
+        feedKey = '';
+        lastGun = '';
       }
       seq = Math.max(seq, data.self.seq);
       actionSeq = Math.max(actionSeq, data.self.actionSeq);
       state = data;
       snapshotAt = performance.now();
+      if (data.gooseRace?.phase && data.gooseRace.phase !== lastRacePhase) {
+        if (data.self.near === 'goose-stadium') {
+          if (data.gooseRace.phase === 'racing') audio.checkpoint();
+          else if (data.gooseRace.phase === 'result') audio.reward();
+        }
+        lastRacePhase = data.gooseRace.phase;
+      }
       const diceEffect = [...data.effects].reverse().find(e => e.kind === 'dice');
       if (diceEffect && diceEffect.id !== lastDiceId) {
         lastDiceId = diceEffect.id;
@@ -833,8 +1084,29 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       const effected = new Set();
       for (const e of data.effects) {
         effected.add(e.id);
-        if (!fxAt.has(e.id)) fxAt.set(e.id, snapshotAt);
+        if (!fxAt.has(e.id)) {
+          fxAt.set(e.id, snapshotAt);
+          const far = Math.hypot((e.x || 0) - data.self.x, (e.y || 0) - data.self.y);
+          if (e.kind === 'shot' && far > 28) audio.shot(e.gun || 'pistol', .45);
+          else if (e.kind === 'explosion' && far < 700) audio.explosion();
+          else if (e.kind === 'flash') audio.flash();
+          else if (e.kind === 'hit') { if (far < 34) audio.hit(.5); else audio.hit(); }
+          else if (e.kind === 'fall' && far < 500) audio.kill();
+          else if (e.kind === 'slots') audio.slots(Number(e.pay) > 0);
+          else if (e.kind === 'checkpoint') audio.checkpoint();
+          else if (e.kind === 'bounty') audio.bounty();
+          else if (e.kind === 'dice') audio.ui();
+        }
       }
+      if (previousSelf) {
+        if (previousSelf.gun && data.self.gun !== previousSelf.gun) lastGun = previousSelf.gun === 'fists' ? 'fists' : previousSelf.gun;
+        if (data.self.hp < previousSelf.hp) audio.hurt();
+        if (data.self.wanted > previousSelf.wanted) audio.alarm();
+        if (data.self.cash > previousSelf.cash) audio.cash();
+        if (!previousSelf.bounty && data.self.bounty) audio.bounty();
+        if (!previousSelf.boonChoices?.length && data.self.boonChoices?.length) audio.reward();
+      }
+      if (!previousEvent && data.event) audio.alarm();
       for (const id of fxAt.keys()) if (!effected.has(id)) fxAt.delete(id);
       predicted = prediction.reconcile(data, controls());
       if (data.map) mapPoints = data.map;
@@ -847,6 +1119,11 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         canvas.focus({preventScroll: true});
       }
       hud();
+    },
+    leaderboard(entries) {
+      leaderboardRows = Array.isArray(entries) ? entries.slice(0, 10) : [];
+      panelKey = '';
+      if (mode === 'leaderboard') updatePanel();
     },
     stop() {
       if (!active) return;
@@ -861,12 +1138,18 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       lastSlotsId = '';
       escapedAt = 0;
       boonKey = '';
+      lastRacePhase = '';
+      feedKey = '';
+      lastGun = '';
+      leaderboardRows = [];
       shopTab = 'all';
       clear();
       document.body.classList.remove('in-city');
       toggleChat(false);
       $('cityStage').hidden = true;
       $('cityPanel').close();
+      closeShop();
+      audio.engine(false, 0);
       onActive(false);
     }
   };

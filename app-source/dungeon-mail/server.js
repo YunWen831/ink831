@@ -4,7 +4,7 @@ import { WebSocketTransport } from '@colyseus/ws-transport';
 import express from 'express';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Courtyard, worldStore,accounts,avatars,levelStore,notifyAdministration } from './hall.js';
+import { Courtyard, worldStore,accounts,avatars,levelStore,notifyAdministration,cityLeaderboard } from './hall.js';
 import { accountApi } from './account-api.js';
 import {materialInfo} from './material-catalog.js';
 import {Encoder} from '@colyseus/schema';
@@ -55,7 +55,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts,worldStore,notifyAdministration));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.19.1' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.26.1' }));
 app.get('/api/materials/:id',(req,res)=>{
   const material=worldStore.data.materials.find(m=>m.id===req.params.id);
   if(!material)return res.status(404).json({error:'材料已不存在'});
@@ -69,7 +69,7 @@ app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
 app.get('/assets/favicon.svg',(req,res)=>res.sendFile(resolve(sourceRoot,'assets/favicon.svg')));
 app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true,setHeaders:(res,path)=>{
   const request=new URL(res.req.url,'http://localhost');
-  const assetVersion=request.searchParams.get('v');res.setHeader('Cache-Control',(assetVersion?.startsWith('0.16.')||assetVersion?.startsWith('0.17.')||assetVersion?.startsWith('0.18.')||assetVersion?.startsWith('0.19.'))&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
+  const assetVersion=request.searchParams.get('v');res.setHeader('Cache-Control',(assetVersion?.startsWith('0.16.')||assetVersion?.startsWith('0.17.')||assetVersion?.startsWith('0.18.')||assetVersion?.startsWith('0.19.')||assetVersion?.startsWith('0.20.')||assetVersion?.startsWith('0.21.')||assetVersion?.startsWith('0.22.')||assetVersion?.startsWith('0.23.')||assetVersion?.startsWith('0.24.')||assetVersion?.startsWith('0.25.')||assetVersion?.startsWith('0.26.'))&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
 }}));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({
@@ -96,6 +96,6 @@ for (const signal of ['SIGTERM', 'SIGINT']) process.once(signal, async () => {
   clearInterval(cleanup);
   await server.gracefullyShutdown(false);
   await worldStore.flush();
-  await accounts.flush();await avatars.flush();await levelStore.flush();
+  await accounts.flush();await avatars.flush();await levelStore.flush();await cityLeaderboard.flush();
   process.exit(0);
 });

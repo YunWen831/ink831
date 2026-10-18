@@ -2,7 +2,7 @@ export const CITY = {
   width: 4096,
   height: 3072,
   capacity: 8,
-  goal: 5000,
+  goal: 10000,
   step: .05,
   view: 1300,
   npcLimit: 40,
@@ -20,7 +20,10 @@ export const GUNS = {
   pistol: { name: '手枪', price: 650, damage: 22, range: 610, interval: .36, mag: 8, reload: 1.2 },
   shotgun: { name: '霰弹枪', price: 1100, damage: 9, range: 300, interval: .9, mag: 6, reload: 1.9, pellets: 6, spread: .18 },
   smg: { name: '冲锋枪', price: 1250, damage: 9, range: 520, interval: .09, mag: 36, reload: 1.6 },
-  rifle: { name: '步枪', price: 1600, damage: 14, range: 850, interval: .15, mag: 24, reload: 1.8 }
+  rifle: { name: '步枪', price: 1600, damage: 14, range: 850, interval: .15, mag: 24, reload: 1.8 },
+  revolver: { name: '左轮', price: 900, damage: 34, range: 720, interval: .55, mag: 6, reload: 1.5, blackOnly: true },
+  dmr: { name: '精确步枪', price: 1900, damage: 30, range: 980, interval: .42, mag: 10, reload: 1.9, blackOnly: true },
+  lmg: { name: '轻机枪', price: 2500, damage: 11, range: 760, interval: .075, mag: 60, reload: 3.2, blackOnly: true }
 };
 
 export const GOODS = {
@@ -35,7 +38,12 @@ export const GOODS = {
   repair: { name: '维修工具', price: 130, description: '修复身边载具' },
   bribe: { name: '可疑信封', price: 300, description: '降低两级通缉' },
   grenade: { name: '手雷', price: 220, description: '朝瞄准方向抛出，范围爆炸' },
-  molotov: { name: '燃烧瓶', price: 200, description: '在瞄准位置留下一片火海' }
+  molotov: { name: '燃烧瓶', price: 200, description: '在瞄准位置留下一片火海' },
+  smoke: { name: '烟雾弹', price: 180, description: '投出浓烟 8 秒，遮蔽视线' },
+  mine: { name: '感应地雷', price: 240, description: '布置在脚下，敌人靠近时爆炸' },
+  adrenaline: { name: '肾上腺素', price: 200, description: '8 秒内移动速度 +35%，清除减速' },
+  flashbang: { name: '闪光弹', price: 160, description: '震盲附近玩家和 NPC 2 秒' },
+  armorplate: { name: '护甲板', price: 260, description: '补充 40 护甲，可与背心叠加' }
 };
 
 export const EVENTS = {
@@ -47,7 +55,8 @@ export const EVENTS = {
   geese: { name: '大鹅接管街道', hint: '暴躁大鹅追人，车辆也拦不住它们的脾气', seconds: 35 },
   golden: { name: '黄金大鹅', hint: '一只值钱的大鹅正在逃窜，抓住它有600奖金', seconds: 35 },
   truck: { name: '装甲运钞车', hint: '运钞车在主干道巡游，打爆它能捡到大笔现金', seconds: 45 },
-  airdrop: { name: '空投', hint: '地图标记处落下一箱军火，先到先得', seconds: 35 }
+  airdrop: { name: '空投', hint: '地图标记处落下一箱军火，先到先得', seconds: 35 },
+  swat: { name: '特警围捕', hint: '特警队进城，所有通缉玩家都会被重点照顾', seconds: 45 }
 };
 
 export const ZONES = [
@@ -90,6 +99,7 @@ export const PLACES = [
   { id: 'fixer', kind: 'fixer', name: '中央委托台', x: 2048, y: 1500 },
   { id: 'safehouse', kind: 'safehouse', name: '旧城安全屋', x: 300, y: 930 },
   { id: 'clinic', kind: 'clinic', name: '巷口诊所', x: 620, y: 1240 },
+  { id: 'cyber', kind: 'cyber', name: '义体诊所', x: 2320, y: 1600 },
   { id: 'job-west', kind: 'job', name: '西区快递站', x: 300, y: 1200 },
   { id: 'job-east', kind: 'job', name: '东港打工站', x: 3300, y: 2420 },
   { id: 'job-north', kind: 'job', name: '金融街配送站', x: 1600, y: 300 },
@@ -132,7 +142,12 @@ export const BOONS = {
   driver: { name: '车神', description: '载具极速 +12%', color: '#84c8e8' },
   veteran: { name: '老练', description: '通缉自然消退速度 +50%', color: '#d6b07a' },
   vampire: { name: '汲取', description: '击杀敌人回复 12 生命', color: '#e0675e' },
-  rich: { name: '巨富', description: '委托奖励 +25%', color: '#f0c97b' }
+  rich: { name: '巨富', description: '委托奖励 +25%', color: '#f0c97b' },
+  scavenger: { name: '拾荒者', description: '弹药拾取 +80，现金掉落 +10%', color: '#d9b45a' },
+  brawler: { name: '拳手', description: '近战伤害 +50%', color: '#e59a5b' },
+  demolition: { name: '爆破手', description: '手雷、燃烧瓶、地雷伤害 +35%', color: '#f07cff' },
+  medic: { name: '急救员', description: '急救包恢复 80 生命', color: '#e0675e' },
+  marksman: { name: '神射手', description: '枪械射程 +20%', color: '#84c8e8' }
 };
 
 // 每局随机城市规则：让同一张图每次开局的目标和风险不同。
@@ -153,13 +168,31 @@ export const SLOT_SYMBOLS = [
   { id: 'bomb', name: '炸弹', color: '#6d7a82', weight: 3, pay: 0 }
 ];
 
+export const GOOSE_RACERS = [
+  { id: 'gold', name: '金翅', color: '#f2c94c', speed: 1.10, odds: 2.2 },
+  { id: 'iron', name: '铁头', color: '#84c8e8', speed: 1.05, odds: 3.0 },
+  { id: 'white', name: '白旋风', color: '#f4ecd4', speed: 1.00, odds: 4.0 },
+  { id: 'rage', name: '暴走鹅', color: '#e0675e', speed: .96, odds: 5.0 },
+  { id: 'black', name: '黑蹄', color: '#8a93a0', speed: .92, odds: 6.5 },
+  { id: 'lucky', name: '幸运星', color: '#7fd6b0', speed: .88, odds: 8.0 }
+];
+
+export const BODY_UPGRADES = {
+  vitality: { name: '强化心脏', description: '最大生命 +20', costs: [700, 1400, 2400], color: '#e0675e' },
+  plating: { name: '皮下装甲', description: '护甲上限 +25', costs: [650, 1300, 2300], color: '#6f9fc4' },
+  muscle: { name: '肌肉纤维', description: '移动速度 +6%', costs: [600, 1200, 2200], color: '#f2c94c' },
+  carry: { name: '负重骨架', description: '背包容量 +4', costs: [500, 1000, 1800], color: '#7fd6b0' }
+};
+
 export const RACE = { checkpoints: 3, seconds: 110, base: 900 };
 
 export const CONTRACT_META = {
   delivery: { name: '急送', description: '把包裹送到指定地点，路上小心警察', color: '#70dbb1' },
   bounty: { name: '悬赏', description: '找到并击倒标记目标，目标会还击', color: '#f39485' },
   vehicle: { name: '偷车', description: '偷走标记车辆，开到任意车行交货', color: '#84c8e8' },
-  race: { name: '狂飙', description: '按顺序穿过三个检查点，限时完成', color: '#f2d57d' }
+  race: { name: '狂飙', description: '按顺序穿过三个检查点，限时完成', color: '#f2d57d' },
+  player: { name: '猎杀', description: '锁定一名玩家；目标存活到倒计时结束则委托失败', color: '#e0675e' },
+  heist: { name: '劫案', description: '三阶段：取得钥匙卡、打开金库、把赃款送到撤离点', color: '#f0c97b' }
 };
 
 const hash = (a, b) => {
@@ -281,7 +314,13 @@ export function cityMove(p, dx, dy, obstacles = [], radius = BODY_RADIUS) {
 export function cityDrive(car, input, dt, obstacles = []) {
   let { heading, speed } = car;
   const power = Math.min(1, Math.hypot(input.x, input.y));
-  if (power > .1) {
+  if (input.brake) {
+    speed = Math.max(0, speed - 1100 * dt);
+    if (power > .1) {
+      const desired = Math.atan2(input.y, input.x), diff = Math.atan2(Math.sin(desired - heading), Math.cos(desired - heading));
+      heading += clamp(diff, -4.6 * dt, 4.6 * dt);
+    }
+  } else if (power > .1) {
     const desired = Math.atan2(input.y, input.x), diff = Math.atan2(Math.sin(desired - heading), Math.cos(desired - heading));
     heading += clamp(diff, -3.5 * dt, 3.5 * dt);
     speed = Math.min(580 * power, speed + 420 * dt);
