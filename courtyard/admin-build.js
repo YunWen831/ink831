@@ -1,4 +1,4 @@
-import {buildRectangle} from './bulk-rules.js?v=0.15.0';
+import {buildRectangle} from './bulk-rules.js?v=0.15.1';
 export function createAdminBuild({endpoint,user,allowed,start,finish,toast}){
  const dialog=document.createElement('dialog');dialog.className='modal confirm-modal';dialog.id='bulkDialog';dialog.innerHTML='<div class="modal-heading"><h2>批量拆除</h2><button class="close-button" aria-label="关闭">×</button></div><p id="bulkRegion"></p><p id="bulkCount"></p><p class="muted">选区内的墙块、地砖和导入画均会拆除，包括他人保护和旧建筑。材料画布保留。</p><button id="bulkConfirm" class="primary-button">确认拆除</button><p id="bulkMessage" class="form-message" role="status"></p>';document.body.append(dialog);
  const bar=document.createElement('div');bar.className='mural-placement';bar.hidden=true;bar.innerHTML='<span>拖动框选，或依次点击两个角</span><button>取消</button>';document.getElementById('arena').append(bar);

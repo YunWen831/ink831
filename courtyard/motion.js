@@ -1,5 +1,5 @@
-import { WORLD, move } from './world.js?v=0.15.0';
-import {CAR,slide} from './lobby-rules.js?v=0.15.0';
+import { WORLD, move } from './world.js?v=0.15.1';
+import {CAR,slide} from './lobby-rules.js?v=0.15.1';
 
 // Use acknowledged simulation time for direction, since packets can arrive
 // together after a tunnel stall. This never changes authoritative game state.

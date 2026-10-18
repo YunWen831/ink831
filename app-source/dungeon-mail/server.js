@@ -55,7 +55,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts,worldStore,notifyAdministration));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.15.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.15.1' }));
 app.get('/api/materials/:id',(req,res)=>{
   const material=worldStore.data.materials.find(m=>m.id===req.params.id);
   if(!material)return res.status(404).json({error:'材料已不存在'});
@@ -69,7 +69,7 @@ app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
 app.get('/assets/favicon.svg',(req,res)=>res.sendFile(resolve(sourceRoot,'assets/favicon.svg')));
 app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true,setHeaders:(res,path)=>{
   const request=new URL(res.req.url,'http://localhost');
-  res.setHeader('Cache-Control',request.searchParams.get('v')==='0.15.0'&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
+  res.setHeader('Cache-Control',request.searchParams.get('v')==='0.15.1'&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
 }}));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({

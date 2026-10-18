@@ -1,5 +1,5 @@
-import {RELAY_MODES} from './relay-rules.js?v=0.15.0';
-import {CLASSIC_SWATCHES} from './materials.js?v=0.15.0';
+import {RELAY_MODES} from './relay-rules.js?v=0.15.1';
+import {CLASSIC_SWATCHES} from './materials.js?v=0.15.1';
 
 export function drawPage(canvas,strokes){
   const ctx=canvas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,640,420);ctx.lineCap=ctx.lineJoin='round';

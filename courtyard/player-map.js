@@ -1,4 +1,4 @@
-import {WORLD,TILE_SIZE,FACILITIES} from './world.js?v=0.15.0';
+import {WORLD,TILE_SIZE,FACILITIES} from './world.js?v=0.15.1';
 export function createPlayerMap({players,tiles,self}){
  const dialog=document.createElement('dialog');dialog.className='modal player-map-modal';dialog.id='playerMapDialog';dialog.innerHTML='<div class="modal-heading"><h2>大厅玩家地图</h2><button class="close-button" aria-label="关闭">×</button></div><canvas id="playerMapCanvas" width="960" height="720" aria-label="大厅地图上的玩家位置"></canvas><div id="mapPlayerList" class="map-player-list"></div>';document.body.append(dialog);
  const canvas=dialog.querySelector('canvas'),ctx=canvas.getContext('2d'),list=dialog.querySelector('#mapPlayerList');dialog.querySelector('button').onclick=()=>dialog.close();

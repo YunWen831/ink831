@@ -1,25 +1,24 @@
-import {createMaterialLoader} from './material-loader.js?v=0.15.0';
-import {createLobbyGame} from './lobby-game.js?v=0.15.0';
-import {lobbyMove} from './lobby-rules.js?v=0.15.0';
-import {createAdminBuild} from './admin-build.js?v=0.15.0';
-import {createPlayerMap} from './player-map.js?v=0.15.0';
-import {isLibraryMaterial,expiredMaterial,RECYCLE_MS} from './material-lifecycle.js?v=0.15.0';
-import {createRelay} from './relay-game.js?v=0.15.0';
-import {isRelay} from './relay-rules.js?v=0.15.0';
-import {createMural} from './mural.js?v=0.15.0';
-import {PARTY_MODES,partyModeName} from './party-rules.js?v=0.15.0';
-import {createPartyGame} from './party-game.js?v=0.15.0';
-import {createAdmin} from './admin.js?v=0.15.0';
-import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.15.0';
-import { BUILTIN_MATERIALS } from './materials.js?v=0.15.0';
-import { createScene } from './scene.js?v=0.15.0';
-import { createPainter, preview } from './art.js?v=0.15.0';
-import { createPractice } from './parkour-game.js?v=0.15.0';
-import { createEditor } from './parkour-editor.js?v=0.15.0';
-import { bubbleDuration } from './chat.js?v=0.15.0';
-import { createAccounts } from './account.js?v=0.15.0';
-import { createAvatarPainter } from './avatar.js?v=0.15.0';
-import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.15.0';
+import {createMaterialLoader} from './material-loader.js?v=0.15.1';
+import {lobbyMove} from './lobby-rules.js?v=0.15.1';
+import {createAdminBuild} from './admin-build.js?v=0.15.1';
+import {createPlayerMap} from './player-map.js?v=0.15.1';
+import {isLibraryMaterial,expiredMaterial,RECYCLE_MS} from './material-lifecycle.js?v=0.15.1';
+import {createRelay} from './relay-game.js?v=0.15.1';
+import {isRelay} from './relay-rules.js?v=0.15.1';
+import {createMural} from './mural.js?v=0.15.1';
+import {PARTY_MODES,partyModeName} from './party-rules.js?v=0.15.1';
+import {createPartyGame} from './party-game.js?v=0.15.1';
+import {createAdmin} from './admin.js?v=0.15.1';
+import { WORLD, move, FACILITIES, TILE_SIZE, BUILD_REACH, isBuildCell, tileKey } from './world.js?v=0.15.1';
+import { BUILTIN_MATERIALS } from './materials.js?v=0.15.1';
+import { createScene } from './scene.js?v=0.15.1';
+import { createPainter, preview } from './art.js?v=0.15.1';
+import { createPractice } from './parkour-game.js?v=0.15.1';
+import { createEditor } from './parkour-editor.js?v=0.15.1';
+import { bubbleDuration } from './chat.js?v=0.15.1';
+import { createAccounts } from './account.js?v=0.15.1';
+import { createAvatarPainter } from './avatar.js?v=0.15.1';
+import {RIG_LENGTH,packRig,validAvatarRecord} from './avatar-rig.js?v=0.15.1';
 
 const $=id=>document.getElementById(id);
 const touchDevice=navigator.maxTouchPoints>0||matchMedia('(any-pointer:coarse)').matches;
@@ -37,7 +36,6 @@ let joystick={x:0,y:0},rosterSignature='',toastTimer=0,checkTask=null,tool='walk
 let selectedId=store.get('dungeon-mail-material')||'stone',lastChat=-Infinity,spaceUiSignature='';
 let practicing=false,mapWasHidden=false,arenaMode='',matchStatus=null,localMapDirty=false;
 let savedLevels=[],levelOpening=null,levelConfirmAction=null;
-let forcedPvp=false;
 const ensureMaterial=createMaterialLoader({materials,base:()=>endpoint||location.origin,loaded:id=>{if(id===selectedId)preview($('selectedTexture'),materials.get(id));}});
 function putMaterial(m){const old=materials.get(m.id);materials.set(m.id,{...m,...(old?.rev===m.rev&&old?.pixels?{pixels:old.pixels}:{})});}
 function log(message){events.push({at:new Date().toISOString(),message});if(events.length>30)events.shift();}
@@ -57,7 +55,7 @@ function controls(){
   for(const id of ['editorCloudSave','editorCloudCopy'])$(id).disabled=!active||!ownUserId()||editor.saving;
   for(const id of ['editorLibrary','levelNew','levelRefresh','levelDraft'])$(id).disabled=!active||!ownUserId();
 }
-function setTool(value){tool=value;if(value!=='walk')lobbyGame.disarm();resetInput();for(const b of document.querySelectorAll('[data-tool]')){b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));}
+function setTool(value){tool=value;resetInput();for(const b of document.querySelectorAll('[data-tool]')){b.classList.toggle('active',b.dataset.tool===tool);b.setAttribute('aria-pressed',String(b.dataset.tool===tool));}
   $('toolHint').textContent=tool==='bulk'?'管理员：框选区域批量拆除':tool==='stamp'?'点地图预览整幅像素画':tool==='walk'?'WASD 移动 · E 互动':tool==='place'?'点击 / 拖动放置 · 右键拆除':'点击 / 拖动拆除';
 }
 function roster(){
@@ -106,8 +104,7 @@ function applyState(state){
   }
   tiles.clear();state.tiles?.forEach((b,key)=>tiles.set(key,{col:b.col,row:b.row,material:b.material,solid:b.solid,ownerId:b.ownerId}));
   lobbyPlayers.clear();state.players.forEach((p,id)=>{if(p.space==='lobby')lobbyPlayers.set(id,{id,name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected});});
-  forcedPvp=state.forcedPvp;
-  players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready,userId:p.userId,epoch:p.epoch,hp:p.hp,pvp:p.pvp,driving:p.driving,speed:p.speed,heading:p.heading,weapon:p.weapon,ammo:p.ammo,reloadUntil:p.reloadUntil,respawnAt:p.respawnAt,shieldUntil:p.shieldUntil});});
+  players.clear();state.players.forEach((p,id)=>{if(p.space===space)players.set(id,{name:p.name,x:p.x,y:p.y,color:p.color,connected:p.connected,ack:p.ack,ready:p.ready,userId:p.userId,epoch:p.epoch,driving:p.driving,speed:p.speed,heading:p.heading});});
   pending=pending.filter(step=>step.seq>own.ack);predicted={...players.get(room.sessionId)};for(const step of pending)Object.assign(predicted,space==='lobby'?lobbyMove(predicted,step.dx,step.dy,tiles):move(predicted,step.dx,step.dy));
   if(changed||$('coordinates').textContent==='等待进入')$('coordinates').textContent=`${Math.round(predicted.x)}, ${Math.round(predicted.y)}`;
   roster();if(changed||!$('peopleCard').hidden)updateSpaceUI();
@@ -198,7 +195,6 @@ function attach(joined){
   spaceUiSignature='';document.body.classList.add('in-world');$('loginOverlay').hidden=true;$('peopleCard').hidden=false;$('connectionShade').hidden=true;$('touchControls').hidden=!touchDevice;controls();renderChat();
   status('online','已连接','');log('joined public courtyard');saveSession();
   joined.onStateChange(state=>{if(room===joined)applyState(state);});
-  for(const type of ['lobby:pickups','lobby:shot','lobby:death','lobby:mode'])joined.onMessage(type,data=>{if(room===joined)lobbyGame.receive(type,data);});
   joined.onMessage('pong',stamp=>{if(room!==joined||typeof stamp!=='number')return;latency=Math.round(performance.now()-stamp);lastPong=performance.now();$('latency').replaceChildren(document.createTextNode(String(latency)),Object.assign(document.createElement('small'),{textContent:' ms'}));if(online)status('online','已连接',latency>300?'网络较慢':'');});
   joined.onMessage('space:launch',()=>{if(room===joined){spaceBusy=false;controls();updateSpaceUI();}});
   joined.onMessage('relay:ack',data=>{if(room===joined)relayGame.ack(data);});
@@ -243,7 +239,6 @@ function attach(joined){
   applyState(joined.state);room.send('hello');$('world').focus({preventScroll:true});
 }
 function cleanup(){
-  lobbyGame.stop();
   mural.stop();adminBuild?.stop();if(partyGame.active)partyGame.stop();if(relayGame.active)relayGame.stop();
   if(practicing)leavePractice();
   matchStatus=null;localMapDirty=false;room=null;online=false;predicted=null;pending=[];outgoing=[];space='lobby';epoch=0;spaces=[];spaceBusy=false;spaceUiSignature='';players.clear();lobbyPlayers.clear();tiles.clear();emotes.clear();speech.clear();histories.clear();resetInput();rosterSignature='';setTool('walk');
@@ -255,7 +250,7 @@ function friendly(error){const message=String(error?.message||error);if(/full|lo
 async function enter(){
   if(busy||room)return;const name=accountUser?.nickname||$('nickname').value.trim();if(!name)return;
   busy=true;controls();$('formMessage').textContent='正在走进公共大厅…';store.set('dungeon-mail-name',name);
-  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:16,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
+  try{attach(await new Colyseus.Client(endpoint).joinOrCreate('courtyard',{name,clientVersion:17,guest:!accountUser}));$('formMessage').textContent='';}catch(error){$('formMessage').textContent=friendly(error);log('join failed '+String(error?.code||'network'));}finally{busy=false;controls();}
 }
 async function checkEndpoint(){
   if(checkTask)return checkTask;
@@ -284,6 +279,12 @@ for(const button of document.querySelectorAll('[data-facility]'))button.addEvent
 $('helpButton').addEventListener('click',()=>{resetInput();$('helpDialog').showModal();});
 $('mapButton').addEventListener('click',()=>{resetInput();playerMap.open();});
 $('minimap').addEventListener('click',()=>{resetInput();playerMap.open();});
+let carToggleAt=0;
+$('carButton').addEventListener('click',()=>{
+  if(!room||!online||space!=='lobby'||practicing||partyGame.active||relayGame.active||performance.now()<carToggleAt)return;
+  carToggleAt=performance.now()+400;mural.stop();adminBuild?.stop();setTool('walk');
+  room.send('car:toggle',{enabled:!players.get(room.sessionId)?.driving});$('world').focus({preventScroll:true});
+});
 $('homeButton').addEventListener('click',()=>{if(room&&online){resetInput();room.send('home');$('world').focus({preventScroll:true});}});
 $('retryButton').addEventListener('click',checkEndpoint);
 for(const id of ['createPartyMode','partyMode'])$(id).replaceChildren(...PARTY_MODES.map(mode=>new Option(partyModeName(mode),mode)));
@@ -323,7 +324,6 @@ joystickElement.addEventListener('pointerdown',event=>{event.preventDefault();po
 setInterval(()=>{
   if(partyGame.active||relayGame.active||practicing||!room||!online||!predicted||spaceBusy||document.hidden||document.querySelector('dialog[open]')||pending.length>150)return;
   const dx=(keys.has('d')||keys.has('arrowright')?1:0)-(keys.has('a')||keys.has('arrowleft')?1:0)+joystick.x,dy=(keys.has('s')||keys.has('arrowdown')?1:0)-(keys.has('w')||keys.has('arrowup')?1:0)+joystick.y;if(!dx&&!dy&&(!predicted.driving||!predicted.speed))return;
-  if(predicted.hp<=0)return;
   const norm=Math.max(1,Math.hypot(dx,dy)),step={seq:++seq,dx:dx/norm,dy:dy/norm};Object.assign(predicted,space==='lobby'?lobbyMove(predicted,step.dx,step.dy,tiles):move(predicted,step.dx,step.dy));pending.push(step);outgoing.push(step);
 },WORLD.stepMs);
 setInterval(()=>{if(room&&online&&!spaceBusy&&outgoing.length)room.send('input',{space,epoch,steps:outgoing.splice(0,6)});},25);
@@ -333,12 +333,16 @@ setInterval(()=>{
   for(const [id,item] of speech)if(performance.now()-item.at>=bubbleDuration(item.text))speech.delete(id);
   nearFacility=!partyGame.active&&!relayGame.active&&!practicing&&room&&online&&space==='lobby'&&predicted?FACILITIES.find(f=>Math.hypot(f.x-predicted.x,f.y-predicted.y)<76)?.id||null:null;
   $('interactButton').hidden=!nearFacility;if(nearFacility)$('interactButton').lastElementChild.textContent='进入'+FACILITIES.find(f=>f.id===nearFacility).name;
+  const drivingActive=!!room&&online&&space==='lobby'&&!practicing&&!partyGame.active&&!relayGame.active;
+  const me=players.get(room?.sessionId);$('lobbyModes').hidden=!drivingActive;
+  $('carButton').disabled=!drivingActive||performance.now()<carToggleAt;
+  $('carButton').textContent=me?.driving?'下车':'开车';$('carButton').setAttribute('aria-pressed',String(!!me?.driving));
+  $('carSpeed').hidden=!drivingActive||!me?.driving;$('carSpeed').textContent=`${Math.round((predicted?.speed||0)/WORLD.speed*10)/10}× 车速`;
   $('areaLabel').textContent=space!=='lobby'?'小队':'大厅';
   if(room&&online&&performance.now()-lastPong>9000)status('reconnecting','响应较慢','暂时没有收到服务器响应，正在等待恢复。');
 },150);
 const playerMap=createPlayerMap({players:()=>lobbyPlayers,tiles:()=>tiles,self:()=>room?.sessionId});
-const scene=createScene($('world'),()=>({players,tiles,materials,avatars,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,stamp:mural.stamp,bulkRect:adminBuild?.rect,forcedPvp,lobbyGame,ensureMaterial,practicing:practicing||partyGame.active||relayGame.active}));
-const lobbyGame=createLobbyGame({send:(type,data)=>{if(room&&online)room.send(type,data);},self:()=>room?.sessionId,players:()=>players,active:()=>!!room&&online&&space==='lobby'&&!practicing&&!partyGame.active&&!relayGame.active,connected:()=>!!room&&online,admin:()=>!!accountUser?.admin,forced:()=>forcedPvp,pointAt:(x,y)=>scene.pointAt(x,y),position:()=>predicted,setWalk:()=>{mural.stop();adminBuild?.stop();setTool('walk');},toast});
+const scene=createScene($('world'),()=>({players,tiles,materials,avatars,emotes,speech,self:room?.sessionId,me:predicted,space,tool,hover,nearFacility,stamp:mural.stamp,bulkRect:adminBuild?.rect,ensureMaterial,practicing:practicing||partyGame.active||relayGame.active}));
 const practice=createPractice($('parkourWorld'),{stick:()=>joystick,online:()=>online,color:()=>players.get(room?.sessionId)?.color,self:()=>room?.sessionId,speech:id=>speech.get(id||room?.sessionId),send:(type,data)=>{if(room&&online)room.send(type,data);}});
 const partyGame=createPartyGame({send:(type,data)=>{if(room&&online)room.send(type,data);},self:()=>room?.sessionId,online:()=>online,speech:id=>speech.get(id),replay:()=>{if(room&&online)room.send('space:start');},vote:mode=>{if(room&&online)room.send('party:vote',{id:partyGame.matchId,mode});},onActive:setGameActive});
 function setGameActive(active){
@@ -376,7 +380,7 @@ $('practiceBack').addEventListener('click',()=>{if(arenaMode==='verify')room?.se
 function mapCell(event){const point=scene.pointAt(event.clientX,event.clientY);return {col:Math.floor(point.x/TILE_SIZE),row:Math.floor(point.y/TILE_SIZE)};}
 let buildPointer=null,lastBuildAt=0,lastBuildKey='';
 function construct(event){
-  if(!room||!online||space!=='lobby'||!predicted||predicted.hp<=0||predicted.driving||lobbyGame.equipped||tool==='walk'||tool==='stamp'||tool==='bulk')return;
+  if(!room||!online||space!=='lobby'||!predicted||predicted.driving||tool==='walk'||tool==='stamp'||tool==='bulk')return;
   const {col,row}=mapCell(event);hover={col,row};
   if(!isBuildCell(col,row))return;
   if(Math.hypot(predicted.x-(col+.5)*TILE_SIZE,predicted.y-(row+.5)*TILE_SIZE)>BUILD_REACH){if(event.type==='pointerdown')toast('走近一点');return;}
@@ -392,14 +396,14 @@ $('world').addEventListener('pointerdown',event=>{
   if(!room||!online)return;$('world').focus({preventScroll:true});
   if(adminBuild?.active){event.preventDefault();$('world').setPointerCapture(event.pointerId);adminBuild.down(mapCell(event));return;}
   if(mural.placing){event.preventDefault();mural.point(mapCell(event),true);return;}
-  if(lobbyGame.equipped||predicted?.driving)return;
+  if(predicted?.driving)return;
   if(tool==='walk'){const point=scene.pointAt(event.clientX,event.clientY);const clicked=FACILITIES.find(f=>f.id===nearFacility&&Math.hypot(f.x-point.x,f.y-point.y)<60);if(clicked)openFacility(clicked.id);return;}
   event.preventDefault();lastBuildKey='';buildPointer=event.pointerId;$('world').setPointerCapture(event.pointerId);construct(event);
 });
 $('world').addEventListener('pointerup',event=>adminBuild?.up(mapCell(event)));
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.15.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.15.1',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();
