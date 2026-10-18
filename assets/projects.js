@@ -27,14 +27,6 @@ window.YUNWEN_PROJECTS = [
     imageAlt: '地牢来信：两位旅人在庭院里交换一封信'
   },
   {
-    title: 'codex连',
-    category: 'game',
-    description: '单词连线',
-    href: './chain/index.html',
-    image: './assets/chain-cover.svg',
-    imageAlt: 'codex连：单词连线地牢'
-  },
-  {
     title: '在学校乱逛',
     category: 'game',
     description: '校园探索',
@@ -43,21 +35,5 @@ window.YUNWEN_PROJECTS = [
     href: './campus/index.html',
     image: './assets/campus-cover.png',
     imageAlt: '校园像素游戏画面'
-  },
-  {
-    title: 'ds词塔',
-    category: 'game',
-    description: '单词肉鸽',
-    href: './vocab/index.html',
-    image: './assets/vocab-cover.png',
-    imageAlt: 'ds词塔战斗界面'
-  },
-  {
-    title: 'qoder言',
-    category: 'game',
-    description: '单词地牢',
-    href: './spell/index.html',
-    image: './assets/spell-cover.png',
-    imageAlt: 'qoder言游戏画面'
   }
 ];
