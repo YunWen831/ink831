@@ -1,4 +1,5 @@
 import { SWATCHES, CLASSIC_SWATCHES, decodePixels, encodePixels, materialSize, resizePixels } from './materials.js?v=0.16.0';
+import {readPixelImage,sampleImage} from './image-import.js?v=0.16.0';
 import { createColorPicker } from './color-picker.js?v=0.16.0';
 
 const textures=new Map();
@@ -21,7 +22,7 @@ export function preview(canvas,material){
 export function createPainter(onSave){
   const $=id=>document.getElementById(id),canvas=$('pixelCanvas'),ctx=canvas.getContext('2d');
   let size=32,pixels=Array(size*size).fill('00000000'),color='c16d58ff',tool='brush',pointer=null,last=null,cursor=0;
-  const undo=[];let picker=null;
+  const undo=[];let picker=null,importGeneration=0;
   function remember(){undo.push({pixels:pixels.slice(),size});if(undo.length>40)undo.shift();}
   function draft(){try{localStorage.setItem('dungeon-mail-art-draft',JSON.stringify({pixels:encodePixels(pixels),size,name:$('materialName').value}));}catch{}}
   function choose(hex){
@@ -86,6 +87,13 @@ export function createPainter(onSave){
   $('paintSize').addEventListener('change',()=>{remember();const next=Number($('paintSize').value);pixels=resizePixels(pixels,next);size=next;cursor=0;last=null;render();draft();});
   $('clearPaint').addEventListener('click',()=>{remember();pixels.fill('00000000');render();draft();});
   for(const [id,name] of [['fillPaint','fill'],['erasePaint','erase'],['pickPaint','pick']])$(id).addEventListener('click',()=>setTool(tool===name?'brush':name));
+  $('importBlock').onclick=()=>$('importBlockFile').click();
+  $('importBlockFile').onchange=async()=>{
+    const file=$('importBlockFile').files[0];if(!file)return;const mine=++importGeneration;$('importBlock').disabled=true;
+    try{const image=await readPixelImage(file);try{if(mine!==importGeneration||!$('paintDialog').open)return;const sampled=sampleImage(image,size,size),decoded=decodePixels(sampled.pixels);if(!decoded)throw Error('图片转换失败。');remember();pixels=decoded;cursor=0;last=null;setTool('brush');if(!$('materialName').value.trim())$('materialName').value=Array.from(file.name.replace(/\.[^.]+$/,'')).slice(0,12).join('');render();draft();$('paintMessage').textContent='已导入，可继续编辑后保存。';}finally{image.close();}}
+    catch(error){if(mine===importGeneration)$('paintMessage').textContent=error.message;}
+    finally{if(mine===importGeneration){$('importBlock').disabled=false;$('importBlockFile').value='';}}
+  };
   $('materialName').addEventListener('input',draft);
   $('saveMaterial').addEventListener('click',()=>{
     if(!$('materialName').value.trim()||!pixels.some(p=>p.slice(6)!=='00')){$('paintMessage').textContent='请输入名称并画上颜色。';return;}

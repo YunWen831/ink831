@@ -6,9 +6,10 @@ export const relaySteps=(mode,count)=>mode==='story'?(count<=4?count*2:count):co
 export const relayKind=(mode,step)=>mode==='story'||step%2===0?'text':'drawing';
 export function validDrawing(value){
   if(!Array.isArray(value)||value.length>240)return false;
-  let points=0;
+  let points=0,fills=0;
   for(const s of value){
-    if(!Array.isArray(s)||s.length!==3||!/^#[0-9a-f]{6}$/.test(s[0])||![2,5,10,20].includes(s[1])||!Array.isArray(s[2])||s[2].length<2||s[2].length%2)return false;
+    if(!Array.isArray(s)||s.length!==3||!/^#[0-9a-f]{6}$/.test(s[0])||(![2,5,10,20].includes(s[1])&&s[1]!=='fill')||!Array.isArray(s[2])||s[2].length<2||s[2].length%2)return false;
+    if(s[1]==='fill'&&(s[2].length!==2||++fills>32))return false;
     points+=s[2].length/2;if(points>6000)return false;
     for(let i=0;i<s[2].length;i++)if(!Number.isInteger(s[2][i])||s[2][i]<0||s[2][i]>(i%2?420:640))return false;
   }

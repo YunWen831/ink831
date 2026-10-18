@@ -36,7 +36,16 @@ test('relay deadlines keep draft, reject stale requests and finish after departu
   m.save('p0',{id:m.id,step:0,revision:2,value:'草稿'});assert.equal(m.save('p0',{id:m.id,step:0,revision:1,value:'旧稿'}),false);
   now=61000;m.tick();assert.equal(m.step,1);assert.equal(m.books[0].pages[0].value,'草稿');assert.equal(m.books[0].pages[0].skipped,true);
   assert.equal(m.save('p0',{id:m.id,step:0,revision:3,value:'迟到'}),false);gone.add('p2');
-  for(let i=0;i<10&&m.phase!=='final';i++){now+=91000;m.tick();}assert.equal(m.phase,'final');
+  for(let i=0;i<10&&m.phase!=='final';i++){now+=181000;m.tick();}assert.equal(m.phase,'final');
+});
+
+test('drawing lasts three minutes, text and story retain their limits, and all submissions advance early',()=>{
+  let now=1000;const m=new RelayMatch(members(2),{mode:'relay',now:()=>now,send(){}});
+  assert.equal(m.snapshot('p0').remaining,60);now+=60000;m.tick();assert.equal(m.step,1);assert.equal(m.snapshot('p0').remaining,180);
+  now+=90000;m.tick();assert.equal(m.step,1);assert.equal(m.snapshot('p0').remaining,90);
+  for(const p of m.members){m.save(p.id,{id:m.id,step:1,revision:1,value:[['#ff0000',5,[10,10,20,20]]]});m.submit(p.id,{id:m.id,step:1,revision:1});}
+  assert.equal(m.step,2);assert.equal(m.snapshot('p0').remaining,60);
+  const story=new RelayMatch(members(2),{mode:'story',now:()=>now,send(){}});assert.equal(story.snapshot('p0').remaining,90);
 });
 test('bounded uploads reject malformed chunks and expire',()=>{
   let now=0;const u=new TextUpload(4,100,()=>now);u.append(0,'ab');assert.throws(()=>u.append(0,'cd'));u.append(1,'cd');assert.equal(u.finish(),'abcd');now=31000;assert.throws(()=>u.finish());assert.throws(()=>new TextUpload(1000000));
