@@ -11,6 +11,14 @@ window.YUNWEN_PROJECTS = [
     imageAlt: 'Y课表软件插画'
   },
   {
+    title: '棱',
+    category: 'game',
+    description: '光色穿行',
+    href: './prism/index.html',
+    image: './assets/prism-cover.svg?v=prism-1',
+    imageAlt: '棱：光与玻璃走廊中的色彩穿行游戏'
+  },
+  {
     title: '回声',
     category: 'game',
     description: '声呐潜行',

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="description" content="棱 PRISM：在玻璃长廊里把光调成门想要的颜色。明亮的光色穿行游戏。">
+<meta name="theme-color" content="#f3eee3">
+<title>棱 PRISM · 光色穿行</title>
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./style.css?v=prism-1">
+</head>
+<body data-screen="title">
+<div class="stage">
+  <canvas id="gl" role="img" aria-label="棱：一条漂浮在暖白虚空里的玻璃长廊"></canvas>
+  <div class="paper-grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <header class="hud" id="hud">
+    <div class="hud-top">
+      <div class="hud-block">
+        <span class="kicker" id="hud-chapter">01 / 05</span>
+        <strong class="hud-name" id="hud-name">白</strong>
+      </div>
+      <div class="hud-center">
+        <div class="next-chip">
+          <span class="next-symbol" id="hud-next-symbol">○</span>
+          <span class="next-name" id="hud-next-name">白</span>
+          <span class="next-distance" id="hud-distance">120 m</span>
+        </div>
+        <div class="progress" aria-hidden="true"><span id="hud-bar"></span></div>
+      </div>
+      <div class="hud-block right">
+        <div class="hud-stats">
+          <span class="hud-score" id="hud-score">0</span>
+          <span class="hud-combo" id="hud-combo">—</span>
+        </div>
+        <div class="hud-controls">
+          <button type="button" id="btn-mute" class="micro" aria-label="声音开关">声音</button>
+          <button type="button" id="btn-pause" class="micro" aria-label="暂停">暂停</button>
+        </div>
+      </div>
+    </div>
+    <div class="hud-bottom">
+      <div class="color-readout">
+        <span class="kicker">身上的光</span>
+        <div class="lamps" aria-hidden="true">
+          <span class="lamp r" id="lamp-r">R</span>
+          <span class="lamp g" id="lamp-g">G</span>
+          <span class="lamp b" id="lamp-b">B</span>
+        </div>
+        <strong class="color-name" id="hud-color-name">净 ○</strong>
+      </div>
+      <div class="facet-wrap">
+        <span class="kicker">棱片</span>
+        <div class="facets" id="hud-facets" aria-label="剩余棱片"></div>
+      </div>
+      <button type="button" id="btn-vent" class="vent-button" aria-label="吐息，丢掉最后吃下的颜色">
+        <span class="vent-ring" aria-hidden="true"></span>
+        <strong>吐息</strong>
+        <small>SPACE</small>
+      </button>
+    </div>
+  </header>
+
+  <section id="screen-title" class="screen title-screen">
+    <div class="title-grid">
+      <div class="title-left">
+        <span class="kicker">YUNWEN / 05</span>
+        <h1 class="title-cn" aria-label="棱">棱</h1>
+        <p class="title-en">PRISM</p>
+        <p class="title-line">一束光穿过玻璃长廊。<br>把光，调成门想要的颜色。</p>
+        <div class="title-actions">
+          <button type="button" id="btn-start" class="primary">开始</button>
+          <button type="button" id="btn-chapters" class="ghost">章节</button>
+          <button type="button" id="btn-settings" class="ghost">设置</button>
+        </div>
+      </div>
+      <div class="title-right">
+        <div class="title-rule" aria-hidden="true"></div>
+        <div class="title-meta">
+          <span>光色穿行</span>
+          <span>WEBGL · 05 CHAPTERS</span>
+        </div>
+        <p class="title-best" id="title-best">一次穿过所有颜色</p>
+        <div class="legend" aria-hidden="true">
+          <span><i class="swatch r"></i>红</span>
+          <span><i class="swatch g"></i>绿</span>
+          <span><i class="swatch b"></i>蓝</span>
+          <span><i class="swatch y"></i>黄</span>
+          <span><i class="swatch c"></i>青</span>
+          <span><i class="swatch m"></i>品红</span>
+          <span><i class="swatch w"></i>白</span>
+        </div>
+        <p class="title-note">收集红、绿、蓝。<br>两种光相遇，会变成另一种颜色。<br>白门要三色齐备。</p>
+      </div>
+    </div>
+    <footer class="title-footer">
+      <span>拖动移动 · 空格吐息</span>
+      <span>无图片 · 无音频文件 · 手写 WebGL</span>
+      <a href="../index.html">← 返回首页</a>
+    </footer>
+  </section>
+
+  <section id="screen-chapters" class="screen panel-screen">
+    <div class="panel-inner">
+      <header class="panel-head">
+        <div>
+          <span class="kicker">SELECT</span>
+          <h2>章节</h2>
+        </div>
+        <button type="button" id="btn-chapters-back" class="ghost">返回</button>
+      </header>
+      <div class="chapter-list" id="chapter-list"></div>
+    </div>
+  </section>
+
+  <section id="screen-settings" class="screen panel-screen">
+    <div class="panel-inner narrow">
+      <header class="panel-head">
+        <div>
+          <span class="kicker">SETTINGS</span>
+          <h2>设置</h2>
+        </div>
+        <button type="button" id="btn-settings-back" class="ghost">返回</button>
+      </header>
+      <div class="settings-grid">
+        <div class="setting">
+          <span class="setting-label">画质</span>
+          <div class="seg" role="group" aria-label="画质">
+            <button type="button" id="quality-auto" aria-pressed="true">自动</button>
+            <button type="button" id="quality-high" aria-pressed="false">高</button>
+            <button type="button" id="quality-low" aria-pressed="false">低</button>
+          </div>
+        </div>
+        <div class="setting">
+          <span class="setting-label">动效</span>
+          <button type="button" id="btn-motion" class="toggle" aria-pressed="true">开</button>
+        </div>
+        <div class="setting">
+          <span class="setting-label">声音</span>
+          <button type="button" id="btn-sound" class="toggle" aria-pressed="true">开启</button>
+          <label class="volume"><span class="sr-only">音量</span><input id="volume" type="range" min="0" max="100" value="70"></label>
+        </div>
+      </div>
+      <p class="settings-note">进度、最佳分和设置只保存在本机 localStorage。没有服务器，也没有账号。</p>
+    </div>
+  </section>
+
+  <section id="screen-intro" class="screen intro-screen">
+    <div class="intro-inner">
+      <span class="kicker" id="intro-index">01 / 05</span>
+      <h2 class="intro-name" id="intro-name">白</h2>
+      <p class="intro-line" id="intro-line">一开始，你什么都没有。</p>
+      <p class="intro-hint" id="intro-hint">收集红、绿、蓝，合成白光，穿过白门。</p>
+      <p class="intro-best" id="intro-best">还没有走完这一章</p>
+      <div class="intro-actions">
+        <button type="button" id="btn-intro-start" class="primary">进入</button>
+        <button type="button" id="btn-intro-back" class="ghost">章节</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-pause" class="screen panel-screen">
+    <div class="pause-card">
+      <span class="kicker">PAUSED</span>
+      <h2>停一下</h2>
+      <p>走廊不会走掉。</p>
+      <div class="pause-actions">
+        <button type="button" id="btn-resume" class="primary">继续</button>
+        <button type="button" id="btn-restart" class="ghost">重开本章</button>
+        <button type="button" id="btn-quit" class="ghost">回到标题</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-summary" class="screen summary-screen">
+    <div class="summary-grid">
+      <div class="summary-left">
+        <span class="kicker" id="sum-kicker">CHAPTER 01 / 05 · 白</span>
+        <h2 id="sum-title">光，完全听你的</h2>
+        <div class="grade" id="sum-grade">S</div>
+      </div>
+      <div class="summary-right">
+        <div class="summary-rule" aria-hidden="true"></div>
+        <p class="summary-stats" id="sum-stats">穿门 0 / 0</p>
+        <p class="summary-best" id="sum-best">本章最佳 0</p>
+        <div class="summary-actions">
+          <button type="button" id="btn-next" class="primary">下一章</button>
+          <button type="button" id="btn-retry" class="ghost">再来一次</button>
+          <button type="button" id="btn-summary-title" class="ghost">回到标题</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screen-dead" class="screen summary-screen">
+    <div class="summary-grid">
+      <div class="summary-left">
+        <span class="kicker">LIGHT OUT</span>
+        <h2 id="dead-title">光散开了</h2>
+        <div class="grade dim">×</div>
+      </div>
+      <div class="summary-right">
+        <div class="summary-rule" aria-hidden="true"></div>
+        <p class="summary-stats" id="dead-stats">穿门 0</p>
+        <div class="summary-actions">
+          <button type="button" id="btn-dead-retry" class="primary">再来一次</button>
+          <button type="button" id="btn-dead-title" class="ghost">回到标题</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="fallback" class="screen fallback">
+    <span class="kicker">NO WEBGL</span>
+    <h2>这条走廊需要 WebGL</h2>
+    <p id="fallback-msg">这个浏览器暂时没有可用的 WebGL。换一个现代浏览器，或者打开硬件加速再试。</p>
+    <a href="../index.html" class="primary">返回首页</a>
+  </section>
+
+  <pre id="probe" hidden></pre>
+  <p id="live" class="sr-only" aria-live="polite"></p>
+  <span id="hud-mask" class="sr-only">净</span>
+</div>
+<script src="./levels.js?v=prism-1"></script>
+<script src="./audio.js?v=prism-1"></script>
+<script src="./render.js?v=prism-1"></script>
+<script src="./game.js?v=prism-1"></script>
+</body>
+</html>

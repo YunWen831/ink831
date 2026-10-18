@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="800" viewBox="0 0 1280 800">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbf8f0"/>
+      <stop offset=".52" stop-color="#f3eee3"/>
+      <stop offset="1" stop-color="#e9e1d2"/>
+    </linearGradient>
+    <radialGradient id="portal" cx=".73" cy=".5" r=".33">
+      <stop offset="0" stop-color="#fffdf8"/>
+      <stop offset=".45" stop-color="#f6efe2"/>
+      <stop offset="1" stop-color="#f3eee3" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="warm" cx=".5" cy=".5" r=".5">
+      <stop offset="0" stop-color="#ffd9a8" stop-opacity=".55"/>
+      <stop offset="1" stop-color="#ffd9a8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="spectrum" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a45"/>
+      <stop offset=".18" stop-color="#ffd34d"/>
+      <stop offset=".36" stop-color="#3ddc84"/>
+      <stop offset=".54" stop-color="#4de3f2"/>
+      <stop offset=".72" stop-color="#4c8dff"/>
+      <stop offset=".88" stop-color="#f07cff"/>
+      <stop offset="1" stop-color="#ff5a45"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff5a45"/>
+      <stop offset=".25" stop-color="#ffd34d"/>
+      <stop offset=".5" stop-color="#3ddc84"/>
+      <stop offset=".75" stop-color="#4de3f2"/>
+      <stop offset="1" stop-color="#4c8dff"/>
+    </linearGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="24"/>
+    </filter>
+    <filter id="soft8" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+      <feComponentTransfer><feFuncA type="linear" slope=".12"/></feComponentTransfer>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="800" fill="url(#paper)"/>
+  <rect x="900" y="80" width="760" height="680" fill="url(#portal)"/>
+
+  <!-- 长廊：全部线条收束到门心 -->
+  <g fill="none" stroke="#211f1a" stroke-opacity=".10" stroke-width="1.5">
+    <path d="M0 0 L930 400 M0 800 L930 400 M1280 0 L930 400 M1280 800 L930 400"/>
+    <path d="M250 150 L930 400 L250 650 M1170 150 L930 400 L1170 650"/>
+    <path d="M420 265 L930 400 L420 535 M1050 265 L930 400 L1050 535"/>
+    <path d="M560 330 L930 400 L560 470 M1000 330 L930 400 L1000 470"/>
+  </g>
+  <g fill="none" stroke="#211f1a" stroke-opacity=".055" stroke-width="1">
+    <path d="M0 120 L930 400 M0 250 L930 400 M0 550 L930 400 M0 680 L930 400"/>
+    <path d="M250 150 L250 650 M420 265 L420 535 M560 330 L560 470 M1050 265 L1050 535 M1170 150 L1170 650"/>
+  </g>
+
+  <!-- 玻璃隔断的微光 -->
+  <g opacity=".55">
+    <polygon points="250,150 420,265 420,535 250,650" fill="#ffffff" opacity=".16"/>
+    <polygon points="1170,150 1050,265 1050,535 1170,650" fill="#ffffff" opacity=".22"/>
+    <polygon points="0,0 250,150 250,650 0,800" fill="#ffffff" opacity=".10"/>
+    <polygon points="1280,0 1170,150 1170,650 1280,800" fill="#ffffff" opacity=".12"/>
+  </g>
+
+  <!-- 门心的呼吸光 -->
+  <circle cx="930" cy="400" r="230" fill="url(#warm)" filter="url(#soft)"/>
+  <circle cx="930" cy="400" r="34" fill="#fffdf8" filter="url(#soft8)" opacity=".9"/>
+
+  <!-- 光谱光束：从左下的棱镜射进门 -->
+  <g opacity=".62" filter="url(#soft8)">
+    <polygon points="700,690 930,238 930,562 700,710" fill="url(#spectrum)" opacity=".55"/>
+  </g>
+  <g opacity=".9">
+    <polygon points="690,690 930,300 930,330 690,704" fill="#ff5a45" opacity=".85"/>
+    <polygon points="690,698 930,360 930,390 690,712" fill="#ffd34d" opacity=".85"/>
+    <polygon points="690,706 930,420 930,450 690,720" fill="#3ddc84" opacity=".85"/>
+    <polygon points="690,714 930,480 930,510 690,728" fill="#4de3f2" opacity=".85"/>
+    <polygon points="690,722 930,540 930,570 690,736" fill="#4c8dff" opacity=".85"/>
+  </g>
+
+  <!-- 棱镜 -->
+  <polygon points="560,706 664,532 768,706" fill="#fbf7ec" fill-opacity=".82" stroke="#211f1a" stroke-width="2.5"/>
+  <polygon points="560,706 664,532 700,700" fill="#ffffff" opacity=".35"/>
+  <path d="M120 690 L648 690" stroke="#211f1a" stroke-opacity=".22" stroke-width="2" stroke-dasharray="7 9"/>
+  <path d="M120 690 L560 690" stroke="#211f1a" stroke-opacity=".55" stroke-width="3"/>
+
+  <!-- 棱门：深墨外环 + 光谱内环 + 徽章 -->
+  <ellipse cx="930" cy="400" rx="152" ry="184" fill="none" stroke="#211f1a" stroke-width="9"/>
+  <ellipse cx="930" cy="400" rx="137" ry="169" fill="none" stroke="url(#ring)" stroke-width="4" opacity=".9"/>
+  <ellipse cx="930" cy="400" rx="163" ry="195" fill="none" stroke="#211f1a" stroke-width="1.2" opacity=".35"/>
+  <g transform="translate(890 374)">
+    <rect width="80" height="52" rx="3" fill="#211f1a"/>
+    <polygon points="20,38 28,22 36,38" fill="#fbf8f0"/>
+    <rect x="42" y="23" width="15" height="15" fill="#fbf8f0"/>
+  </g>
+
+  <!-- 三颗色粒 -->
+  <g>
+    <circle cx="786" cy="286" r="42" fill="#ff5a45" opacity=".18" filter="url(#soft8)"/>
+    <circle cx="786" cy="286" r="15" fill="#ff5a45"/>
+    <circle cx="786" cy="286" r="6" fill="#fff8f0"/>
+    <circle cx="1030" cy="516" r="38" fill="#3ddc84" opacity=".16" filter="url(#soft8)"/>
+    <circle cx="1030" cy="516" r="13" fill="#3ddc84"/>
+    <circle cx="1030" cy="516" r="5" fill="#fff8f0"/>
+    <circle cx="760" cy="490" r="42" fill="#4c8dff" opacity=".18" filter="url(#soft8)"/>
+    <circle cx="760" cy="490" r="14" fill="#4c8dff"/>
+    <circle cx="760" cy="490" r="5" fill="#fff8f0"/>
+  </g>
+
+  <!-- 标题 -->
+  <g>
+    <text x="86" y="106" fill="#7c766a" font-family="Consolas, monospace" font-size="14" letter-spacing="6">YUNWEN · LIGHT / GLASS</text>
+    <text x="80" y="438" fill="#ff5a45" opacity=".16" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="312" font-weight="900" letter-spacing="-20">棱</text>
+    <text x="84" y="434" fill="#4c8dff" opacity=".14" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="312" font-weight="900" letter-spacing="-20">棱</text>
+    <text x="82" y="430" fill="#211f1a" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="312" font-weight="900" letter-spacing="-20">棱</text>
+    <text x="88" y="494" fill="#7c766a" font-family="Consolas, monospace" font-size="19" letter-spacing="17">PRISM</text>
+    <text x="88" y="548" fill="#211f1a" font-family="SimSun, serif" font-size="23" letter-spacing="2">把光，调成门想要的颜色。</text>
+    <text x="88" y="596" fill="#7c766a" font-family="Consolas, monospace" font-size="13" letter-spacing="4">53° · 05 CHAPTERS · ENDLESS</text>
+  </g>
+
+  <g fill="none" stroke="#211f1a" stroke-opacity=".16" stroke-width="1">
+    <path d="M60 60 L60 740 M48 60 L60 60 M48 740 L60 740"/>
+    <path d="M1220 60 L1220 740 M1220 60 L1232 60 M1220 740 L1232 740"/>
+  </g>
+
+  <rect width="1280" height="800" filter="url(#grain)" opacity=".34" style="mix-blend-mode:multiply"/>
+</svg>
