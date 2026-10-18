@@ -1,4 +1,5 @@
 import {materialInfo} from './material-catalog.js';
+import {CityMatch} from './city-match.js';
 import {lobbyMove} from '../../courtyard/lobby-rules.js';
 import {RelayMatch} from './relay-match.js';
 import {isRelay,relayCapacity,TextUpload} from '../../courtyard/relay-rules.js';
@@ -59,6 +60,7 @@ export class Courtyard extends Room {
   matches=new Map();
   partyMatches=new Map();
   relayMatches=new Map();
+  city=null;
   soloWorkshops=new Map();
 
   onCreate(){
@@ -81,7 +83,16 @@ export class Courtyard extends Room {
     // One global cutoff also clears cached lobby history while a player is in a party.
     this.chatSweep=setInterval(()=>this.broadcast('chat:prune',{cutoff:this.chatHistory.sweep()}),CHAT_SWEEP_MS).unref();
     this.materialSweep=setInterval(async()=>{try{const change=await worldStore.pruneMaterials();if(change.removed.length||change.retained.length)this.broadcast('materials:pruned',{...change,retained:change.retained.map(materialInfo)});}catch{console.error('Material cleanup failed; will retry.');}},30000).unref();
-    this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values(),...this.partyMatches.values(),...this.relayMatches.values()])match.tick();},1000/60).unref();
+    this.matchTick=setInterval(()=>{for(const match of [...this.matches.values(),...this.soloWorkshops.values(),...this.partyMatches.values(),...this.relayMatches.values()])match.tick();this.city?.tick();},1000/60).unref();
+    this.onMessage('city:join',client=>{
+      const p=this.state.players.get(client.sessionId);if(p?.space!=='lobby'||!this.allow(client,'cityJoin',1000))return;
+      if(this.members('city').length>=8){this.notice(client,'都市已满，最多8人，稍后再来。','city');return;}
+      if(!this.city){this.city=new CityMatch({connected:id=>{const q=this.state.players.get(id);return !!q?.connected&&q.space==='city';},send:(id,type,data)=>this.clients.find(c=>c.sessionId===id)?.send(type,data)});this.spaces.set('city',{id:'city',title:'混乱都市',type:'city',capacity:8,minPlayers:1,phase:'city',host:''});}
+      this.city.add({id:client.sessionId,name:p.name,color:p.color,userId:p.userId});this.transfer(client,'city');
+    });
+    this.onMessage('city:input',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city')this.city?.input(client.sessionId,data);});
+    this.onMessage('city:action',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityAction',100))this.city?.action(client.sessionId,data);});
+    this.onMessage('city:peek',client=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityPeek',300))client.send('city:state',this.city.snapshot(client.sessionId));});
     this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});
     this.onMessage('ping',(client,stamp)=>{if(typeof stamp==='number'&&Number.isFinite(stamp))client.send('pong',stamp);});
     this.onMessage('car:toggle',(client,data)=>{
@@ -91,7 +102,7 @@ export class Courtyard extends Room {
     });
     this.onMessage('input',(client,data)=>{
       const player=this.state.players.get(client.sessionId);
-      if(this.relayMatches.has(player?.space)||this.partyMatches.has(player?.space)||this.matches.has(player?.space)||this.soloWorkshops.has(client.sessionId))return;
+      if(player?.space==='city'||this.relayMatches.has(player?.space)||this.partyMatches.has(player?.space)||this.matches.has(player?.space)||this.soloWorkshops.has(client.sessionId))return;
       if(!player?.connected||data?.space!==player.space||data.epoch!==player.epoch||!Array.isArray(data.steps)||data.steps.length>6)return;
       const now=performance.now(),user=client.userData;
       user.credit=Math.min(400,user.credit+now-user.creditAt);user.creditAt=now;
@@ -151,6 +162,7 @@ export class Courtyard extends Room {
     this.onMessage('space:join',(client,data)=>{
       const player=this.state.players.get(client.sessionId),space=this.spaces.get(data?.id);
       if(!player||player.space!=='lobby')return;
+      if(data?.id==='city'){this.notice(client,'请从“都市”入口直接加入。','space');return;}
       if(!space){this.notice(client,'这个房间已结束，请刷新房间列表。','space');return;}
       if(space.phase!=='forming'){this.notice(client,'这队已就绪，请等房主返回准备。','space');return;}
       if(this.members(space.id).length>=space.capacity){this.notice(client,'这个房间已经满了。','space');return;}
@@ -160,6 +172,7 @@ export class Courtyard extends Room {
     this.onMessage('home',client=>{const player=this.state.players.get(client.sessionId);if(player?.space==='lobby'&&this.allow(client,'home',3000)){Object.assign(player,spawn(0,this.collisionTiles));player.speed=0;player.epoch++;}});
     this.onMessage('space:ready',client=>{
       const player=this.state.players.get(client.sessionId);if(!player||player.space==='lobby')return;
+      if(player.space==='city')return;
       if(this.relayMatches.has(player.space)||this.matches.has(player.space)||this.partyMatches.has(player.space))return;
       player.ready=!player.ready;const space=this.spaces.get(player.space);if(space)space.phase='forming';this.broadcastRooms();
     });
@@ -319,6 +332,7 @@ export class Courtyard extends Room {
   async content(client){
     const player=this.state.players.get(client.sessionId);if(!player)return;
     client.send('content',{materials:worldStore.data.materials.map(materialInfo),spaces:this.roomList(),history:this.chatHistory.read(player.space),lobbyHistory:this.chatHistory.read('lobby'),space:player.space,account:publicUser(accounts.data.users.find(u=>u.id===client.userData.accountId)),allowDemolition:worldStore.data.protection?.[client.userData.accountId]===true});
+    if(player.space==='city'&&this.city)client.send('city:state',this.city.snapshot(client.sessionId));
     const relay=this.relayMatches.get(player.space);if(relay)client.send('relay:state',relay.snapshot(client.sessionId));
     const party=this.partyMatches.get(player.space);if(party)client.send('party:state',party.snapshot());
     for(const id of new Set([...this.state.players.values()].map(p=>p.userId).filter(Boolean))){try{const avatar=await avatars.get(id);if(avatar)client.send('avatar',avatar);}catch{this.notice(client,'一件人物贴图读取失败，请联系站长。');}}
@@ -326,6 +340,7 @@ export class Courtyard extends Room {
   transfer(client,destination){
     if(this.soloWorkshops.delete(client.sessionId))client.send('parkour:closed',{});
     const player=this.state.players.get(client.sessionId),old=player.space;
+    if(old==='city'&&destination!=='city')this.city?.remove(client.sessionId);
     player.driving=false;player.speed=0;
     player.space=destination;player.ready=false;player.epoch++;Object.assign(player,spawn(this.members(destination).length%24,destination==='lobby'?this.collisionTiles:undefined));
     client.userData.credit=200;client.userData.creditAt=performance.now();
@@ -333,6 +348,7 @@ export class Courtyard extends Room {
   }
   tidy(id){
     if(id==='lobby')return;
+    if(id==='city'){if(!this.members('city').length){this.city=null;this.spaces.delete('city');this.chatHistory.delete('city');}return;}
     const members=this.members(id),space=this.spaces.get(id);
     const match=this.matches.get(id);if(match)for(const key of match.drafts.keys())if(!members.some(([id])=>id===key))match.remove(key);
     if(!members.length){this.spaces.delete(id);this.chatHistory.delete(id);this.matches.delete(id);this.partyMatches.delete(id);this.relayMatches.delete(id);}
@@ -387,7 +403,7 @@ export class Courtyard extends Room {
     finally{if(reserved)for(const key of keys)this.reserved.delete(key);}
   }
   onAuth(client,options,context){
-    if(options?.clientVersion!==17)throw new Error('页面已更新，请刷新后进入');
+    if(options?.clientVersion!==18)throw new Error('页面已更新，请刷新后进入');
     const token=cookieToken(context.headers.get('cookie')),session=options.guest?null:accounts.session(token);
     if(token&&!options.guest&&!session)throw new Error('登录已过期，请重新登录');
     if(!session&&!cleanText(options?.name,12))throw new Error('请先输入昵称');
@@ -401,6 +417,6 @@ export class Courtyard extends Room {
   }
   onDrop(client){client.userData.upload=null;client.userData.avatarUpload=null;client.userData.relayUpload=null;client.userData.muralUpload=null;const player=this.state.players.get(client.sessionId);if(player)player.connected=false;this.partyMatches.get(player?.space)?.publish();this.relayMatches.get(player?.space)?.publish();this.broadcastRooms();if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash))return;this.allowReconnection(client,60).catch(()=>{});}
   onReconnect(client){if(client.userData.sessionHash&&!accounts.valid(client.userData.sessionHash)){client.leave(4003);return;}const player=this.state.players.get(client.sessionId);if(player)player.connected=true;this.partyMatches.get(player?.space)?.publish();this.relayMatches.get(player?.space)?.publish();client.userData.credit=200;client.userData.creditAt=performance.now();this.broadcastRooms();}
-  onLeave(client){const player=this.state.players.get(client.sessionId);this.state.players.delete(client.sessionId);this.soloWorkshops.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
+  onLeave(client){const player=this.state.players.get(client.sessionId);if(player?.space==='city')this.city?.remove(client.sessionId);this.state.players.delete(client.sessionId);this.soloWorkshops.delete(client.sessionId);if(player)this.tidy(player.space);this.broadcastRooms();}
   onDispose(){clearInterval(this.materialSweep);clearInterval(this.chatSweep);clearInterval(this.matchTick);clearInterval(this.sessionSweep);if(this.ownsLobby){active=false;liveHall=null;}}
 }

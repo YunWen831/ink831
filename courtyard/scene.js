@@ -1,11 +1,11 @@
-import {drawCar} from './lobby-render.js?v=0.15.1';
-import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.15.1';
-import { RemoteMotion } from './motion.js?v=0.15.1';
-import { avatarImage } from './avatar.js?v=0.15.1';
-import {rigImage} from './avatar-render.js?v=0.15.1';
-import { texture } from './art.js?v=0.15.1';
-import { drawBubbles } from './bubbles.js?v=0.15.1';
-import { bubbleDuration } from './chat.js?v=0.15.1';
+import {drawCar} from './lobby-render.js?v=0.16.0';
+import { WORLD, FACILITIES, TILE_SIZE, isBuildCell, BUILD_REACH, tileKey } from './world.js?v=0.16.0';
+import { RemoteMotion } from './motion.js?v=0.16.0';
+import { avatarImage } from './avatar.js?v=0.16.0';
+import {rigImage} from './avatar-render.js?v=0.16.0';
+import { texture } from './art.js?v=0.16.0';
+import { drawBubbles } from './bubbles.js?v=0.16.0';
+import { bubbleDuration } from './chat.js?v=0.16.0';
 
 const grass=document.createElement('canvas');grass.width=grass.height=128;
 const ground=grass.getContext('2d');ground.fillStyle='#b9cea5';ground.fillRect(0,0,128,128);

@@ -1,5 +1,5 @@
-import {RIG_VIEWS,RIG_PARTS,rigTemplate} from './avatar-rig.js?v=0.15.1';
-import {rigPose,drawRig} from './avatar-motion.js?v=0.15.1';
+import {RIG_VIEWS,RIG_PARTS,rigTemplate} from './avatar-rig.js?v=0.16.0';
+import {rigPose,drawRig} from './avatar-motion.js?v=0.16.0';
 const cache=new Map();
 export function pixelCanvas(text,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;const ctx=c.getContext('2d'),image=ctx.createImageData(w,h);for(let i=0;i<w*h;i++)for(let k=0;k<4;k++)image.data[i*4+k]=parseInt(text.slice(i*8+k*2,i*8+k*2+2),16);ctx.putImageData(image,0,0);return c;}
 export function decodeRig(rig){return Object.fromEntries(RIG_VIEWS.map(view=>[view,Object.fromEntries(RIG_PARTS.map(p=>[p.id,pixelCanvas(rig.views[view][p.id],p.w,p.h)]))]));}

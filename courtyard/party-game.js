@@ -1,9 +1,9 @@
-import {createExtraUI,extraAchievement} from './party-extra-ui.js?v=0.15.1';
-import {drawExtra} from './party-extra-render.js?v=0.15.1';
-import {createPartyFeedback} from './party-feedback.js?v=0.15.1';
-import {drawBubbles} from './bubbles.js?v=0.15.1';
-import {PARTY_GAMES,PARTY_BASES,PARTY_MODES,partyModeName,EXTRA_GAMES,CHOICE_GAMES} from './party-rules.js?v=0.15.1';
-import {rigImage} from './avatar-render.js?v=0.15.1';
+import {createExtraUI,extraAchievement} from './party-extra-ui.js?v=0.16.0';
+import {drawExtra} from './party-extra-render.js?v=0.16.0';
+import {createPartyFeedback} from './party-feedback.js?v=0.16.0';
+import {drawBubbles} from './bubbles.js?v=0.16.0';
+import {PARTY_GAMES,PARTY_BASES,PARTY_MODES,partyModeName,EXTRA_GAMES,CHOICE_GAMES} from './party-rules.js?v=0.16.0';
+import {rigImage} from './avatar-render.js?v=0.16.0';
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 export function createPartyGame({send,self,online,onActive,replay,vote,speech=()=>null}){
   const $=id=>document.getElementById(id),canvas=$('partyWorld'),ctx=canvas.getContext('2d'),keys=new Set(),poses=new Map();

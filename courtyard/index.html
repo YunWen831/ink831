@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f4f5ef"><meta name="description" content="联机建造、像素绘画与朋友。">
-<title>庭院 · 地牢来信</title><link rel="icon" href="https://yunwen831.github.io/ink831/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.15.1">
+<title>庭院 · 地牢来信</title><link rel="icon" href="https://yunwen831.github.io/ink831/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.16.0">
 <script>if(location.hostname==='yunwen831.github.io')location.replace('https://82.157.83.81/courtyard/'+location.search+location.hash);</script>
-<script src="./vendor/colyseus.js?v=0.15.1" defer></script><script type="module" src="./app.js?v=0.15.1"></script>
+<script src="./vendor/colyseus.js?v=0.16.0" defer></script><script type="module" src="./app.js?v=0.16.0"></script>
 </head>
 <body>
 <div class="page-shell">
@@ -13,10 +13,20 @@
 <main class="play-layout">
 <div class="main-column">
 <section class="world-card" aria-label="联机庭院">
-<div class="world-toolbar"><div class="world-title"><span id="worldDot" class="live-dot"></span><strong id="spaceTitle">大厅</strong><span id="spaceBadge" class="world-label"></span></div><div class="world-actions"><span id="worldCount" class="world-count"></span><button id="relayEntry" class="text-button">接龙</button><button id="roomsButton" class="text-button" disabled>房间</button><button id="homeButton" class="text-button" disabled>回广场</button><button id="mapButton" class="icon-button" aria-label="玩家地图" title="玩家地图">⌖</button></div></div>
+<div class="world-toolbar"><div class="world-title"><span id="worldDot" class="live-dot"></span><strong id="spaceTitle">大厅</strong><span id="spaceBadge" class="world-label"></span></div><div class="world-actions"><span id="worldCount" class="world-count"></span><button id="cityEntry" class="text-button" disabled>都市</button><button id="relayEntry" class="text-button">接龙</button><button id="roomsButton" class="text-button" disabled>房间</button><button id="homeButton" class="text-button" disabled>回广场</button><button id="mapButton" class="icon-button" aria-label="玩家地图" title="玩家地图">⌖</button></div></div>
 <div id="lobbyModes" class="lobby-modes" hidden><button id="carButton" aria-pressed="false">开车</button><output id="carSpeed" hidden></output></div>
 <div class="arena" id="arena">
 <canvas id="world" width="960" height="640" tabindex="0" aria-label="庭院地图。WASD 或方向键移动，E 互动；选择建筑工具后可点击或拖动施工。"></canvas>
+
+<section id="cityStage" class="city-stage" hidden aria-label="混乱都市">
+<canvas id="cityWorld" width="960" height="640" tabindex="0" aria-label="混乱都市，WASD移动，鼠标攻击，E互动，R装填"></canvas>
+<div class="city-top"><div><strong>混乱都市</strong><small id="cityPopulation"></small></div><div class="city-menus"><button id="cityBag">背包</button><button id="cityService">服务</button><button id="cityMapButton">地图</button><button id="cityHelp" aria-label="都市玩法帮助">?</button><button id="cityLeave">离开</button></div></div>
+<div class="city-vitals"><strong id="cityCash">¥0</strong><span id="cityBank">存款 0</span><span id="cityHp">HP 100</span><span id="cityWanted">暂无通缉</span><span id="cityWeapon">拳头</span><button id="cityReload" hidden>装填</button><button id="cityCarExit" hidden>下车</button></div>
+<div id="cityEvent" class="city-event"></div><canvas id="cityMiniMap" width="192" height="144" aria-label="都市小地图"></canvas>
+<div class="city-bottom"><span id="cityTask"></span><small id="cityMessage" role="status"></small></div>
+<div id="cityPads" class="city-pads"><div id="cityMovePad" class="city-pad" aria-label="都市移动摇杆"><span id="cityMoveKnob"></span></div><button id="cityInteract" aria-label="按住进行拾取、抢车、交货或撤离">E</button><div id="cityAimPad" class="city-pad" aria-label="都市瞄准攻击摇杆"><span></span><small>攻击</small></div></div>
+<div id="cityRespawn" class="city-respawn" hidden><strong id="cityRespawnTitle"></strong><p id="cityRespawnText"></p><button id="cityResultBack">回大厅</button></div>
+</section>
 <section id="partyStage" class="party-stage" hidden aria-label="小游戏派对">
 <div class="party-top"><strong id="partyTitle">小游戏派对</strong><span id="partyRound"></span><span id="partyTime"></span><button id="partySound" class="text-button" aria-pressed="true">声音开</button><button id="partyExit" class="text-button">回大厅</button></div>
 <div id="partyScores" class="party-scores"></div><div id="partyPersonal" class="party-personal" aria-live="polite"></div><canvas id="partyWorld" width="960" height="600" tabindex="0" aria-label="派对游戏场地"></canvas>
@@ -68,4 +78,5 @@
 <dialog id="adminMaterialsDialog" class="modal"><div class="modal-heading"><h2 id="adminMaterialsTitle">画布作品</h2><button class="close-button" data-close aria-label="关闭">×</button></div><canvas id="adminMaterialPreview" width="16" height="16" aria-label="作品预览" hidden></canvas><div id="adminMaterialsList" class="level-list"></div><p id="adminMaterialsMessage" class="form-message" role="status"></p></dialog>
 <dialog id="adminRecoveryDialog" class="modal confirm-modal"><div class="modal-heading"><h2>保存找回码</h2><button class="close-button" data-close aria-label="关闭">×</button></div><strong id="adminRecoveryTarget"></strong><p class="muted">找回码仅显示这一次。请私下交给账号本人，通过“找回密码”重设登录密码。</p><textarea id="adminRecoveryCode" rows="3" readonly aria-label="管理员生成的找回码"></textarea><button id="adminRecoveryCopy" class="secondary-button">复制找回码</button></dialog>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="cityPanel" class="modal city-panel"><div class="modal-heading"><h2 id="cityPanelTitle"></h2><button id="cityPanelClose" class="close-button" aria-label="关闭都市面板">×</button></div><div id="cityPanelBody"></div></dialog>
 </body></html>

@@ -1,4 +1,4 @@
-import { PARTY } from './world.js?v=0.15.1';
+import { PARTY } from './world.js?v=0.16.0';
 
 export function partyStatus(players,phase='forming',capacity=PARTY.max) {
   const members=Array.from(players),count=members.length;

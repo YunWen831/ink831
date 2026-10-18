@@ -1,5 +1,5 @@
-import {RECYCLE_MS} from './material-lifecycle.js?v=0.15.1';
-import {preview} from './art.js?v=0.15.1';
+import {RECYCLE_MS} from './material-lifecycle.js?v=0.16.0';
+import {preview} from './art.js?v=0.16.0';
 export function createAdmin({endpoint,user,notify}){
   const $=id=>document.getElementById(id);let users=[],epoch=0,selected=null,owner='',working=false,searchTimer=0;
   const labels={ban:'封禁账号',unban:'解除封禁',logout:'强制下线',recovery:'重置登录',rename:'修改昵称',protection:'建筑权限','material-delete':'删除作品','material-restore':'恢复作品','bulk-demolish':'批量拆除','legacy-demolish':'拆除旧建筑','legacy-replace':'覆盖旧建筑'};
