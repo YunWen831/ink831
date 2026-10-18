@@ -90,7 +90,7 @@ export class Courtyard extends Room {
       if(!this.city){this.city=new CityMatch({connected:id=>{const q=this.state.players.get(id);return !!q?.connected&&q.space==='city';},send:(id,type,data)=>this.clients.find(c=>c.sessionId===id)?.send(type,data)});this.spaces.set('city',{id:'city',title:'混乱都市',type:'city',capacity:8,minPlayers:1,phase:'city',host:''});}
       this.city.add({id:client.sessionId,name:p.name,color:p.color,userId:p.userId});this.transfer(client,'city');
     });
-    this.onMessage('city:input',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city')this.city?.input(client.sessionId,data);});
+    this.onMessage('city:input',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityInput',35))this.city?.input(client.sessionId,data);});
     this.onMessage('city:action',(client,data)=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityAction',100))this.city?.action(client.sessionId,data);});
     this.onMessage('city:peek',client=>{if(this.state.players.get(client.sessionId)?.space==='city'&&this.allow(client,'cityPeek',300))client.send('city:state',this.city.snapshot(client.sessionId));});
     this.onMessage('hello',client=>{this.content(client);this.ownWorkshop(client)?.open(client.sessionId);});

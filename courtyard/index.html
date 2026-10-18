@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#f4f5ef"><meta name="description" content="联机建造、像素绘画与朋友。">
 <title>庭院 · 地牢来信</title><link rel="icon" href="https://yunwen831.github.io/ink831/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="./style.css?v=0.16.2">
 <script>if(location.hostname==='yunwen831.github.io')location.replace('https://82.157.83.81/courtyard/'+location.search+location.hash);</script>
-<script src="./vendor/colyseus.js?v=0.16.0" defer></script><script type="module" src="./app.js?v=0.16.2"></script>
+<script src="./vendor/colyseus.js?v=0.16.0" defer></script><script type="module" src="./app.js?v=0.17.3"></script>
 </head>
 <body>
 <div class="page-shell">
@@ -20,9 +20,11 @@
 
 <section id="cityStage" class="city-stage" hidden aria-label="混乱都市">
 <canvas id="cityWorld" width="960" height="640" tabindex="0" aria-label="混乱都市，WASD移动，鼠标攻击，E互动，R装填"></canvas>
-<div class="city-top"><div><strong>混乱都市</strong><small id="cityPopulation"></small></div><div class="city-menus"><button id="cityBag">背包</button><button id="cityService">服务</button><button id="cityMapButton">地图</button><button id="cityHelp" aria-label="都市玩法帮助">?</button><button id="cityLeave">离开</button></div></div>
+<div class="city-top"><div><strong>混乱都市</strong><small id="cityPopulation"></small></div><div class="city-menus"><button id="cityBag">背包</button><button id="cityService">服务</button><button id="cityMapButton">地图</button><button id="cityChat" aria-pressed="false">聊天</button><button id="cityHelp" aria-label="都市玩法帮助">?</button><button id="cityLeave">离开</button></div></div>
 <div class="city-vitals"><strong id="cityCash">¥0</strong><span id="cityBank">存款 0</span><span id="cityHp">HP 100</span><span id="cityWanted">暂无通缉</span><span id="cityWeapon">拳头</span><button id="cityReload" hidden>装填</button><button id="cityCarExit" hidden>下车</button></div>
 <div id="cityEvent" class="city-event"></div><canvas id="cityMiniMap" width="192" height="144" aria-label="都市小地图"></canvas>
+<div id="cityQuick" class="city-quick" aria-label="快捷道具"></div>
+<div id="cityPrompt" class="city-prompt"><span id="cityPromptText"></span><button id="cityPromptAction" type="button" hidden>打开</button></div>
 <div class="city-bottom"><span id="cityTask"></span><small id="cityMessage" role="status"></small></div>
 <div id="cityPads" class="city-pads"><div id="cityMovePad" class="city-pad" aria-label="都市移动摇杆"><span id="cityMoveKnob"></span></div><button id="cityInteract" aria-label="按住进行拾取、抢车、交货或撤离">E</button><div id="cityAimPad" class="city-pad" aria-label="都市瞄准攻击摇杆"><span></span><small>攻击</small></div></div>
 <div id="cityRespawn" class="city-respawn" hidden><strong id="cityRespawnTitle"></strong><p id="cityRespawnText"></p><button id="cityResultBack">回大厅</button></div>

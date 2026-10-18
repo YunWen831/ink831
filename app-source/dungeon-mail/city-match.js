@@ -1,5 +1,5 @@
 import {randomUUID,randomInt} from 'node:crypto';
-import {CITY,GUNS,GOODS,EVENTS,PLACES,BLOCKS,clamp,dist,free,cityMove,cityDrive,wallRange,circleHit,nearPlace,BARKS} from '../../courtyard/city-rules.js';
+import {CITY,SPEED,BODY_RADIUS,GUNS,GOODS,EVENTS,PLACES,BLOCKS,clamp,dist,free,cityMove,cityDrive,wallRange,circleHit,nearPlace,BARKS} from '../../courtyard/city-rules.js';
 
 const alive=p=>!!p&&p.hp>0&&!p.escaped;
 const hasItem=(p,id)=>typeof id==='string'&&Object.hasOwn(p.inv,id)&&Number.isSafeInteger(p.inv[id])&&p.inv[id]>0;
@@ -7,13 +7,13 @@ const round=n=>Math.round(n*10)/10;
 export class CityMatch{
   constructor({send=()=>{},connected=()=>true,now=()=>performance.now(),random=()=>randomInt(0,0x40000000)/0x40000000}={}){
     Object.assign(this,{send,connected,now,random});this.id=randomUUID();this.players=new Map();this.npcs=[];this.cars=[];this.loot=[];this.objects=[];this.bombs=[];this.effects=[];this.feed=[];this.banks=new Map();this.trades=new Map();this.rams=new Map();this.t=0;this.last=now();this.accumulator=0;this.sequence=0;this.publishAt=0;this.nextEvent=90;this.event=null;this.spawnAt=0;
-    for(let i=0;i<20;i++)this.npc(i<6?'police':'civilian');
+    for(let i=0;i<10;i++)this.npc(i<2?'police':'civilian');
     for(let i=0;i<10;i++){const p=this.point();this.cars.push({id:this.uid(),...p,heading:0,speed:0,hp:180,owner:'',driver:'',kind:i%3===0?'van':'car',npcDriver:i%4===0,route:0});}
     for(let i=0;i<34;i++)this.scatter(i%9===0?'pistol':i%7===0?'medkit':i%6===0?'banana':'cash',this.point(),i%4?60:120);
   }
   uid(){return 'c'+(++this.sequence);}
   point(){for(let i=0;i<80;i++){const p={x:40+this.random()*(CITY.width-80),y:40+this.random()*(CITY.height-80)};if(free(p.x,p.y,22))return p;}return{x:60,y:60};}
-  spawnPoint(){const q=PLACES.filter(p=>p.kind==='job'||p.kind==='garage')[Math.floor(this.random()*4)];return[{x:q.x-25,y:q.y},{x:q.x,y:q.y-25},{x:q.x,y:q.y}].find(p=>free(p.x,p.y,12,this.objects))||this.point();}
+  spawnPoint(){const spots=PLACES.filter(p=>p.kind==='job'||p.kind==='garage'),q=spots[Math.floor(this.random()*spots.length)];return[{x:q.x-25,y:q.y},{x:q.x,y:q.y-25},{x:q.x,y:q.y}].find(p=>free(p.x,p.y,BODY_RADIUS,this.objects))||this.point();}
   add(member){if(this.players.has(member.id))return this.players.get(member.id);if(this.players.size>=CITY.capacity)throw Error('都市已满，最多8人');
     const p={...member,...this.spawnPoint(),hp:100,armor:0,cash:0,bank:0,earned:0,wanted:0,heatAt:0,gun:'fists',ammo:0,reserve:0,inv:{},car:'',heading:0,input:{x:0,y:0,angle:0,at:-1},seq:0,actionSeq:0,shotAt:0,reloadAt:0,shield:this.t+10,respawnAt:0,slowUntil:0,progress:null,job:null,escaped:false,entered:this.t,stats:{jobs:0,robberies:0,kills:0,deaths:0}};
     this.players.set(p.id,p);this.say(`${p.name} 被投放进城`);return p;
@@ -24,7 +24,7 @@ export class CityMatch{
   credit(p,n){p.cash+=Math.floor(n);p.earned+=Math.floor(n);}
   price(id){return Math.ceil((GUNS[id]?.price??GOODS[id]?.price??900)*(this.event?.kind==='sale'?.7:1));}
   input(id,d){const p=this.players.get(id);if(!alive(p)||!this.connected(id)||d?.id!==this.id||!Number.isSafeInteger(d.seq)||d.seq<=p.seq||d.seq>p.seq+10000||![d.x,d.y,d.angle].every(Number.isFinite)||Math.abs(d.x)>1||Math.abs(d.y)>1||Math.abs(d.angle)>Math.PI*2)return false;
-    p.seq=d.seq;const n=Math.max(1,Math.hypot(d.x,d.y));p.input={x:d.x/n,y:d.y/n,angle:d.angle,fire:d.fire===true,interact:d.interact===true,at:this.t};return true;
+    p.seq=d.seq;const n=Math.max(1,Math.hypot(d.x,d.y));p.input={x:d.x/n,y:d.y/n,angle:d.angle,fire:d.fire===true,interact:d.interact===true,sprint:d.sprint===true,at:this.t};return true;
   }
   action(id,d){const p=this.players.get(id);if(!alive(p)||!this.connected(id)||d?.id!==this.id||!Number.isSafeInteger(d.seq)||d.seq<=p.actionSeq||d.seq>p.actionSeq+10000||d.item!==undefined&&(typeof d.item!=='string'||d.item.length>24))return false;p.actionSeq=d.seq;
     const fail=text=>{p.message=text;return false;};
@@ -55,7 +55,7 @@ export class CityMatch{
   }
   crime(p,n){p.wanted=clamp(p.wanted+n,0,5);p.heatAt=this.t;p.shield=0;}
   reload(p){const gun=GUNS[p.gun];if(!gun.mag||p.ammo>=gun.mag||p.reloadAt||p.reserve<=0)return false;p.reloadAt=this.t+gun.reload;return true;}
-  exitCar(p){const car=this.cars.find(c=>c.id===p.car);if(car){car.driver='';car.speed=0;const options=[{x:car.x,y:car.y+30},{x:car.x,y:car.y-30},{x:car.x+30,y:car.y}];Object.assign(p,options.find(q=>free(q.x,q.y,12,this.objects))||car);}p.car='';}
+  exitCar(p){const car=this.cars.find(c=>c.id===p.car);if(car){car.driver='';car.speed=0;const options=[{x:car.x,y:car.y+30},{x:car.x,y:car.y-30},{x:car.x+30,y:car.y}];Object.assign(p,options.find(q=>free(q.x,q.y,BODY_RADIUS,this.objects))||car);}p.car='';}
   use(p,item,fail){if(!Object.hasOwn(GOODS,item)||!p.inv[item])return fail('背包里没有这个道具');let used=true;
     if(item==='medkit')p.hp=Math.min(100,p.hp+45);
     else if(item==='vest')p.armor=60;
@@ -102,7 +102,7 @@ export class CityMatch{
     if(venue?.kind==='job'&&!p.job){p.progress={kind:'work',x:p.x,y:p.y,left:10,total:10};return;}
   }
   path(from,to){
-    const W=24,H=18,valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&free(x*128+64,y*128+64,16,this.objects);
+    const W=Math.ceil(CITY.width/128),H=Math.ceil(CITY.height/128),valid=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&free(x*128+64,y*128+64,20,this.objects);
     const nearest=p=>{let best=null,score=Infinity;for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(!valid(x,y))continue;const d=Math.hypot(x*128+64-p.x,y*128+64-p.y);if(d<score){score=d;best=y*W+x;}}return best;};
     const start=nearest(from),goal=nearest(to);if(start===null||goal===null)return[];const queue=[start],previous=new Map([[start,-1]]);
     for(let i=0;i<queue.length&&!previous.has(goal);i++){const current=queue[i],x=current%W,y=Math.floor(current/W);for(const[dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=x+dx,ny=y+dy,next=ny*W+nx;if(valid(nx,ny)&&!previous.has(next)){previous.set(next,current);queue.push(next);}}}
@@ -111,12 +111,16 @@ export class CityMatch{
   npcTick(dt){
     const people=[...this.players.values()].filter(alive);
     for(const n of this.npcs){if(n.hp<=0)continue;let target=null;
-      if(n.kind==='police')target=people.filter(p=>p.wanted>0&&p.shield<=this.t).sort((a,b)=>dist(a,n)-dist(b,n))[0];
+      if(n.kind==='police'){
+        const wanted=people.filter(p=>p.wanted>0&&p.shield<=this.t).sort((a,b)=>dist(a,n)-dist(b,n))[0];
+        const hostile=this.npcs.filter(q=>q!==n&&q.hp>0&&(q.kind==='zombie'||q.kind==='goose')).map(q=>({q,d:dist(q,n)})).sort((a,b)=>a.d-b.d)[0];
+        target=wanted&&(!hostile||dist(wanted,n)<=hostile.d+120)?wanted:hostile?.q||wanted;
+      }
       if(n.kind==='zombie'||n.kind==='goose')target=[...people.filter(p=>p.shield<=this.t),...this.npcs.filter(q=>q!==n&&q.hp>0&&(q.kind==='civilian'||q.kind==='police'))].sort((a,b)=>dist(a,n)-dist(b,n))[0];
       const lure=this.objects.find(o=>o.hp>0&&o.until>this.t&&(o.kind==='decoy'||o.kind==='perfume'&&(n.kind==='zombie'||n.kind==='goose'))&&dist(o,n)<500);if(lure)target=lure;
       if(!target||dist(target,n)>950){target=n.roam;if(!target||dist(n,target)<40)n.roam=this.point();target=n.roam;}
       const distance=dist(n,target),angle=Math.atan2(target.y-n.y,target.x-n.x);n.heading=angle;
-      if(n.kind==='police'&&target.id&&this.players.has(target.id)&&distance<300&&wallRange(n,angle,distance,this.objects)>=distance){if(n.hitAt<=this.t){this.hurt(target,9);this.effect('shot',n,{angle,range:distance,hit:true});n.hitAt=this.t+1.2;}if(distance<120)continue;}
+      if(n.kind==='police'&&target.id&&(this.players.has(target.id)||target.kind==='zombie'||target.kind==='goose')&&distance<300&&wallRange(n,angle,distance,this.objects)>=distance){if(n.hitAt<=this.t){if(this.players.has(target.id))this.hurt(target,9);else{target.hp-=12;if(target.hp<=0)this.effect('fall',target);}this.effect('shot',n,{angle,range:distance,hit:true});n.hitAt=this.t+1.2;}if(distance<120)continue;}
       if((n.kind==='zombie'||n.kind==='goose')&&target.id&&distance<32){if(n.hitAt<=this.t){if(this.players.has(target.id))this.hurt(target,n.kind==='goose'?9:13);else target.hp-=12;n.hitAt=this.t+.9;}continue;}
       if((n.robbable>this.t||n.holdUntil>this.t)&&n.kind==='civilian')continue;
       let waypoint=target;if(wallRange(n,angle,distance,this.objects)<distance){if(n.repath<=this.t){n.path=this.path(n,target);n.repath=this.t+1.3+this.random()*.4;}while(n.path.length&&dist(n,n.path[0])<22)n.path.shift();waypoint=n.path[0]||n.roam;}if(!waypoint)continue;
@@ -126,7 +130,7 @@ export class CityMatch{
   }
   movePlayer(p,dt){
     const input=this.connected(p.id)&&this.t-p.input.at<.3?p.input:{x:0,y:0,fire:false,interact:false,angle:p.input.angle};p.inputActive=input;
-    const old={x:p.x,y:p.y};let speed=190*(p.slowUntil>this.t?.28:1);
+    const old={x:p.x,y:p.y};let speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slowUntil>this.t?.28:1);
     if(p.car){const car=this.cars.find(c=>c.id===p.car&&c.driver===p.id&&c.hp>0);if(!car){p.car='';return;}const next=cityDrive(car,input,dt,this.objects);Object.assign(car,next);if(next.impact)this.carDamage(car,next.impact);p.x=car.x;p.y=car.y;p.heading=car.heading;
       if(car.speed>180){for(const q of [...this.players.values(),...this.npcs]){if(q===p||q.hp<=0||q.escaped||q.car===car.id)continue;const dx=p.x-old.x,dy=p.y-old.y,len=dx*dx+dy*dy,a=len?clamp(((q.x-old.x)*dx+(q.y-old.y)*dy)/len,0,1):0;if(Math.hypot(q.x-old.x-dx*a,q.y-old.y-dy*a)>25)continue;const key=car.id+q.id;if((this.rams.get(key)||0)>this.t)continue;this.rams.set(key,this.t+1);const damage=Math.min(45,Math.round(car.speed/14));if(this.players.has(q.id)){if(this.hurt(q,damage,p))this.crime(p,2);}else{q.hp-=damage;if(q.kind==='civilian'||q.kind==='police')this.crime(p,2);}car.speed*=.65;}}
     }else{Object.assign(p,cityMove(p,input.x*speed*dt,input.y*speed*dt,this.objects));p.heading=input.angle;if(input.fire)this.attack(p);}
@@ -135,17 +139,17 @@ export class CityMatch{
     for(const o of this.objects)if(o.kind==='banana'&&o.owner!==p.id&&dist(p,o)<28&&o.until>this.t){p.slowUntil=this.t+2;o.until=0;this.effect('slip',p);}
   }
   startEvent(kind){if(!Object.hasOwn(EVENTS,kind))return;const point=this.point();this.event={kind,ends:this.t+EVENTS[kind].seconds,x:point.x,y:point.y};this.nextEvent=this.event.ends+65;this.say(EVENTS[kind].name+'！');
-    if(kind==='zombies')for(let i=0;i<20;i++)this.npc('zombie');if(kind==='geese')for(let i=0;i<12;i++)this.npc('goose');if(kind==='cash')for(let i=0;i<12;i++){const q=cityMove(point,(this.random()-.5)*220,(this.random()-.5)*220);this.scatter('cash',q,140+Math.floor(this.random()*100));}
+    if(kind==='zombies')for(let i=0;i<12;i++)this.npc('zombie');if(kind==='geese')for(let i=0;i<8;i++)this.npc('goose');if(kind==='cash')for(let i=0;i<12;i++){const q=cityMove(point,(this.random()-.5)*220,(this.random()-.5)*220);this.scatter('cash',q,140+Math.floor(this.random()*100));}
   }
   step(dt){this.t+=dt;
     for(const p of this.players.values()){
-      if(p.respawnAt&&this.t>=p.respawnAt){Object.assign(p,{...this.spawnPoint(),hp:100,armor:0,respawnAt:0,shield:this.t+10,wanted:0,progress:null,gun:'fists',input:{x:0,y:0,angle:0,at:-1}});p.message='重新投放：存款与剩余现金保留，物品需重新寻找';}
+      if(p.respawnAt&&this.t>=p.respawnAt){Object.assign(p,{...this.spawnPoint(),hp:100,armor:0,respawnAt:0,shield:this.t+10,wanted:0,progress:null,gun:'fists',input:{x:0,y:0,angle:0,at:-1}});}
       if(!alive(p))continue;if(p.reloadAt&&this.t>=p.reloadAt){const n=Math.min(GUNS[p.gun].mag-p.ammo,p.reserve);p.ammo+=n;p.reserve-=n;p.reloadAt=0;}
       if(p.wanted&&this.t-p.heatAt>25&&!this.npcs.some(n=>n.kind==='police'&&dist(n,p)<250)){p.wanted--;p.heatAt=this.t;}
       if(p.job?.expires<this.t){p.job=null;p.message='配送超时，回打工站重新接单';}this.movePlayer(p,dt);
     }
     if(Math.floor(this.t*10)!==Math.floor((this.t-dt)*10))this.npcTick(.1);
-    for(const car of this.cars)if(car.npcDriver&&!car.driver&&car.hp>0){const points=[{x:520,y:60},{x:2580,y:60},{x:2580,y:1720},{x:520,y:1720}],to=points[car.route%4];if(dist(to,car)<35){car.route++;continue;}car.heading=Math.atan2(to.y-car.y,to.x-car.x);const next=cityMove(car,Math.cos(car.heading)*85*dt,Math.sin(car.heading)*85*dt,this.objects);Object.assign(car,next);car.speed=85;}
+    for(const car of this.cars)if(car.npcDriver&&!car.driver&&car.hp>0){const points=[{x:520,y:60},{x:CITY.width-520,y:60},{x:CITY.width-520,y:CITY.height-120},{x:520,y:CITY.height-120}],to=points[car.route%4];if(dist(to,car)<35){car.route++;continue;}car.heading=Math.atan2(to.y-car.y,to.x-car.x);const next=cityMove(car,Math.cos(car.heading)*85*dt,Math.sin(car.heading)*85*dt,this.objects);Object.assign(car,next);car.speed=85;}
     if(this.event&&this.t>this.event.ends){this.say('城市暂时恢复营业');this.event=null;}
     if(!this.event&&this.t>=this.nextEvent){const options=Object.keys(EVENTS);this.startEvent(options[Math.floor(this.random()*options.length)]);}
     if(this.event?.kind==='bombs'&&(!this.bombAt||this.t>=this.bombAt)){const people=[...this.players.values()].filter(alive);if(people.length){const p=people[Math.floor(this.random()*people.length)];for(let i=0;i<3;i++){const spot=cityMove(p,(this.random()-.5)*600,(this.random()-.5)*600);this.bombs.push({id:this.uid(),...spot,at:this.t+1.8});}}this.bombAt=this.t+1.5;}
@@ -153,7 +157,7 @@ export class CityMatch{
     this.bombs=this.bombs.filter(b=>this.t-b.at<.5);this.objects=this.objects.filter(o=>o.until>this.t&&o.hp>0);this.loot=this.loot.filter(l=>l.until>this.t);this.effects=this.effects.filter(e=>this.t-e.at<.65);this.feed=this.feed.filter(e=>this.t-e.at<14);
     for(const[key,value]of this.trades)if(value.until<this.t||!alive(this.players.get(value.from))||!alive(this.players.get(value.to)))this.trades.delete(key);
     for(const[key,until]of this.rams)if(until<this.t)this.rams.delete(key);
-    if(this.t>=this.spawnAt){if(this.loot.length<42)this.scatter(this.random()<.18?'medkit':'cash',this.point(),80);if(this.npcs.filter(n=>n.kind==='civilian'||n.kind==='police').length<20)this.npc(this.npcs.filter(n=>n.kind==='police').length<6?'police':'civilian');this.cars=this.cars.filter(c=>c.hp>0||c.driver);if(this.cars.length<10){const spot=this.point();this.cars.push({id:this.uid(),...spot,hp:180,speed:0,heading:0,owner:'',driver:'',kind:'car',npcDriver:false});}this.spawnAt=this.t+6;}
+    if(this.t>=this.spawnAt){if(this.loot.length<42)this.scatter(this.random()<.18?'medkit':'cash',this.point(),80);if(this.npcs.filter(n=>n.kind==='civilian'||n.kind==='police').length<12)this.npc(this.npcs.filter(n=>n.kind==='police').length<4?'police':'civilian');this.cars=this.cars.filter(c=>c.hp>0||c.driver);if(this.cars.length<10){const spot=this.point();this.cars.push({id:this.uid(),...spot,hp:180,speed:0,heading:0,owner:'',driver:'',kind:'car',npcDriver:false});}this.spawnAt=this.t+6;}
   }
   tick(dt){const stamp=this.now();if(dt===undefined){dt=clamp((stamp-this.last)/1000,0,.2);this.last=stamp;}else dt=clamp(dt,0,.2);this.accumulator=Math.min(.25,this.accumulator+dt);while(this.accumulator>=CITY.step){this.step(CITY.step);this.accumulator-=CITY.step;}if(this.t>=this.publishAt){this.publish();this.publishAt=Math.max(this.publishAt+.125,this.t);}}
   snapshot(id){const p=this.players.get(id);if(!p)return null;const nearby=q=>dist(p,q)<CITY.view,venue=nearPlace(p,null,110),own={x:round(p.x),y:round(p.y),heading:round(p.heading),hp:p.hp,armor:p.armor,cash:p.cash,bank:p.bank,wanted:p.wanted,gun:p.gun,ammo:p.ammo,reserve:p.reserve,inv:{...p.inv},car:p.car,seq:p.seq,actionSeq:p.actionSeq,shield:Math.max(0,p.shield-this.t),slow:Math.max(0,p.slowUntil-this.t),respawn:Math.max(0,p.respawnAt-this.t),reload:Math.max(0,p.reloadAt-this.t),escaped:p.escaped,result:p.result,message:p.message||'',job:p.job,near:venue?.id||'',progress:p.progress?{kind:p.progress.kind,left:round(p.progress.left),total:p.progress.total}:null};
@@ -161,7 +165,7 @@ export class CityMatch{
       map:Math.floor(this.t)%2===0?[...this.players.values()].map(q=>[q.id,Math.round(q.x/128)*128,Math.round(q.y/128)*128]):undefined,
       npcs:this.npcs.filter(nearby).map(n=>[n.id,n.kind,round(n.x),round(n.y),Math.max(0,n.hp),round(n.heading),n.bark]),
       cars:this.cars.filter(nearby).map(c=>[c.id,round(c.x),round(c.y),round(c.heading),c.hp,c.owner,c.driver,c.kind,round(c.speed)]),
-      loot:this.loot.filter(nearby).map(l=>[l.id,l.kind,round(l.x),round(l.y),l.kind==='cash'?l.cash:1]),objects:this.objects.filter(nearby).map(o=>[o.id,o.kind,round(o.x),round(o.y),o.hp]),bombs:this.bombs.filter(nearby).map(b=>[b.id,round(b.x),round(b.y),round(b.at)]),effects:this.effects.filter(nearby),feed:this.feed.slice(-5),offers:[...this.trades.values()].filter(v=>v.to===id).map(v=>({...v,name:this.players.get(v.from)?.name})),count:this.players.size};
+      loot:this.loot.filter(nearby).map(l=>[l.id,l.kind,round(l.x),round(l.y),l.kind==='cash'?l.cash:1]),objects:this.objects.filter(nearby).map(o=>[o.id,o.kind,round(o.x),round(o.y),o.hp]),bombs:this.bombs.filter(nearby).map(b=>[b.id,round(b.x),round(b.y),round(b.at)]),effects:this.effects.filter(nearby),feed:this.feed.slice(-5),offers:[...this.trades.values()].filter(v=>v.to===id).map(v=>({...v,name:this.players.get(v.from)?.name})),sent:[...this.trades.values()].filter(v=>v.from===id).map(v=>({...v,name:this.players.get(v.to)?.name})),count:this.players.size};
   }
   publish(){for(const id of this.players.keys())if(this.connected(id))this.send(id,'city:state',this.snapshot(id));}
 }
