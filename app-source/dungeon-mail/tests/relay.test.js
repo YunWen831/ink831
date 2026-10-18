@@ -9,7 +9,7 @@ for(const mode of ['relay','story'])for(const n of [2,3,4,5,17,18])test(`${mode}
   for(let step=0;step<expected;step++){
     assert.equal(match.phase,'writing');
     for(const p of match.members){
-      const view=match.snapshot(p.id);assert.equal(view.books,undefined);assert.equal(view.previous.length,mode==='story'?step:Math.min(step,1));
+      const view=match.snapshot(p.id);assert.equal(view.books,undefined);assert.equal(view.previous.length,Math.min(step,1));
       if(step)assert.notEqual(view.previous.at(-1).author,p.id);
       const value=relayKind(mode,step)==='text'?`${p.id} ${step}`:[['#ff0000',5,[10,10,20,20]]];
       assert.equal(match.save(p.id,{id:match.id,step,revision:1,value}),true);
@@ -22,6 +22,15 @@ for(const mode of ['relay','story'])for(const n of [2,3,4,5,17,18])test(`${mode}
   assert.equal(match.page('outsider',{id:match.id,book:0,page:0}),null);assert.equal(match.page('p0',{id:'stale',book:0,page:0}),null);assert.ok(match.page('p0',{id:match.id,book:0,page:0}).value.value.length);
 });
 test('relay rejects nineteenth player and never reveals book pages while writing',()=>{assert.throws(()=>new RelayMatch(members(19),{mode:'relay',send(){}}));const match=new RelayMatch(members(18),{mode:'story',send(){}});assert.equal(match.page('p0',{id:match.id,book:0,page:0}),null);assert.equal(match.steps,18);});
+
+test('story writing snapshots and reconnects never contain the page before the previous author, while final reveal retains every page',()=>{
+  const match=new RelayMatch(members(4),{mode:'story',send(){}});
+  for(let step=0;step<match.steps;step++){
+    for(const p of match.members){const book=match.book(p.id),snapshot=match.snapshot(p.id);assert.deepEqual(snapshot.previous,book.pages.slice(-1));for(const older of book.pages.slice(0,-1))assert.equal(JSON.stringify(snapshot).includes(older.value),false);assert.deepEqual(match.snapshot(p.id),snapshot);assert.equal(match.page(p.id,{id:match.id,book:0,page:0}),null);match.save(p.id,{id:match.id,step,revision:1,value:`UNIQUE_SECRET_${step}_${p.id}_END`});}
+    for(const p of match.members)match.submit(p.id,{id:match.id,step,revision:1});
+  }
+  const final=match.snapshot('p0');for(let book=0;book<4;book++)for(let page=0;page<match.steps;page++)assert.match(match.page('p0',{id:match.id,book,page}).value.value,/UNIQUE_SECRET_/);assert.equal(final.books[0].pages.length,8);
+});
 test('relay deadlines keep draft, reject stale requests and finish after departure',()=>{
   let now=0;const gone=new Set();const m=new RelayMatch(members(3),{mode:'relay',now:()=>now,connected:id=>!gone.has(id),send(){}});
   m.save('p0',{id:m.id,step:0,revision:2,value:'草稿'});assert.equal(m.save('p0',{id:m.id,step:0,revision:1,value:'旧稿'}),false);

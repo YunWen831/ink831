@@ -352,6 +352,7 @@ for(const mode of ['relay','story'])test(`eighteen real SDK players finish ${mod
   host.send('party:settings',{mode:'bump'});await until(()=>host.messages.notice.some(n=>n.text.includes('4人')));assert.equal(host.messages.spaces.at(-1).find(s=>s.id===space).mode,mode);
   for(const p of group.slice(0,18))p.send('space:ready');await until(()=>host.messages.spaces.at(-1).find(s=>s.id===space).canStart);host.send('space:start');await until(()=>host.messages['relay:state'].length);const id=host.messages['relay:state'].at(-1).id;host.send('relay:page',{id,book:0,page:0});await delay(100);assert.equal(host.messages['relay:page'].length,0);
   for(let step=0;step<18;step++){
+   for(const p of group.slice(0,18)){const snap=p.messages['relay:state'].at(-1);assert.equal(snap.previous.length,Math.min(step,1));if(step){assert.equal(snap.previous[0].value===undefined,false);assert.notEqual(snap.previous[0].author,p.sessionId);}}
    for(const p of group.slice(0,18)){const text=JSON.stringify(mode==='relay'&&step%2?[['#ff0000',5,[10,10,20,20]]]:p.sessionId+'第'+step+'页');p.send('relay:begin',{id,step,revision:1,length:text.length,submit:true});p.send('relay:chunk',{index:0,text});p.send('relay:finish');}
    await until(()=>host.messages['relay:state'].at(-1)?.step===step+1);await delay(35);
   }

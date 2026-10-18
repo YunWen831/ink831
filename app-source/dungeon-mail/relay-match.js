@@ -34,7 +34,7 @@ export class RelayMatch{
     if(!this.members.some(p=>p.id===id))return null;
     const base={id:this.id,mode:this.mode,phase:this.phase,step:this.step,steps:this.steps,members:this.members,host:this.host(),remaining:Math.max(0,Math.ceil((this.deadline-this.now())/1000))};
     if(this.phase==='final')return {...base,books:this.books.map(b=>({owner:b.owner,pages:b.pages.map(({author,kind,skipped})=>({author,kind,skipped}))}))};
-    const pages=this.book(id).pages;return {...base,kind:relayKind(this.mode,this.step),previous:this.mode==='story'?pages:pages.slice(-1),draft:this.drafts.get(id)||null};
+    const pages=this.book(id).pages;return {...base,kind:relayKind(this.mode,this.step),previous:pages.slice(-1),draft:this.drafts.get(id)||null};
   }
   page(id,data){
     if(this.phase!=='final'||!this.connected(id)||!this.members.some(p=>p.id===id)||data?.id!==this.id||!Number.isInteger(data.book)||!Number.isInteger(data.page))return null;
