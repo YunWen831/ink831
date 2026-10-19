@@ -69,7 +69,7 @@ app.get('/courtyard/config.json',(req,res)=>res.json({endpoint:'same-origin'}));
 app.get('/assets/favicon.svg',(req,res)=>res.sendFile(resolve(sourceRoot,'assets/favicon.svg')));
 app.use('/courtyard',express.static(resolve(sourceRoot,'courtyard'),{dotfiles:'deny',etag:true,setHeaders:(res,path)=>{
   const request=new URL(res.req.url,'http://localhost');
-  const assetVersion=request.searchParams.get('v');res.setHeader('Cache-Control',(assetVersion?.startsWith('0.16.')||assetVersion?.startsWith('0.17.')||assetVersion?.startsWith('0.18.')||assetVersion?.startsWith('0.19.')||assetVersion?.startsWith('0.20.')||assetVersion?.startsWith('0.21.')||assetVersion?.startsWith('0.22.')||assetVersion?.startsWith('0.23.')||assetVersion?.startsWith('0.24.')||assetVersion?.startsWith('0.25.')||assetVersion?.startsWith('0.26.'))&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
+  const assetVersion=request.searchParams.get('v');res.setHeader('Cache-Control',(assetVersion?.startsWith('0.16.')||assetVersion?.startsWith('0.17.')||assetVersion?.startsWith('0.18.')||assetVersion?.startsWith('0.19.')||assetVersion?.startsWith('0.20.')||assetVersion?.startsWith('0.21.')||assetVersion?.startsWith('0.22.')||assetVersion?.startsWith('0.23.')||assetVersion?.startsWith('0.24.')||assetVersion?.startsWith('0.25.')||assetVersion?.startsWith('0.26.')||assetVersion?.startsWith('0.27.'))&&/\.(js|css)$/.test(path)?'public, max-age=31536000, immutable':'no-cache');
 }}));
 const httpServer = new GuardedHttpServer(app);
 const server = new Server({
