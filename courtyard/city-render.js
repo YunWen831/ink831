@@ -1,10 +1,10 @@
-import {CITY,BLOCKS,PLACES,ZONES,DISTRICTS,ROADS,BOONS,CONTRACT_META,GUNS,GOODS,EVENTS,BARKS,wallRange} from './city-rules.js?v=0.27.0';
+import {CITY,BLOCKS,PLACES,ZONES,DISTRICTS,ROADS,BOONS,CONTRACT_META,GUNS,GOODS,EVENTS,BARKS,wallRange} from './city-rules.js?v=0.27.2';
 import {rigImage} from './avatar-render.js?v=0.16.0';
 import {drawCar} from './lobby-render.js?v=0.16.0';
-import {CityTimeline} from './city-motion.js?v=0.27.0';
+import {CityTimeline} from './city-motion.js?v=0.27.2';
 
-const colors = {job: '#70dbb1', arms: '#f39485', market: '#c4a0ef', 'black-market': '#b57ae0', bank: '#f2d57d', casino: '#d7a1db', garage: '#84c8e8', escape: '#b5f493', fixer: '#f2c94c', safehouse: '#7fd6b0', clinic: '#f28f8f', goose: '#f2c94c', cyber: '#6fd7e5'};
-const signs = {job: '工', arms: '武', market: '店', 'black-market': '黑', bank: '银', casino: '赌', garage: '车', escape: '离', fixer: '委', safehouse: '安', clinic: '医', goose: '鹅', cyber: '体'};
+const colors = {job: '#70dbb1', arms: '#f39485', market: '#c4a0ef', 'black-market': '#b57ae0', bank: '#f2d57d', casino: '#d7a1db', garage: '#84c8e8', escape: '#b5f493', fixer: '#f2c94c', safehouse: '#7fd6b0', clinic: '#f28f8f', goose: '#f2c94c', cyber: '#6fd7e5', containment: '#e0675e'};
+const signs = {job: '工', arms: '武', market: '店', 'black-market': '黑', bank: '银', casino: '赌', garage: '车', escape: '离', fixer: '委', safehouse: '安', clinic: '医', goose: '鹅', cyber: '体', containment: '容'};
 const ROAD = 100;
 const LANDMARKS = new Set(['central-plaza', 'finance-plaza', 'old-park', 'finance-park', 'ent-plaza', 'harbor-water', 'harbor-pier-west', 'harbor-pier-south', 'harbor-pier-east','ent-goose-stadium']);
 const SHOT_STYLES = {
@@ -907,61 +907,149 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
   }
 
   function drawAbnormality(p, now, type) {
+    const pulse = Math.sin(now / 180);
     if (type === 'ab_nothing') {
-      ctx.fillStyle = '#c45b5b'; ctx.beginPath(); ctx.ellipse(0, -18, 18, 24, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#e8b0a0'; ctx.fillRect(-8, -34, 6, 6); ctx.fillRect(2, -34, 6, 6);
-      ctx.fillStyle = '#2a1012'; ctx.fillRect(-6, -32, 3, 3); ctx.fillRect(4, -32, 3, 3);
-      ctx.strokeStyle = '#7a2f35'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-16, -20); ctx.lineTo(-28, 4); ctx.moveTo(16, -20); ctx.lineTo(28, 4); ctx.stroke();
+      // 一无所有：惨白瘦长人形、拖地长臂、红眼和裂开的笑口。
+      ctx.fillStyle = '#0e0d10'; ctx.fillRect(-7, -18, 5, 18); ctx.fillRect(2, -18, 5, 18);
+      ctx.fillStyle = '#cdbfb5'; ctx.beginPath(); ctx.moveTo(-14, -50); ctx.lineTo(14, -50); ctx.lineTo(9, -17); ctx.lineTo(-9, -17); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#b5a49a'; ctx.fillRect(-23, -48, 7, 40); ctx.fillRect(16, -48, 7, 40);
+      ctx.fillStyle = '#2a1416'; for (let i = 0; i < 3; i++) { ctx.fillRect(-24 + i * 3, -9, 2, 8); ctx.fillRect(16 + i * 3, -9, 2, 8); }
+      ctx.fillStyle = '#d8c9bd'; ctx.beginPath(); ctx.arc(0, -57, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#2a0b0e'; ctx.beginPath(); ctx.ellipse(0, -52, 7, 4, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2e8dc'; ctx.fillRect(-5, -54, 10, 1.6);
+      ctx.fillStyle = '#ff4d4d'; ctx.fillRect(-6, -60, 4, 4); ctx.fillRect(2, -60, 4, 4);
+      ctx.strokeStyle = '#7a1f2a'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-9, -45); ctx.lineTo(-3, -33); ctx.lineTo(-8, -27); ctx.moveTo(9, -42); ctx.lineTo(4, -31); ctx.stroke();
     } else if (type === 'ab_bigbird') {
-      ctx.fillStyle = '#1c2026'; ctx.beginPath(); ctx.ellipse(0, -24, 26, 32, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#2b3138'; ctx.beginPath(); ctx.ellipse(-20, -20, 12, 20, -.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.ellipse(20, -20, 12, 20, .5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#e0a24f'; ctx.beginPath(); ctx.moveTo(0, -40); ctx.lineTo(14, -34); ctx.lineTo(0, -30); ctx.fill();
-      ctx.fillStyle = '#ffcf6a'; ctx.beginPath(); ctx.arc(0, -18, 10 + Math.sin(now / 200) * 2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#4a3a26'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(16, -6); ctx.lineTo(28, 22); ctx.stroke();
-      ctx.fillStyle = '#6d7468'; ctx.fillRect(24, 18, 16, 10);
+      // 大鸟：巨大黑翼、独眼、喙下提灯。
+      ctx.save(); ctx.scale(1.15, 1.15);
+      ctx.fillStyle = '#0f1216';
+      ctx.beginPath(); ctx.moveTo(-10, -60); ctx.lineTo(-42, -42); ctx.lineTo(-35, -12); ctx.lineTo(-12, -27); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(10, -60); ctx.lineTo(42, -42); ctx.lineTo(35, -12); ctx.lineTo(12, -27); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#1b2027'; ctx.beginPath(); ctx.ellipse(0, -38, 21, 27, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#252c34'; ctx.beginPath(); ctx.arc(0, -65, 12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.arc(0, -65, 9 + pulse * .8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a1206'; ctx.beginPath(); ctx.arc(0, -65, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e0a24f'; ctx.beginPath(); ctx.moveTo(-4, -57); ctx.lineTo(0, -46); ctx.lineTo(6, -57); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#3a2a14'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(9, -53); ctx.lineTo(23, -30); ctx.stroke();
+      ctx.fillStyle = '#ffd24a'; ctx.beginPath(); ctx.arc(24, -26, 7 + pulse, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#fff3b0'; ctx.beginPath(); ctx.arc(24, -26, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#0e1114'; ctx.fillRect(-10, -15, 5, 15); ctx.fillRect(5, -15, 5, 15);
+      ctx.restore();
     } else if (type === 'ab_mountain') {
-      const sc = 1 + Math.min(.6, (p.hp || 0) / 2000);
+      // 微笑的尸山：会随着成长变大的尸堆，很多眼睛与笑口。
+      const sc = 1 + Math.min(.55, (p.hp || 0) / 2400);
       ctx.save(); ctx.scale(sc, sc);
-      ctx.fillStyle = '#5a2b2e'; ctx.beginPath(); ctx.ellipse(0, -8, 30, 24, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#7e3a3d'; for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc(-20 + (i % 3) * 20, -16 + Math.floor(i / 3) * 12, 6, 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = '#f2d57d'; for (let i = 0; i < 4; i++) ctx.fillRect(-16 + (i % 2) * 22, -18 + Math.floor(i / 2) * 10, 5, 2);
+      ctx.fillStyle = '#4e2529'; ctx.beginPath(); ctx.ellipse(0, -12, 34, 24, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#6d3136';
+      for (const [ex, ey, er] of [[-24, -18, 12], [-8, -26, 14], [12, -22, 13], [24, -13, 11], [0, -10, 16]]) { ctx.beginPath(); ctx.arc(ex, ey, er, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#f0e4c8';
+      for (const [ex, ey] of [[-20, -20], [-4, -30], [12, -25], [22, -14], [2, -14], [-12, -8]]) { ctx.beginPath(); ctx.arc(ex, ey - 2, 3.4, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#1a0d10';
+      for (const [ex, ey] of [[-20, -20], [-4, -30], [12, -25], [22, -14], [2, -14], [-12, -8]]) { ctx.beginPath(); ctx.arc(ex, ey - 2, 1.5, 0, Math.PI * 2); ctx.fill(); }
+      ctx.strokeStyle = '#f2e2c0'; ctx.lineWidth = 1.6;
+      for (const [mx, my, mw] of [[-18, -13, 11], [-1, -20, 13], [15, -16, 9], [1, -4, 8]]) { ctx.beginPath(); ctx.arc(mx, my, mw / 2, .15, Math.PI - .15); ctx.stroke(); }
+      ctx.strokeStyle = '#d8cfb8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-28, -4); ctx.lineTo(-20, -14); ctx.moveTo(27, -6); ctx.lineTo(20, -16); ctx.stroke();
       ctx.restore();
     } else if (type === 'ab_judgebird') {
-      ctx.fillStyle = '#23252c'; ctx.beginPath(); ctx.ellipse(0, -22, 20, 28, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d9c27a'; ctx.beginPath(); ctx.moveTo(0, -36); ctx.lineTo(12, -30); ctx.lineTo(0, -26); ctx.fill();
-      ctx.strokeStyle = '#d9c27a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-14, -10); ctx.lineTo(14, -10); ctx.stroke();
-      ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(-14, -10, 4, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(14, -10, 4, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#8c3b3b'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(30, 26); ctx.stroke();
+      // 审判鸟：黑色法官长袍、金喙、悬挂的天平。
+      ctx.fillStyle = '#191b22'; ctx.beginPath(); ctx.moveTo(0, -68); ctx.lineTo(25, -4); ctx.lineTo(-25, -4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#d9c27a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, -58); ctx.lineTo(0, -8); ctx.moveTo(-9, -34); ctx.lineTo(9, -34); ctx.stroke();
+      ctx.fillStyle = '#24252c'; ctx.beginPath(); ctx.arc(0, -70, 11, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.moveTo(-3, -66); ctx.lineTo(8, -62); ctx.lineTo(-3, -59); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#ffd76a'; ctx.beginPath(); ctx.arc(-4, -73, 2.2, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(4, -73, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#d9c27a'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, -50); ctx.lineTo(0, -30); ctx.moveTo(-16, -30); ctx.lineTo(16, -30); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-16, -30); ctx.lineTo(-20, -22); ctx.moveTo(-16, -30); ctx.lineTo(-12, -22); ctx.moveTo(16, -30); ctx.lineTo(12, -22); ctx.moveTo(16, -30); ctx.lineTo(20, -22); ctx.stroke();
+      ctx.fillStyle = '#f2c94c'; ctx.beginPath(); ctx.arc(-16, -20, 3.5, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(16, -20, 3.5, 0, Math.PI * 2); ctx.fill();
     } else {
-      ctx.fillStyle = '#3a2a24'; ctx.beginPath(); ctx.ellipse(0, -14, 12, 16, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#e8995b'; for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2 + now / 300; ctx.beginPath(); ctx.arc(Math.cos(a) * 10, -18 + Math.sin(a) * 8, 5, 0, Math.PI * 2); ctx.fill(); }
-      ctx.fillStyle = '#f2e2c0'; ctx.beginPath(); ctx.arc(0, -26, 7, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#d94b3f'; ctx.beginPath(); ctx.arc(0, -27, 3, 0, Math.PI * 2); ctx.fill();
+      // 焦化少女：焦黑的身体、火焰头发和裙摆。
+      ctx.fillStyle = '#2a1a18'; ctx.beginPath(); ctx.ellipse(0, -18, 13, 19, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#120b0a'; ctx.beginPath(); ctx.arc(0, -38, 8, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff7a3d'; ctx.beginPath(); ctx.arc(-3, -39, 1.8, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(3, -39, 1.8, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 7; i++) {
+        const a = i / 7 * Math.PI * 2 + now / 260, h = 10 + (i % 3) * 7 + pulse * 2;
+        ctx.fillStyle = i % 2 ? '#f2a13f' : '#e25b3d';
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * 6, -44 + Math.sin(a) * 2); ctx.lineTo(Math.cos(a) * 11, -44 - h); ctx.lineTo(Math.cos(a) * 13 + 4, -42); ctx.closePath(); ctx.fill();
+      }
+      for (let i = 0; i < 6; i++) {
+        const a = i / 6 * Math.PI * 2 + now / 300;
+        ctx.fillStyle = i % 2 ? '#f2a13f' : '#e8995b';
+        ctx.beginPath(); ctx.moveTo(Math.cos(a) * 10, -8); ctx.lineTo(Math.cos(a) * 18, 2 - (i % 2) * 5); ctx.lineTo(Math.cos(a) * 12 + 3, -2); ctx.closePath(); ctx.fill();
+      }
+      ctx.strokeStyle = '#ffb15a'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-7, -28); ctx.lineTo(-2, -20); ctx.lineTo(-7, -13); ctx.moveTo(6, -30); ctx.lineTo(2, -22); ctx.stroke();
     }
     const names = { ab_nothing: '一无所有', ab_bigbird: '大鸟', ab_mountain: '微笑的尸山', ab_judgebird: '审判鸟', ab_scorched: '焦化少女' };
-    const max = Math.max(1, p.maxHp || p.hp || 1), frac = Math.max(0, Math.min(1, (p.hp || 0) / max));
-    ctx.fillStyle = '#101a20cc'; ctx.fillRect(-34, -64, 68, 7); ctx.fillStyle = '#e0675e'; ctx.fillRect(-34, -64, 68 * frac, 7);
-    label(names[type] || '异想体', 0, -72, '#ffd7c8', 11);
+    const tops = { ab_nothing: -80, ab_bigbird: -100, ab_mountain: -72, ab_judgebird: -96, ab_scorched: -76 };
+    const max = Math.max(1, p.maxHp || p.hp || 1), frac = Math.max(0, Math.min(1, (p.hp || 0) / max)), top = tops[type] || -76;
+    ctx.fillStyle = '#101a20dd'; ctx.fillRect(-34, top, 68, 7); ctx.fillStyle = '#e0675e'; ctx.fillRect(-34, top, 68 * frac, 7);
+    ctx.strokeStyle = '#ffd7c8aa'; ctx.lineWidth = 1; ctx.strokeRect(-34, top, 68, 7);
+    label(names[type] || '异想体', 0, top - 11, '#ffd7c8', 11);
   }
   function drawMcMob(p, now, type) {
     if (type === 'creeper') {
-      ctx.fillStyle = '#5f9a4e'; ctx.fillRect(-12, -34, 24, 30); ctx.fillRect(-9, -38, 18, 6);
-      ctx.fillStyle = '#2d4a2c'; ctx.fillRect(-12, -20, 24, 4);
-      ctx.fillStyle = '#111'; ctx.fillRect(-7, -29, 5, 5); ctx.fillRect(2, -29, 5, 5); ctx.fillRect(-4, -22, 8, 4);
-      ctx.fillRect(-12, -4, 6, 5); ctx.fillRect(6, -4, 6, 5);
+      // 苦力怕：经典方脸、四只脚，靠近时脸部发白。
+      const closer = Math.hypot(p.x - (state()?.self?.x || 0), p.y - (state()?.self?.y || 0)) < 180;
+      ctx.fillStyle = '#4f8a42'; ctx.fillRect(-12, -34, 24, 30); ctx.fillRect(-9, -38, 18, 6);
+      ctx.fillStyle = '#8fbf7a'; ctx.fillRect(-12, -34, 24, 3);
+      ctx.fillStyle = '#2d4a2c'; ctx.fillRect(-12, -20, 24, 4); ctx.fillRect(-12, -10, 24, 3);
+      if (closer) { ctx.fillStyle = `rgba(255,90,70,${.08 + .1 * Math.abs(Math.sin(now / 90))})`; ctx.fillRect(-12, -38, 24, 34); }
+      ctx.fillStyle = '#d8dcc8'; ctx.fillRect(-8, -31, 6, 6); ctx.fillRect(2, -31, 6, 6);
+      ctx.fillStyle = '#111'; ctx.fillRect(-8, -29, 6, 3); ctx.fillRect(2, -29, 6, 3); ctx.fillRect(-4, -23, 8, 7); ctx.fillRect(-6, -19, 4, 4); ctx.fillRect(2, -19, 4, 4);
+      ctx.fillStyle = '#3d6f36'; ctx.fillRect(-12, -4, 7, 5); ctx.fillRect(5, -4, 7, 5);
     } else if (type === 'enderman') {
-      ctx.fillStyle = '#111318'; ctx.fillRect(-10, -46, 20, 42); ctx.fillRect(-14, -42, 28, 16);
-      ctx.fillStyle = '#b57ae0'; ctx.fillRect(-7, -38, 5, 3); ctx.fillRect(2, -38, 5, 3);
-      ctx.fillStyle = '#111318'; ctx.fillRect(-12, -4, 6, 4); ctx.fillRect(6, -4, 6, 4);
+      // 末影人：细长四肢、紫色眼睛、周身粒子。
+      ctx.fillStyle = '#0d0f14'; ctx.fillRect(-8, -48, 16, 34); ctx.fillRect(-13, -42, 5, 34); ctx.fillRect(8, -42, 5, 34);
+      ctx.fillStyle = '#080a0d'; ctx.fillRect(-9, -5, 7, 5); ctx.fillRect(2, -5, 7, 5);
+      ctx.fillStyle = '#b57ae0'; ctx.fillRect(-5, -44, 4, 3); ctx.fillRect(1, -44, 4, 3);
+      ctx.fillStyle = `rgba(181,122,224,${.35 + .25 * Math.sin(now / 170)})`;
+      for (const [px, py] of [[-18, -34], [16, -20], [-15, -8], [19, -42], [-21, -46]]) ctx.fillRect(px, py, 2, 2);
     } else if (type === 'skeleton') {
-      ctx.fillStyle = '#d9d5c2'; ctx.fillRect(-9, -40, 18, 30); ctx.beginPath(); ctx.arc(0, -44, 9, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-5, -46, 3, 3); ctx.fillRect(2, -46, 3, 3);
-      ctx.strokeStyle = '#d9d5c2'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(9, -30); ctx.lineTo(24, -20); ctx.stroke();
+      // 骷髅：头骨、肋骨、持弓。
+      ctx.fillStyle = '#d9d5c2'; ctx.beginPath(); ctx.arc(0, -45, 9, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#1a1a1a'; ctx.fillRect(-5, -47, 3, 4); ctx.fillRect(2, -47, 3, 4); ctx.fillRect(-2, -41, 4, 2);
+      ctx.fillStyle = '#d9d5c2'; ctx.fillRect(-2, -36, 4, 20);
+      for (let i = 0; i < 4; i++) { ctx.fillRect(-9, -34 + i * 5, 18, 2); }
+      ctx.fillRect(-5, -16, 3, 12); ctx.fillRect(2, -16, 3, 12);
+      ctx.strokeStyle = '#b08a5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(18, -26, 12, -1.1, 1.1); ctx.stroke();
+      ctx.strokeStyle = '#e6e0cc'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(21, -38); ctx.lineTo(21, -14); ctx.stroke();
+      ctx.strokeStyle = '#d9d5c2'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(8, -32); ctx.lineTo(20, -28); ctx.stroke();
     } else {
+      // 史莱姆：半透明果冻块，内部有核心。
       const sc = type === 'slime_small' ? .7 : 1; ctx.save(); ctx.scale(sc, sc);
-      ctx.fillStyle = '#6fbf7b'; ctx.fillRect(-14, -20, 28, 20); ctx.fillRect(-10, -26, 20, 8);
-      ctx.fillStyle = '#1a2a1c'; ctx.fillRect(-7, -16, 4, 4); ctx.fillRect(3, -16, 4, 4);
+      const squash = 1 + Math.sin(now / 220 + p.x) * .06;
+      ctx.fillStyle = 'rgba(111,191,123,.85)'; ctx.beginPath(); ctx.ellipse(0, -12 * squash, 16, 13 * squash, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(160,225,160,.5)'; ctx.beginPath(); ctx.ellipse(-4, -17, 8, 5, -.3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#3f7a4a'; ctx.fillRect(-7, -13, 4, 4); ctx.fillRect(3, -13, 4, 4); ctx.fillRect(-3, -7, 6, 3);
       ctx.restore();
+    }
+    const names = { creeper: '苦力怕', enderman: '末影人', skeleton: '骷髅', slime: '史莱姆', slime_small: '小史莱姆' };
+    if (Math.hypot(p.x - (state()?.self?.x || 0), p.y - (state()?.self?.y || 0)) < 480) label(names[type] || type, 0, -58, '#dfe8d8', 10);
+  }
+  function drawZombie(p, old, now, zs) {
+    // 行尸：绿色前伸手臂的人形；暴尸更宽更暗，疾行者更瘦并带速度线。
+    const brute = p.variant === 'brute', runner = p.variant === 'runner', u = CHAR_SCALE * zs;
+    const skin = brute ? '#547c4a' : runner ? '#8fb87d' : '#709765', dark = brute ? '#33502f' : '#42603a';
+    ctx.fillStyle = brute ? 'rgba(74,107,74,.26)' : 'rgba(111,147,104,.22)';
+    ctx.beginPath(); ctx.arc(0, -18 * u, (brute ? 30 : 23) * u, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = dark; ctx.fillRect(-7 * u, -16 * u, 5 * u, 16 * u); ctx.fillRect(2 * u, -16 * u, 5 * u, 16 * u);
+    ctx.fillStyle = skin; ctx.beginPath(); ctx.moveTo(-11 * u, -35 * u); ctx.lineTo(11 * u, -35 * u); ctx.lineTo(9 * u, -14 * u); ctx.lineTo(-9 * u, -14 * u); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#3c5b3c'; ctx.fillRect(-11 * u, -27 * u, 22 * u, 3 * u); ctx.fillRect(-11 * u, -20 * u, 22 * u, 2 * u);
+    ctx.fillStyle = skin; ctx.fillRect(-3 * u, -24 * u, 6 * u, 6 * u);
+    ctx.fillStyle = skin; ctx.fillRect(-23 * u, -30 * u, 13 * u, 5 * u); ctx.fillRect(10 * u, -30 * u, 13 * u, 5 * u);
+    ctx.fillStyle = dark; ctx.fillRect(-24 * u, -31 * u, 3 * u, 7 * u); ctx.fillRect(21 * u, -31 * u, 3 * u, 7 * u);
+    ctx.fillStyle = skin; ctx.fillRect(-8 * u, -48 * u, 16 * u, 13 * u);
+    ctx.fillStyle = '#16220f'; ctx.fillRect(-6 * u, -45 * u, 5 * u, 4 * u); ctx.fillRect(1 * u, -45 * u, 5 * u, 4 * u);
+    ctx.fillStyle = '#ff5b4a'; ctx.fillRect(-5 * u, -44 * u, 3 * u, 2 * u); ctx.fillRect(2 * u, -44 * u, 3 * u, 2 * u);
+    ctx.fillStyle = '#1e2a16'; ctx.fillRect(-3 * u, -39 * u, 6 * u, 2 * u);
+    if (brute) {
+      ctx.fillStyle = '#2b402a'; ctx.fillRect(-14 * u, -38 * u, 5 * u, 5 * u); ctx.fillRect(9 * u, -38 * u, 5 * u, 5 * u);
+      ctx.strokeStyle = '#2f4a34'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -20 * u, 30 * u, 0, Math.PI * 2); ctx.stroke();
+    }
+    if (runner) {
+      ctx.strokeStyle = 'rgba(160,220,140,.5)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(-12 * u, -16 * u); ctx.lineTo(-26 * u, -10 * u); ctx.moveTo(-10 * u, -24 * u); ctx.lineTo(-22 * u, -20 * u); ctx.stroke();
     }
   }
   function person(p, now, type = 'player') {
@@ -1019,22 +1107,18 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       if (type === 'zombie') ctx.rotate(Math.sin(old.phase * .55) * .07);
       if (p.distorted) { ctx.save(); ctx.globalAlpha = .3 + .12 * Math.sin(now / 140); ctx.fillStyle = '#e0675e'; ctx.beginPath(); ctx.arc(0, -18 * CHAR_SCALE, 30 * zs, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
       if (p.ego) { ctx.strokeStyle = '#f2d57d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -18 * CHAR_SCALE, 24 * zs, 0, Math.PI * 2); ctx.stroke(); }
-      ctx.drawImage(rigImage(avatars().get(p.userId), p.color || ({police: '#728fb4', civilian: '#ad946c', zombie: '#5e7d62', target: '#b45b52', convoy: '#8a6f4a', golden: '#f2c94c', 'ab_nothing': '#ad946c'}[type]), face, old.phase, moved > .12 ? 1 : 0), -18 * zs * CHAR_SCALE, -47 * zs * CHAR_SCALE, 36 * zs * CHAR_SCALE, 50 * zs * CHAR_SCALE);
-      if (type === 'police') { ctx.fillStyle = '#1f3d6f'; ctx.fillRect(-7 * CHAR_SCALE, -44 * CHAR_SCALE, 14 * CHAR_SCALE, 5 * CHAR_SCALE); }
-      if (type === 'zombie') {
-        const brute = p.variant === 'brute', runner = p.variant === 'runner';
-        ctx.fillStyle = brute ? '#4a6b4a' : '#6f9368';
-        ctx.globalAlpha = .26; ctx.beginPath(); ctx.arc(0, -18 * CHAR_SCALE, (brute ? 32 : 25) * CHAR_SCALE, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
-        ctx.strokeStyle = brute ? 'rgba(255,140,90,.5)' : runner ? 'rgba(180,230,140,.45)' : 'rgba(120,190,110,.34)';
-        ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 2 * CHAR_SCALE, (brute ? 23 : 17) * CHAR_SCALE, (brute ? 9 : 7) * CHAR_SCALE, 0, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = brute ? '#3f5a42' : '#6f9368';
-        const ay = -29 * CHAR_SCALE + Math.sin(old.phase * .7) * 2 * CHAR_SCALE;
-        ctx.fillRect(-26 * CHAR_SCALE, ay, 9 * CHAR_SCALE, 5 * CHAR_SCALE); ctx.fillRect(17 * CHAR_SCALE, ay, 9 * CHAR_SCALE, 5 * CHAR_SCALE);
-        ctx.fillStyle = '#ff5b4a'; ctx.fillRect(-7 * CHAR_SCALE, -41 * CHAR_SCALE, 4 * CHAR_SCALE, 4 * CHAR_SCALE); ctx.fillRect(3 * CHAR_SCALE, -41 * CHAR_SCALE, 4 * CHAR_SCALE, 4 * CHAR_SCALE);
-        if (brute) { ctx.strokeStyle = '#2f4a34'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, -20 * CHAR_SCALE, 28 * CHAR_SCALE, 0, Math.PI * 2); ctx.stroke(); }
-        if (runner) { ctx.strokeStyle = 'rgba(160,220,140,.5)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-10 * CHAR_SCALE, -16 * CHAR_SCALE); ctx.lineTo(-24 * CHAR_SCALE, -10 * CHAR_SCALE); ctx.stroke(); }
+      if (type === 'zombie') drawZombie(p, old, now, zs);
+      else {
+        ctx.drawImage(rigImage(avatars().get(p.userId), p.color || ({police: '#728fb4', civilian: '#ad946c', target: '#b45b52', convoy: '#8a6f4a', golden: '#f2c94c', 'ab_nothing': '#ad946c'}[type]), face, old.phase, moved > .12 ? 1 : 0), -18 * zs * CHAR_SCALE, -47 * zs * CHAR_SCALE, 36 * zs * CHAR_SCALE, 50 * zs * CHAR_SCALE);
+        if (type === 'police') { ctx.fillStyle = '#1f3d6f'; ctx.fillRect(-7 * CHAR_SCALE, -44 * CHAR_SCALE, 14 * CHAR_SCALE, 5 * CHAR_SCALE); }
       }
       if (type === 'target') { ctx.fillStyle = '#c94f48'; ctx.fillRect(-8 * CHAR_SCALE, -44 * CHAR_SCALE, 16 * CHAR_SCALE, 5 * CHAR_SCALE); ctx.fillStyle = '#ffd36e'; ctx.fillRect(-1 * CHAR_SCALE, -52 * CHAR_SCALE, 2 * CHAR_SCALE, 4 * CHAR_SCALE); }
+      const meNow = state()?.self;
+      if (meNow && Math.hypot(p.x - meNow.x, p.y - meNow.y) < 520) {
+        if (type === 'zombie') label(p.variant === 'brute' ? '暴尸' : p.variant === 'runner' ? '疾行者' : '行尸', 0, -64 * CHAR_SCALE, '#a9d99a', 10);
+        if (type === 'convoy') label('押运员', 0, -61 * CHAR_SCALE, '#e0c08a', 10);
+        if (type === 'police') label('警察', 0, -61 * CHAR_SCALE, '#9db8dd', 10);
+      }
     }
     if (p.id === self()) {
       ctx.strokeStyle = '#f5d889';
@@ -1157,6 +1241,11 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       c.beginPath(); c.arc(0, -9, 5, 0, Math.PI * 2); c.stroke();
       c.beginPath(); c.moveTo(0, -4); c.lineTo(0, 13); c.moveTo(-9, 2); c.lineTo(9, 2); c.moveTo(-7, 13); c.lineTo(0, 8); c.lineTo(7, 13); c.stroke();
       c.fillStyle = '#6fd7e5'; c.beginPath(); c.moveTo(-2, 5); c.lineTo(2, 5); c.lineTo(-1, 10); c.lineTo(4, 2); c.lineTo(0, 2); c.closePath(); c.fill();
+    } else if (kind === 'containment') {
+      c.strokeRect(-10, -11, 20, 22);
+      c.beginPath(); c.arc(0, 4, 5, Math.PI, 0); c.stroke();
+      c.beginPath(); c.moveTo(-4, -4); c.lineTo(4, -4); c.moveTo(0, -8); c.lineTo(0, -1); c.stroke();
+      c.fillStyle = color; c.beginPath(); c.arc(0, 6, 2.2, 0, Math.PI * 2); c.fill();
     } else if (kind === 'black-market') {
       c.strokeRect(-9, -5, 18, 15);
       c.beginPath(); c.arc(0, -5, 6, Math.PI, 0); c.stroke();
@@ -1456,7 +1545,7 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       const current = raceSmooth.get(g.id);
       raceSmooth.set(g.id, current === undefined ? g.progress : current + (g.progress - current) * Math.min(1, dt * 8));
     }
-    const me = s.self, z = w < 600 ? .98 : 1.06, margin = 160;
+    const me = s.self, z = w < 600 ? 1.15 : 1.25, margin = 160;
     if (me.hp <= 0) cameraReady = false;
     let focus = me;
     if (me.hp <= 0 && me.death) {
@@ -1568,11 +1657,17 @@ export function createCityRenderer(canvas, {state, self, aim, avatars = () => ne
       ctx.restore();
     }
     for (const [, kind, x, y, value] of s.loot) {
-      ctx.fillStyle = kind === 'cash' ? '#82d0a1' : Object.hasOwn(GUNS, kind) ? '#edb08c' : '#b69ad9';
+      const ego = !!GUNS[kind]?.ego;
+      if (ego) {
+        const pulse = .3 + .2 * Math.sin(now / 220 + x);
+        ctx.fillStyle = `rgba(242,213,125,${pulse})`; ctx.beginPath(); ctx.arc(x, y, 17, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#f2d57d'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 14 + Math.sin(now / 260) * 2, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.fillStyle = kind === 'cash' ? '#82d0a1' : ego ? '#f2d57d' : Object.hasOwn(GUNS, kind) ? '#edb08c' : '#b69ad9';
       ctx.fillRect(x - 7, y - 8, 14, 13);
       ctx.fillStyle = '#f6f0d6';
       ctx.fillRect(x - 2, y - 8, 3, 13);
-      if (Math.hypot(x - me.x, y - me.y) < 80) label(kind === 'cash' ? '¥' + value : GUNS[kind]?.name || GOODS[kind]?.name || kind, x, y - 18);
+      if (Math.hypot(x - me.x, y - me.y) < (ego ? 240 : 80)) label(kind === 'cash' ? '¥' + value : (ego ? 'E.G.O. · ' : '') + (GUNS[kind]?.name || GOODS[kind]?.name || kind), x, y - 18);
     }
     for (const o of s.objects) {
       const [, kind, x, y, ohp, ow, oh, mat] = o;

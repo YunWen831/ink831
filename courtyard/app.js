@@ -1,4 +1,4 @@
-import {createCityGame} from './city-game.js?v=0.27.0';
+import {createCityGame} from './city-game.js?v=0.27.2';
 import {createMaterialLoader} from './material-loader.js?v=0.16.0';
 import {lobbyMove} from './lobby-rules.js?v=0.16.0';
 import {createAdminBuild} from './admin-build.js?v=0.16.0';
@@ -410,7 +410,7 @@ $('world').addEventListener('pointerdown',event=>{
 $('world').addEventListener('pointerup',event=>adminBuild?.up(mapCell(event)));
 for(const name of ['pointerup','pointercancel','lostpointercapture'])$('world').addEventListener(name,()=>{buildPointer=null;lastBuildKey='';});
 $('diagnosticsButton').addEventListener('click',async()=>{
-  const data=JSON.stringify({version:'0.27.0',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
+  const data=JSON.stringify({version:'0.27.2',at:new Date().toISOString(),page:location.origin+location.pathname,endpoint,space,status:$('connectionStatus').textContent,latency,reconnects,browser:navigator.userAgent,events},null,2);
   try{await navigator.clipboard.writeText(data);toast('诊断已复制。');}catch{const url=URL.createObjectURL(new Blob([data],{type:'text/plain'})),a=document.createElement('a');a.href=url;a.download='courtyard-diagnostics.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 });
 $('nickname').value=store.get('dungeon-mail-name')||'';preview($('selectedTexture'),materials.get('stone'));renderLibrary();controls();

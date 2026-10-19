@@ -1,7 +1,7 @@
-import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,BODY_UPGRADES,DESIRES,dist,nearPlace} from './city-rules.js?v=0.27.0';
-import {CityPrediction} from './city-motion.js?v=0.27.0';
-import {createCityRenderer} from './city-render.js?v=0.27.0';
-import {createCityAudio} from './city-audio.js?v=0.27.0';
+import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,BODY_UPGRADES,DESIRES,EGO,dist,nearPlace} from './city-rules.js?v=0.27.2';
+import {CityPrediction} from './city-motion.js?v=0.27.2';
+import {createCityRenderer} from './city-render.js?v=0.27.2';
+import {createCityAudio} from './city-audio.js?v=0.27.2';
 
 const SERVICE = new Set(['arms', 'market', 'bank', 'casino', 'garage', 'job', 'fixer', 'safehouse', 'clinic', 'cyber']);
 const GUN_IDS = new Set(Object.keys(GUNS));
@@ -184,7 +184,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
 
   function drawServiceIcon(g, kind) {
     g.clearRect(0, 0, 64, 64);
-    const color = {job:'#70dbb1',arms:'#f39485',market:'#c4a0ef','black-market':'#a76bd0',bank:'#f2d57d',casino:'#e97cf0',garage:'#84c8e8',escape:'#b5f493',fixer:'#f2c94c',safehouse:'#7fd6b0',clinic:'#f28f8f',goose:'#f2c94c',cyber:'#6fd7e5'}[kind] || '#b6c4c2';
+    const color = {job:'#70dbb1',arms:'#f39485',market:'#c4a0ef','black-market':'#a76bd0',bank:'#f2d57d',casino:'#e97cf0',garage:'#84c8e8',escape:'#b5f493',fixer:'#f2c94c',safehouse:'#7fd6b0',clinic:'#f28f8f',goose:'#f2c94c',cyber:'#6fd7e5',containment:'#e0675e'}[kind] || '#b6c4c2';
     g.fillStyle = '#0b1721'; roundRect(g, 1, 1, 62, 62, 14); g.fill();
     g.strokeStyle = color; g.lineWidth = 2; roundRect(g, 1, 1, 62, 62, 14); g.stroke();
     g.save(); g.translate(32, 32); g.scale(1.55, 1.55); g.strokeStyle = color; g.fillStyle = color; g.lineWidth = 2.2; g.lineCap = 'round';
@@ -199,6 +199,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     else if (kind === 'clinic') { g.strokeRect(-10, -10, 20, 20); g.fillStyle = color; g.fillRect(-2, -7, 4, 14); g.fillRect(-7, -2, 14, 4); }
     else if (kind === 'goose') { g.beginPath(); g.ellipse(-1, 5, 11, 8, -.2, 0, Math.PI * 2); g.fill(); g.fillRect(5, -14, 6, 17); g.beginPath(); g.arc(8, -14, 5, 0, Math.PI * 2); g.fill(); g.fillStyle = '#e0a24f'; g.beginPath(); g.moveTo(12, -15); g.lineTo(18, -12); g.lineTo(12, -11); g.fill(); g.fillStyle = '#1a2531'; g.beginPath(); g.arc(9, -15, 1.4, 0, Math.PI * 2); g.fill(); }
     else if (kind === 'cyber') { g.beginPath(); g.arc(0, -9, 5, 0, Math.PI * 2); g.stroke(); g.beginPath(); g.moveTo(0, -4); g.lineTo(0, 13); g.moveTo(-9, 2); g.lineTo(9, 2); g.moveTo(-7, 13); g.lineTo(0, 8); g.lineTo(7, 13); g.stroke(); g.fillStyle = '#6fd7e5'; g.beginPath(); g.moveTo(-2, 5); g.lineTo(2, 5); g.lineTo(-1, 10); g.lineTo(4, 2); g.lineTo(0, 2); g.closePath(); g.fill(); }
+    else if (kind === 'containment') { g.strokeRect(-10, -11, 20, 22); g.beginPath(); g.arc(0, 4, 5, Math.PI, 0); g.stroke(); g.beginPath(); g.moveTo(-4, -4); g.lineTo(4, -4); g.moveTo(0, -8); g.lineTo(0, -1); g.stroke(); g.fillStyle = color; g.beginPath(); g.arc(0, 6, 2.2, 0, Math.PI * 2); g.fill(); }
     else { g.strokeRect(-9, -4, 16, 9); g.beginPath(); g.moveTo(7, -3); g.lineTo(13, -8); g.lineTo(13, -1); g.stroke(); g.beginPath(); g.moveTo(-17, -8); g.lineTo(11, -8); g.moveTo(-3, -8); g.lineTo(-3, -5); g.stroke(); }
     g.restore();
   }
@@ -578,6 +579,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         '安全屋可设置重生点；诊所花现金回血或补护甲；黑市什么都有，但加价 35%。',
         '赌场除了骰子，还有老虎机：三连返还，炸弹清空。所有筹码都是局内虚拟币。',
         '死亡掉落背包、武器和 70% 随身现金；4 秒后复活。新入城/复活有 10 秒保护，主动犯罪或攻击会结束保护。',
+        '收容事件里的异想体被击败后会掉落 E.G.O. 武器（拟态 / 灯具 / 微笑 / 正义 / 第四根火柴）。按 E 拾取，再按 B 打开背包选择“装备”；E.G.O. 只在事件和扭曲者身上掉落，商店不卖。',
+        '濒死时接受低语会获得神备：按 V 开启 20 秒，伤害、移速、减伤大幅提升，结束后冷却 60 秒。拒绝低语会变成扭曲（1000 生命），警察会持续围剿；想提前结束就去旧城的收容舱，按住 E 6 秒自毁。',
         '手机左摇杆移动、右摇杆瞄准攻击，按住 E 按钮互动；快捷道具条也可以直接点。'
       ];
       for (const text of items) body.append(el('p', text));
@@ -613,7 +616,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         for (const [id, count] of inv) {
           const isGun = GUN_IDS.has(id);
           const item = GOODS[id] || GUNS[id] || {name: id, description: ''};
-          grid.append(card(item.name + ' ×' + count, item.description || (isGun ? '可装备武器' : ''), null, [
+          grid.append(card(item.name + ' ×' + count, item.description || (GUNS[id]?.ego ? 'E.G.O. 武器 · 异想体 / 扭曲者掉落，装备后使用' : isGun ? '可装备武器' : ''), null, [
             button(isGun ? '装备' : '使用', () => action(isGun ? 'equip' : 'use', {item: id})),
             button('丢下', () => action('drop', {item: id}))
           ], itemIcon(id)));
@@ -797,16 +800,17 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         if (p.contract?.kind === 'vehicle' && place?.kind === 'garage') { hints.push('按 E 交付委托车辆'); hints.push('F 下车'); }
         else { hints.push('F 下车'); hints.push('Shift 冲刺'); }
       } else if (p.progress) {
-        hints.push({work: '打工进行中 · 留在原地', bank: '开金库 · 按住 E', car: '抢车 · 按住 E', mug: '抢劫 · 按住 E', escape: '撤离 · 按住 E'}[p.progress.kind] || '任务进行中');
+        hints.push({work: '打工进行中 · 留在原地', bank: '开金库 · 按住 E', car: '抢车 · 按住 E', mug: '抢劫 · 按住 E', escape: '撤离 · 按住 E', containment: '自毁 · 按住 E 6 秒'}[p.progress.kind] || '任务进行中');
       } else {
         const serviceSpot = !!(place && SERVICE.has(place.kind));
+        if (p.distort && (place?.kind === 'containment' || closePlace?.kind === 'containment')) hints.unshift('按住 E 自毁 · 结束扭曲');
         if (serviceSpot) { hints.push((world ? 'F / 打开' : 'E / F') + ' · ' + place.name); act = 'service'; }
         if (p.contract?.kind === 'delivery' && p.contract.to === closePlace?.id) hints.unshift('按 E 交付委托');
         if (p.contract?.kind === 'bounty' && p.contract.place === place?.id) hints.unshift('委托目标就在' + place.name + '附近');
         if (p.contract?.kind === 'race') { const target = PLACES.find(q => q.id === p.contract.checkpoints?.[p.contract.index]); if (target && place?.id === target.id) hints.unshift('狂飙检查点 ' + ((p.contract.index || 0) + 1) + '/' + p.contract.checkpoints.length + ' · 开车通过'); }
         if (p.contract?.kind === 'heist') { const target = p.contract.stage === 2 ? p.contract.drop : p.contract.place; if (closePlace?.id === target) hints.unshift(p.contract.stage === 0 ? '按住 E 取得钥匙卡 4 秒' : p.contract.stage === 1 ? '按住 E 打开金库 12 秒' : '按 E 交付赃款'); }
         if (closePlace?.kind === 'escape') hints.push(p.cash >= CITY.goal ? '按住 E 撤离 8 秒' : `撤离需要 ¥${CITY.goal} · 当前 ¥${p.cash}`);
-        if (loot) hints.push(loot[1] === 'cash' ? 'E 拾取 ¥' + loot[4] : 'E 拾取 ' + (GUNS[loot[1]]?.name || GOODS[loot[1]]?.name || loot[1]));
+        if (loot) hints.push(loot[1] === 'cash' ? 'E 拾取 ¥' + loot[4] : 'E 拾取 ' + (GUNS[loot[1]]?.ego ? 'E.G.O. · ' : '') + (GUNS[loot[1]]?.name || GOODS[loot[1]]?.name || loot[1]));
         if (crate) hints.push('E 打开空投');
         if (p.job && p.job.to === closePlace?.id) hints.push('按 E 送达快递');
         if (closePlace?.kind === 'job' && !p.job) hints.push('按住 E 打工 10 秒');
@@ -868,8 +872,16 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     const egoBox = $('cityEgo');
     if (p.ego) {
       egoBox.hidden = false;
-      $('cityEgoLabel').textContent = (p.ego.on ? '绽放' : '收敛') + ' · ' + Math.round(p.ego.faith || 0);
-      $('cityEgoFill').style.width = Math.max(0, Math.min(100, p.ego.faith || 0)) + '%';
+      if (p.ego.on) {
+        $('cityEgoLabel').textContent = '绽放 · ' + Math.ceil(p.ego.remain || 0) + 's';
+        $('cityEgoFill').style.width = Math.max(0, Math.min(100, (p.ego.remain || 0) / EGO.duration * 100)) + '%';
+      } else if ((p.ego.cooldown || 0) > 0) {
+        $('cityEgoLabel').textContent = '冷却 · ' + Math.ceil(p.ego.cooldown) + 's';
+        $('cityEgoFill').style.width = Math.max(0, Math.min(100, (1 - p.ego.cooldown / EGO.cooldown) * 100)) + '%';
+      } else {
+        $('cityEgoLabel').textContent = 'E.G.O. 就绪 · V 开启';
+        $('cityEgoFill').style.width = '100%';
+      }
     } else if (p.distort) {
       egoBox.hidden = false;
       $('cityEgoLabel').textContent = '失控 · ' + (p.distort.kills || 0) + ' 杀';
@@ -917,7 +929,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     $('cityTask').dataset.hunted = String(!!p.bounty);
     $('cityTask').classList.toggle('city-task-hunted', !!p.bounty);
     const bountyText = p.bounty ? '你被 ' + (p.bounty.hunter || '某人') + ' 悬赏 ¥' + p.bounty.amount + ' · 撑住 ' + Math.max(0, Math.ceil((p.bounty.until || 0) - state.time)) + 's' : '';
-    $('cityTask').textContent = p.bounty ? bountyText : p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离', mine: '挖方块'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? (EVENTS[state.event.kind]?.hint || state.event.hint || '') : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
+    $('cityTask').textContent = p.bounty ? bountyText : p.distort ? '扭曲 · 去旧城收容舱按住 E 可自毁' : p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离', mine: '挖方块', containment: '自毁'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? (EVENTS[state.event.kind]?.hint || state.event.hint || '') : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
     const nextMessage = p.message || state.feed.at(-1)?.text || '';
     if (nextMessage !== message) {
       message = nextMessage;
@@ -993,7 +1005,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       return;
     }
     if (k === 'e' && !e.repeat) {
-      if (state.self.distort) { action('distortSkill'); return; }
+      if (state.self.distort) { if (state.self.near !== 'containment') action('distortSkill'); return; }
       if (state.self.ego?.on) { action('egoSkill'); return; }
       if (mode === 'shop') { closeShop(); suppressInteract = true; return; }
       if (serviceHere() && !worldActionHere()) { openShop(); suppressInteract = true; return; }

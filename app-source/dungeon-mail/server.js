@@ -55,7 +55,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use('/api/account',accountApi(accounts,worldStore,notifyAdministration));
-app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.27.0' }));
+app.get('/health', (req, res) => res.json({ ok: true, service: 'dungeon-mail-courtyard', version: '0.27.2' }));
 app.get('/api/materials/:id',(req,res)=>{
   const material=worldStore.data.materials.find(m=>m.id===req.params.id);
   if(!material)return res.status(404).json({error:'材料已不存在'});

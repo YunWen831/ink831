@@ -29,13 +29,19 @@ export const GUNS = {
   revolver: { name: '左轮', price: 900, damage: 34, range: 720, interval: .55, mag: 6, reload: 1.5, blackOnly: true },
   dmr: { name: '精确步枪', price: 1900, damage: 30, range: 980, interval: .42, mag: 10, reload: 1.9, blackOnly: true },
   lmg: { name: '轻机枪', price: 2500, damage: 11, range: 760, interval: .075, mag: 60, reload: 3.2, blackOnly: true },
-  mimicry: { name: '拟态', price: 0, damage: 42, range: 68, interval: .55, mag: 0, reload: 0, eventOnly: true, lifesteal: .35 },
-  lamp: { name: '灯具', price: 0, damage: 38, range: 76, interval: .9, mag: 0, reload: 0, eventOnly: true, aoe: 110 },
-  smile: { name: '微笑', price: 0, damage: 40, range: 70, interval: .8, mag: 0, reload: 0, eventOnly: true, onKill: { heal: 15, speed: 1.25, seconds: 5 } },
-  justitia: { name: '正义', price: 0, damage: 34, range: 86, interval: .65, mag: 0, reload: 0, eventOnly: true, wantedBonus: .5 },
-  fourthflame: { name: '第四根火柴', price: 0, damage: 18, range: 260, interval: .9, mag: 4, reload: 1.6, eventOnly: true, fire: true },
+  mimicry: { name: '拟态', price: 0, damage: 42, range: 68, interval: .55, mag: 0, reload: 0, eventOnly: true, ego: true, lifesteal: .35 },
+  lamp: { name: '灯具', price: 0, damage: 38, range: 76, interval: .9, mag: 0, reload: 0, eventOnly: true, ego: true, aoe: 110 },
+  smile: { name: '微笑', price: 0, damage: 40, range: 70, interval: .8, mag: 0, reload: 0, eventOnly: true, ego: true, onKill: { heal: 15, speed: 1.25, seconds: 5 } },
+  justitia: { name: '正义', price: 0, damage: 34, range: 86, interval: .65, mag: 0, reload: 0, eventOnly: true, ego: true, wantedBonus: .5 },
+  fourthflame: { name: '第四根火柴', price: 0, damage: 18, range: 260, interval: .9, mag: 4, reload: 1.6, eventOnly: true, ego: true, fire: true },
   diamondsword: { name: '钻石剑', price: 0, damage: 45, range: 66, interval: .5, mag: 0, reload: 0, eventOnly: true }
 };
+
+// 神备（E.G.O. 绽放）：固定时长 + 冷却，取代原来的信念槽。
+export const EGO = { duration: 20, cooldown: 60, damage: 1.75, speed: 1.3, reduce: .65, skillCooldown: 9 };
+
+// 扭曲：降低坦度，让它能被 2–3 人打碎；收容舱可主动自毁。
+export const DISTORT = { maxHp: 1000, maxCap: 1500, reduce: .85, lifesteal: .15, killHp: 100, killHeal: 120, killDamage: .04, damageCap: 1.4, explode: 65, skillHeal: 25 };
 
 export const GOODS = {
   medkit: { name: '急救包', price: 120, description: '恢复45生命' },
@@ -132,6 +138,7 @@ export const ROADS = [
 export const PLACES = [
   { id: 'fixer', kind: 'fixer', name: '中央委托台', x: 2048, y: 1500 },
   { id: 'safehouse', kind: 'safehouse', name: '旧城安全屋', x: 300, y: 930 },
+  { id: 'containment', kind: 'containment', name: '旧城收容舱', x: 980, y: 1120 },
   { id: 'clinic', kind: 'clinic', name: '巷口诊所', x: 620, y: 1240 },
   { id: 'cyber', kind: 'cyber', name: '义体诊所', x: 2320, y: 1600 },
   { id: 'job-west', kind: 'job', name: '西区快递站', x: 300, y: 1200 },

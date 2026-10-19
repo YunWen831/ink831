@@ -1,5 +1,5 @@
 import {randomUUID,randomInt} from 'node:crypto';
-import {CITY,SPEED,BODY_RADIUS,MOVE_RADIUS,HIT_RADIUS,CAR_RADIUS,CAR_HIT_RADIUS,GUNS,GOODS,EVENTS,PLACES,BLOCKS,BOONS,SLOT_SYMBOLS,CONTRACT_META,MODIFIERS,RACE,GOOSE_RACERS,BODY_UPGRADES,ABNORMALITIES,DESIRES,clamp,dist,free,cityMove,cityDrive,wallRange,circleHit,nearPlace,BARKS} from '../../courtyard/city-rules.js';
+import {CITY,SPEED,BODY_RADIUS,MOVE_RADIUS,HIT_RADIUS,CAR_RADIUS,CAR_HIT_RADIUS,GUNS,GOODS,EVENTS,PLACES,BLOCKS,BOONS,SLOT_SYMBOLS,CONTRACT_META,MODIFIERS,RACE,GOOSE_RACERS,BODY_UPGRADES,ABNORMALITIES,DESIRES,EGO,DISTORT,clamp,dist,free,cityMove,cityDrive,wallRange,circleHit,nearPlace,BARKS} from '../../courtyard/city-rules.js';
 
 const alive=p=>!!p&&p.hp>0&&!p.escaped;
 const hasItem=(p,id)=>typeof id==='string'&&Object.hasOwn(p.inv,id)&&Number.isSafeInteger(p.inv[id])&&p.inv[id]>0;
@@ -96,21 +96,21 @@ export class CityMatch{
     const fail=text=>{p.message=text;return false;};
     if(d.kind==='whisper'){
       if(!p.whisper)return false;
-      if(d.choice==='accept'){p.ego={desire:p.whisper.desire,on:true,faith:100,lockUntil:0,skillAt:0};p.hp=this.maxHp(p);p.whisper=null;p.shield=this.t+1;p.message='你接受了自己';p.toast='你接受了自己';this.say(p.name+' 绽放了 E.G.O.','event');this.effect('bloom',p);return true;}
-      if(d.choice==='reject'){p.distort={desire:p.whisper.desire,maxHp:1400,kills:0,enraged:false,skillAt:0,damage:1};this.exitCar(p);p.hp=1400;p.whisper=null;p.gun='fists';p.ammo=0;p.reserve=0;p.shield=this.t+1;p.message='你放弃了';p.toast='你放弃了';this.say(p.name+' 扭曲了','event');this.effect('distort',p);return true;}
+      if(d.choice==='accept'){p.ego={desire:p.whisper.desire,on:false,endsAt:0,cooldownUntil:0,skillAt:0};p.hp=this.maxHp(p);p.whisper=null;p.shield=this.t+1;p.message='你接受了自己 · 按 V 开启神备';p.toast='你接受了自己';this.say(p.name+' 获得了 E.G.O.','event');this.effect('bloom',p);return true;}
+      if(d.choice==='reject'){p.distort={desire:p.whisper.desire,maxHp:DISTORT.maxHp,kills:0,enraged:false,skillAt:0,damage:1};this.exitCar(p);p.hp=DISTORT.maxHp;p.whisper=null;p.gun='fists';p.ammo=0;p.reserve=0;p.shield=this.t+1;p.message='你放弃了';p.toast='你放弃了';this.say(p.name+' 扭曲了','event');this.effect('distort',p);return true;}
       p.whisper=null;p.hp=0;p.shield=0;this.hurt(p,9999,null);return true;
     }
     if(d.kind==='egoToggle'){
       if(!p.ego)return fail('你还没有听见低语');
-      if(p.ego.on){p.ego.on=false;p.message='自我收敛';return true;}
-      if(this.t<(p.ego.lockUntil||0))return fail('信念还没有恢复');
-      if((p.ego.faith||0)<=0)return fail('信念不足');
-      p.ego.on=true;p.message='自我绽放';this.effect('bloom',p);return true;
+      if(p.ego.on){p.ego.on=false;p.ego.endsAt=0;p.ego.cooldownUntil=this.t+EGO.cooldown;p.message='自我收敛 · 冷却 '+EGO.cooldown+' 秒';return true;}
+      const left=Math.max(0,Math.ceil((p.ego.cooldownUntil||0)-this.t));
+      if(left>0)return fail('E.G.O. 冷却中 '+left+' 秒');
+      p.ego.on=true;p.ego.endsAt=this.t+EGO.duration;p.message='自我绽放 · '+EGO.duration+' 秒';this.effect('bloom',p);return true;
     }
     if(d.kind==='egoSkill'){
       if(!p.ego?.on)return fail('先开启神备');
       if(this.t<(p.ego.skillAt||0))return fail('技能还在冷却');
-      p.ego.skillAt=this.t+12;p.ego.faith=Math.max(0,(p.ego.faith||0)-8);
+      p.ego.skillAt=this.t+EGO.skillCooldown;
       if(p.ego.desire==='greed'){this.explode(p,p.x,p.y,55,150);for(let i=0;i<6;i++)this.scatter('cash',{x:p.x+(this.random()-.5)*180,y:p.y+(this.random()-.5)*180},120);p.hp=Math.min(this.maxHp(p),p.hp+25);}
       else if(p.ego.desire==='envy'){const point=cityMove(p,Math.cos(p.input.angle)*150,Math.sin(p.input.angle)*150,this.objects,MOVE_RADIUS);Object.assign(p,point);this.explode(p,p.x,p.y,45,120);p.shield=this.t+1;}
       else this.explode(p,p.x,p.y,70,160);
@@ -120,8 +120,8 @@ export class CityMatch{
       if(!p.distort)return fail('你现在不是扭曲状态');
       if(this.t<(p.distort.skillAt||0))return fail('技能还在冷却');
       p.distort.skillAt=this.t+(p.distort.enraged?8:10);
-      this.explode(p,p.x,p.y,70*(p.distort.damage||1),160);
-      p.hp=Math.min(p.distort.maxHp,p.hp+40);p.message='扭曲爆发';return true;
+      this.explode(p,p.x,p.y,DISTORT.explode*(p.distort.damage||1),160);
+      p.hp=Math.min(p.distort.maxHp,p.hp+DISTORT.skillHeal);p.message='扭曲爆发';return true;
     }
     if(p.distort)return fail('扭曲状态下无法使用城市服务');
     if(d.kind==='reload')return this.reload(p);
@@ -283,18 +283,17 @@ export class CityMatch{
   }
   scatter(kind,p,cash=0,extra={}){if(this.loot.length>=CITY.lootLimit)this.loot.shift();const point=free(p.x,p.y)?p:this.point();this.loot.push({id:this.uid(),kind,x:point.x,y:point.y,cash,until:this.t+180,...extra});}
   drop(p,all=false){const cash=all?p.cash:Math.floor(p.cash*.7);if(cash)this.scatter('cash',p,cash);p.cash-=cash;for(const[k,n]of Object.entries(p.inv))for(let i=0;i<n;i++)this.scatter(k,{x:p.x+(this.random()-.5)*40,y:p.y+(this.random()-.5)*40},1);p.inv={};if(p.gun!=='fists')this.scatter(p.gun,p,1,{ammo:p.ammo,reserve:p.reserve});p.gun='fists';p.ammo=p.reserve=0;}
-  hurt(target,damage,attacker=null){
+  hurt(target,damage,attacker=null,opts={}){
     if(!alive(target)||target.shield>this.t||target.whisper)return false;
     if(target.boons.includes('iron'))damage*=.85;
-    if(target.ego?.on)damage*=.7;
-    if(target.distort)damage*=.8;
+    if(target.ego?.on)damage*=EGO.reduce;
+    if(target.distort)damage*=DISTORT.reduce;
     const absorbed=Math.min(target.armor,Math.ceil(damage*.6));target.armor-=absorbed;target.hp=Math.max(0,target.hp-Math.ceil(damage)+absorbed);
-    if(target.ego?.on)target.ego.faith=Math.max(0,(target.ego.faith||0)-damage/20);
     this.cancelProgress(target);target.lastHurt=this.t;this.effect('hit',target,{damage:Math.round(damage),by:attacker?.id||''});
     if(target.distort&&target.hp<=target.distort.maxHp*.5&&!target.distort.enraged){target.distort.enraged=true;target.message='扭曲狂暴';}
     if(!target.hp){
       if((target.inv?.totem||0)>0){target.inv.totem--;if(target.inv.totem<=0)delete target.inv.totem;target.hp=1;target.shield=this.t+2;target.message='不死图腾替你挡下了死亡';target.toast='不死图腾碎裂';this.effect('bloom',target);this.say(target.name+' 的不死图腾碎裂了','event');return true;}
-      if(!target.distort&&this.rollWhisper(target)){target.hp=1;target.shield=this.t+3;target.whisperAt=this.t;target.whisper={desire:this.topDesire(target),until:this.t+3};target.message='你听见了低语';this.effect('whisper',target);return true;}
+      if(!opts.noWhisper&&!target.distort&&this.rollWhisper(target)){target.hp=1;target.shield=this.t+3;target.whisperAt=this.t;target.whisper={desire:this.topDesire(target),until:this.t+3};target.message='你听见了低语';this.effect('whisper',target);return true;}
       if(target.distort){
         this.explode(null,target.x,target.y,80,120);this.say(target.name+' 的扭曲被打碎了','event');
         if(attacker?.id){const by=this.players.get(attacker.id);if(by){this.credit(by,1500);by.message='击碎扭曲 +1500';by.toast='击碎扭曲';}}
@@ -302,8 +301,8 @@ export class CityMatch{
         const drops=['mimicry','lamp','smile','justitia','fourthflame'];this.scatter(drops[Math.floor(this.random()*drops.length)],target,1);
         target.distort=null;
       }
-      if(attacker?.distort&&this.players.has(target.id)){attacker.distort.kills++;attacker.distort.maxHp=Math.min(2000,attacker.distort.maxHp+150);attacker.hp=Math.min(attacker.distort.maxHp,attacker.hp+200);attacker.distort.damage=Math.min(1.5,(attacker.distort.damage||1)+.05);}
-      const lost=Math.floor(target.cash*.7),byName=attacker?.name||(attacker?.kind==='police'?'警察':attacker?.kind==='zombie'?'僵尸':attacker?.kind==='goose'||attacker?.kind==='golden'?'大鹅':attacker?.kind==='target'?'悬赏目标':'环境'),gunName=attacker?.gun?GUNS[attacker.gun]?.name:attacker?.kind==='police'?'警枪':attacker?.kind==='zombie'?'撕咬':attacker?.kind==='goose'||attacker?.kind==='golden'?'鹅嘴':attacker?.kind==='target'?'枪械':'意外';
+      if(attacker?.distort&&this.players.has(target.id)){attacker.distort.kills++;attacker.distort.maxHp=Math.min(DISTORT.maxCap,attacker.distort.maxHp+DISTORT.killHp);attacker.hp=Math.min(attacker.distort.maxHp,attacker.hp+DISTORT.killHeal);attacker.distort.damage=Math.min(DISTORT.damageCap,(attacker.distort.damage||1)+DISTORT.killDamage);}
+      const lost=Math.floor(target.cash*.7),byName=opts.cause||attacker?.name||(attacker?.kind==='police'?'警察':attacker?.kind==='zombie'?'僵尸':attacker?.kind==='goose'||attacker?.kind==='golden'?'大鹅':attacker?.kind==='target'?'悬赏目标':'环境'),gunName=opts.gun||(attacker?.gun?GUNS[attacker.gun]?.name:attacker?.kind==='police'?'警枪':attacker?.kind==='zombie'?'撕咬':attacker?.kind==='goose'||attacker?.kind==='golden'?'鹅嘴':attacker?.kind==='target'?'枪械':'意外');
       target.death={by:byName,byId:attacker?.id||'',gun:gunName,damage:Math.round(damage),lost,x:round(target.x),y:round(target.y),at:round(this.t)};
       const hunter=target.bounty?[...this.players.values()].find(q=>q.contract?.kind==='player'&&q.contract.target===target.id):null;
       if(hunter){if(attacker===hunter)this.completeContract(hunter);else{hunter.contract=null;hunter.contracts=this.makeContracts(hunter,3);hunter.message='目标被别人击杀，委托失败';}}
@@ -337,7 +336,7 @@ export class CityMatch{
       const consider=q=>{if(q===p||q.hp<=0||q.escaped)return;const d=dist(p,q);if(d<best&&wallRange(p,angle,d,this.objects)>=d){best=d;hit=q;}};
       for(const q of this.players.values())consider(q);for(const q of this.npcs)consider(q);for(const q of this.cars)consider(q);
       this.effect('swing',p,{angle,range:best||90,hit:!!hit,gun:'fists'});
-      if(hit){if(this.players.has(hit.id))this.hurt(hit,damage,p);else if(this.npcs.includes(hit)){hit.hp-=damage;hit.lastHitBy=p.id;if(hit.hp<=0)this.effect('fall',hit);}else this.carDamage(hit,damage,p);p.hp=Math.min(p.distort.maxHp,p.hp+damage*.3);}
+      if(hit){if(this.players.has(hit.id))this.hurt(hit,damage,p);else if(this.npcs.includes(hit)){hit.hp-=damage;hit.lastHitBy=p.id;if(hit.hp<=0)this.effect('fall',hit);}else this.carDamage(hit,damage,p);p.hp=Math.min(p.distort.maxHp,p.hp+damage*DISTORT.lifesteal);}
       return;
     }
     const gun=GUNS[p.gun];
@@ -347,7 +346,7 @@ export class CityMatch{
     if(gun.mag&&egoOn&&p.ammo<=0)p.ammo=gun.mag;
     p.shotAt=this.t+gun.interval;p.shield=0;this.cancelProgress(p);
     if(gun.mag&&!egoOn)p.ammo--;
-    const angle=p.input.angle,pellets=gun.pellets||1,damage=gun.damage*(p.boons.includes('hunter')?1.18:1)*(p.boons.includes('brawler')&&!gun.mag?1.5:1)*(1+(p.mods?.gun||0)*.15)*(egoOn?1.6:1),maxRange=gun.range*(p.boons.includes('marksman')?1.2:1),hits=new Map();let best=0,reach=0;
+    const angle=p.input.angle,pellets=gun.pellets||1,damage=gun.damage*(p.boons.includes('hunter')?1.18:1)*(p.boons.includes('brawler')&&!gun.mag?1.5:1)*(1+(p.mods?.gun||0)*.15)*(egoOn?EGO.damage:1),maxRange=gun.range*(p.boons.includes('marksman')?1.2:1),hits=new Map();let best=0,reach=0;
     for(let i=0;i<pellets;i++){
       const aim=angle+(pellets>1?(this.random()-.5)*gun.spread*2:0);let range=wallRange(p,aim,maxRange,this.objects),target=null,type='';
       const consider=(q,kind,r)=>{if(q===p||q.hp<=0||q.escaped||kind==='player'&&q.shield>this.t)return;const hit=gun.mag?circleHit(p,aim,q,r):dist(p,q);if(!gun.mag&&(Math.abs(Math.atan2(Math.sin(Math.atan2(q.y-p.y,q.x-p.x)-aim),Math.cos(Math.atan2(q.y-p.y,q.x-p.x)-aim)))>1||wallRange(p,Math.atan2(q.y-p.y,q.x-p.x),hit,this.objects)<hit))return;if(hit<=range){range=hit;target=q;type=kind;}};
@@ -375,7 +374,6 @@ export class CityMatch{
       if(hit.type==='player'&&gun.lifesteal)p.hp=Math.min(this.maxHp(p),p.hp+d*gun.lifesteal);
       if(gun.fire&&(hit.type==='npc'||hit.type==='player'||hit.type==='car')){const x=target.x??p.x,y=target.y??p.y;this.objects.push({id:this.uid(),kind:'fire',x,y,hp:1,owner:p.id,until:this.t+5,burnAt:this.t,damage:6});}
       if(gun.aoe&&hit.type!=='object')this.explode(p,target.x??p.x,target.y??p.y,gun.aoe*.35,gun.aoe);
-      if(egoOn&&hit.type==='player'&&!alive(target))p.ego.faith=Math.min(100,(p.ego.faith||0)+15);
       if(hit.type==='heli'){const h=this.helicopter;if(h&&this.helicopter===h){h.hp-=d;this.effect('hit',h,{damage:Math.round(d)});if(h.hp<=0){this.helicopter=null;this.heliDownAt=this.t+45;this.effect('explosion',{x:h.x,y:h.y});for(let i=0;i<8;i++)this.scatter('cash',{x:h.x+(this.random()-.5)*90,y:h.y+(this.random()-.5)*90},180);this.scatter('rifle',{x:h.x,y:h.y},1);this.scatter('medkit',{x:h.x,y:h.y},1);this.credit(p,1500);p.message='击落警方直升机 +1500';this.say(p.name+' 击落了警方直升机','police');}}}
     }
   }
@@ -389,12 +387,13 @@ export class CityMatch{
         if(task.kind==='bank'){this.banks.set(task.target,this.t+150);this.credit(p,1600);p.stats.robberies++;this.crime(p,8);this.say(`${p.name} 带走了金库现金`,'crime');if(p.contract?.kind==='heist'&&p.contract.stage===1){p.contract.stage=2;const drop=PLACES.find(q=>q.id===p.contract.drop);p.message='钥匙卡和金库都到手，把赃款送到 '+(drop?.name||'撤离点');this.say(`${p.name} 打开了 ${PLACES.find(q=>q.id===task.target)?.name||'银行'} 金库`,'contract');}}
         if(task.kind==='car'){const car=this.cars.find(c=>c.id===task.target);if(car&&car.hp>0&&!car.driver&&dist(p,car)<65){car.owner=p.id;car.driver=p.id;car.npcDriver=false;p.car=car.id;this.crime(p,4);this.say(p.name+' 抢走了一辆车','crime');}}
         if(task.kind==='mug'){const npc=this.npcs.find(n=>n.id===task.target);if(npc?.hp>0&&dist(p,npc)<90&&npc.robbable<=this.t){npc.robbable=this.t+70;this.credit(p,170);this.crime(p,2);p.message='抢到170现金，警察注意到了你';this.say(p.name+' 抢劫了一名路人','crime');}}
+        if(task.kind==='containment'){this.explode(null,p.x,p.y,70,110);p.distort=null;p.shield=0;this.hurt(p,99999,null,{noWhisper:true,cause:'自毁',gun:'旧城收容舱'});return;}
         if(task.kind==='escape'&&p.cash>=CITY.goal){p.escaped=true;p.escapedAt=this.t;p.result={cash:p.cash,bank:p.bank,seconds:Math.round(this.t-p.entered),stats:{...p.stats}};if(p.bounty){p.bounty=null;const h=[...this.players.values()].find(q=>q.contract?.kind==='player'&&q.contract.target===p.id);if(h){h.contract=null;h.contracts=this.makeContracts(h,3);h.message='猎杀目标撤离，委托失败';}}if(p.contract?.kind==='player'){const t=this.players.get(p.contract.target);if(t?.bounty)t.bounty=null;p.contract=null;}this.exitCar(p);this.say(`${p.name} 成功撤离都市`,'extract');this.onResult({name:p.name,userId:p.userId||'',cash:p.result.cash,bank:p.result.bank,total:p.result.cash+p.result.bank,seconds:p.result.seconds,stats:{...p.stats},rule:this.modifier.name,chaos:Math.round(this.chaos)});}}
       return;
     }
     if(!p.input.interact)return;
     const loot=this.loot.filter(q=>dist(q,p)<40).sort((a,b)=>dist(a,p)-dist(b,p))[0];
-    if(loot&&(loot.kind==='cash'||Object.hasOwn(GUNS,loot.kind)||this.invCount(p)<this.invCap(p))){if(loot.kind==='cash')this.credit(p,loot.cash*(p.boons.includes('lucky')?1.3:1)*(p.boons.includes('scavenger')?1.1:1)*(this.modifier.cash||1));else if(Object.hasOwn(GUNS,loot.kind)){if(loot.kind===p.gun){p.reserve=Math.min(240,p.reserve+(loot.reserve||16)*(p.boons.includes('scavenger')?2:1));}else{if(p.gun!=='fists')p.inv[p.gun]=1;if(hasItem(p,loot.kind))p.inv[loot.kind]--;p.gun=loot.kind;p.ammo=loot.ammo??GUNS[loot.kind].mag;p.reserve=Math.min(240,p.reserve+(loot.reserve??GUNS[loot.kind].mag*2));p.reloadAt=0;}}else p.inv[loot.kind]=(p.inv[loot.kind]||0)+1;this.loot=this.loot.filter(q=>q!==loot);p.input.interact=false;return;}
+    if(loot&&(loot.kind==='cash'||Object.hasOwn(GUNS,loot.kind)||this.invCount(p)<this.invCap(p))){if(loot.kind==='cash')this.credit(p,loot.cash*(p.boons.includes('lucky')?1.3:1)*(p.boons.includes('scavenger')?1.1:1)*(this.modifier.cash||1));else if(Object.hasOwn(GUNS,loot.kind)){if(loot.kind===p.gun){p.reserve=Math.min(240,p.reserve+(loot.reserve||16)*(p.boons.includes('scavenger')?2:1));}else{if(p.gun!=='fists')p.inv[p.gun]=1;if(hasItem(p,loot.kind))p.inv[loot.kind]--;p.gun=loot.kind;p.ammo=loot.ammo??GUNS[loot.kind].mag;p.reserve=Math.min(240,p.reserve+(loot.reserve??GUNS[loot.kind].mag*2));p.reloadAt=0;}}else p.inv[loot.kind]=(p.inv[loot.kind]||0)+1;if(GUNS[loot.kind]?.ego)p.message='拾取 E.G.O. · '+GUNS[loot.kind].name+' · 按 B 在背包装备';this.loot=this.loot.filter(q=>q!==loot);p.input.interact=false;return;}
     if(loot)p.message='背包已满，无法拾取 '+(GOODS[loot.kind]?.name||loot.kind);
     const block=this.objects.find(o=>o.kind==='block'&&o.hp>0&&dist(o,p)<38);
     if(block){p.progress={kind:'mine',target:block.id,x:p.x,y:p.y,left:1.1,total:1.1};return;}
@@ -402,7 +401,7 @@ export class CityMatch{
     if(chest){chest.hp=0;const loots=['totem','enderpearl','goldenapple','tnt','diamondsword'];this.scatter(loots[Math.floor(this.random()*loots.length)],chest,1);this.scatter('cash',chest,600);this.say(p.name+' 打开了方块宝箱','event');p.input.interact=false;return;}
     const core=this.objects.find(o=>o.kind==='riftcore'&&o.hp>0&&dist(o,p)<70);
     if(core){if(this.t<(p.coreAt||0))return;p.coreAt=this.t+.5;core.hp-=60;this.effect('hit',core,{damage:60});p.input.interact=false;return;}
-    if(p.distort)return;
+    if(p.distort){const pod=nearPlace(p,'containment',110);if(!pod)return;p.progress={kind:'containment',target:pod.id,x:p.x,y:p.y,left:6,total:6,holdGrace:this.t+1.5};return;}
     const venue=nearPlace(p,null,75);
     if(p.contract?.kind==='delivery'&&p.contract.to===venue?.id){this.completeContract(p);p.input.interact=false;return;}
     if(p.contract?.kind==='vehicle'&&venue?.kind==='garage'&&p.car){const car=this.cars.find(c=>c.id===p.car);if(car?.contractFor===p.id){this.completeContract(p);p.input.interact=false;return;}}
@@ -431,8 +430,8 @@ export class CityMatch{
       if(n.armed){target=people.filter(p=>p.shield<=this.t&&dist(p,n)<720).sort((a,b)=>dist(a,n)-dist(b,n))[0]||n.roam;}
       if(n.kind==='police'){
         const visible=people.filter(p=>{
-          if(p.wanted<2||p.shield>this.t||this.inSmoke(p))return false;
-          const range=620*(p.boons.includes('ghost')?.75:1)*(this.modifier.police?1.15:1)*(this.hasEvent('blackout')?.55:1),d=dist(p,n);
+          if((p.wanted<2&&!p.distort)||p.shield>this.t||this.inSmoke(p))return false;
+          const range=(p.distort?900:620)*(p.boons.includes('ghost')?.75:1)*(this.modifier.police?1.15:1)*(this.hasEvent('blackout')?.55:1),d=dist(p,n);
           return d<range&&wallRange(n,Math.atan2(p.y-n.y,p.x-n.x),d,this.objects)>=d;
         }).sort((a,b)=>dist(a,n)-dist(b,n));
         const wanted=visible[0];
@@ -440,7 +439,7 @@ export class CityMatch{
         const hostile=this.npcs.filter(q=>q!==n&&q.hp>0&&(q.kind==='zombie'||q.kind==='goose'||q.kind==='gooseking'||q.kind==='convoy'||q.kind.startsWith('ab_')||q.kind==='creeper'||q.kind==='enderman'||q.kind==='skeleton'||q.kind==='slime')).map(q=>({q,d:dist(q,n)})).sort((a,b)=>a.d-b.d)[0];
         if(wanted)target=wanted;
         else if(hostile)target=hostile.q;
-        else if(n.seenId){const seen=this.players.get(n.seenId);if(this.t-(n.seenAt||0)<5&&seen&&alive(seen)&&seen.wanted>=2)target={x:n.seenX,y:n.seenY};else n.seenId='';}
+        else if(n.seenId){const seen=this.players.get(n.seenId);if(this.t-(n.seenAt||0)<5&&seen&&alive(seen)&&(seen.wanted>=2||seen.distort))target={x:n.seenX,y:n.seenY};else n.seenId='';}
       }
       if(n.kind==='zombie'||n.kind==='goose')target=[...people.filter(p=>p.shield<=this.t&&!this.inSmoke(p)),...this.npcs.filter(q=>q!==n&&q.hp>0&&(q.kind==='civilian'||q.kind==='police'))].sort((a,b)=>dist(a,n)-dist(b,n))[0];
       if(n.kind==='gooseking')target=people.filter(p=>p.shield<=this.t&&!this.inSmoke(p)).sort((a,b)=>dist(a,n)-dist(b,n))[0]||n.roam;
@@ -511,7 +510,12 @@ export class CityMatch{
   }
   stepPolice(dt){
     for(const p of this.players.values()){
-      if(!alive(p)||p.wanted<4)continue;
+      if(!alive(p)||(p.wanted<4&&!p.distort))continue;
+      if(p.distort&&this.t>=(p.distort.policeAt||0)){
+        const around=this.npcs.filter(n=>n.kind==='police'&&n.hp>0&&dist(n,p)<900).length;
+        if(around<5){this.policeNear(p,2);this.say('警方正在围剿扭曲者 '+p.name,'police');}
+        p.distort.policeAt=this.t+15;
+      }
       const active=this.cars.filter(c=>c.kind==='police'&&c.chase===p.id&&c.hp>0);
       const wantedCars=1;
       if(active.length<wantedCars&&this.t>=(p.policeAt||0)&&this.cars.length<CITY.carLimit+4){
@@ -533,7 +537,7 @@ export class CityMatch{
     for(const c of this.cars){
       if(c.kind!=='police'||!c.chase)continue;
       const target=this.players.get(c.chase);
-      if(!target||!alive(target)||target.wanted<3){c.chase='';c.npcDriver=true;c.route=0;c.speed=0;continue;}
+      if(!target||!alive(target)||(target.wanted<3&&!target.distort)){c.chase='';c.npcDriver=true;c.route=0;c.speed=0;continue;}
       const los=wallRange(c,Math.atan2(target.y-c.y,target.x-c.x),dist(c,target),this.objects)>=dist(c,target);
       if(los){c.seenX=target.x;c.seenY=target.y;c.seenAt=this.t;}
       else if(this.t-(c.seenAt||0)>5){c.chase='';c.npcDriver=true;c.route=0;c.speed=0;this.say('警车跟丢了','police');continue;}
@@ -569,7 +573,7 @@ export class CityMatch{
     if(p.distort)p.car='';
     const input=this.connected(p.id)&&this.t-p.input.at<.3?p.input:{x:0,y:0,fire:false,interact:false,angle:p.input.angle};p.inputActive=input;
     this.unstick(p,BODY_RADIUS);
-    const old={x:p.x,y:p.y};let speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slowUntil>this.t?.28:1)*(p.boons.includes('swift')?1.15:1)*(p.boostUntil>this.t?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?1.25:1)*(p.distort?1.2:1);
+    const old={x:p.x,y:p.y};let speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slowUntil>this.t?.28:1)*(p.boons.includes('swift')?1.15:1)*(p.boostUntil>this.t?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?EGO.speed:1)*(p.distort?1.2:1);
     if(p.car){const car=this.cars.find(c=>c.id===p.car&&c.driver===p.id&&c.hp>0);if(!car){p.car='';return;}const next=cityDrive(car,input,dt,this.objects);Object.assign(car,next);this.unstick(car,CAR_RADIUS);if(next.impact)this.carDamage(car,next.impact);if(p.boons.includes('driver')&&car.speed>30)Object.assign(car,cityMove(car,Math.cos(car.heading)*car.speed*dt*.12,Math.sin(car.heading)*car.speed*dt*.12,this.objects,CAR_RADIUS));p.x=car.x;p.y=car.y;p.heading=car.heading;
       if(car.speed>180){for(const q of [...this.players.values(),...this.npcs]){if(q===p||q.hp<=0||q.escaped||q.car===car.id)continue;const dx=p.x-old.x,dy=p.y-old.y,len=dx*dx+dy*dy,a=len?clamp(((q.x-old.x)*dx+(q.y-old.y)*dy)/len,0,1):0;if(Math.hypot(q.x-old.x-dx*a,q.y-old.y-dy*a)>25)continue;const key=car.id+q.id;if((this.rams.get(key)||0)>this.t)continue;this.rams.set(key,this.t+1);const damage=Math.min(45,Math.round(car.speed/14));if(this.players.has(q.id)){if(this.hurt(q,damage,p))this.crime(p,1.5);}else{q.hp-=damage;if(q.kind==='civilian'||q.kind==='police')this.crime(p,2);}car.speed*=.65;}}
     }else{Object.assign(p,cityMove(p,input.x*speed*dt,input.y*speed*dt,this.objects,MOVE_RADIUS));this.unstick(p,BODY_RADIUS);p.heading=input.angle;if(input.fire)this.attack(p);}
@@ -648,7 +652,7 @@ export class CityMatch{
     else this.chaosLevel=chaosLevel;
     for(const p of this.players.values()){
       if(p.whisper&&this.t>p.whisper.until){p.whisper=null;p.shield=0;this.hurt(p,9999,null);}
-      if(p.ego){if(p.ego.on){p.ego.faith=Math.max(0,(p.ego.faith||0)-3*dt);if(p.ego.faith<=0){p.ego.on=false;p.ego.lockUntil=this.t+10;p.message='信念耗尽';}}else p.ego.faith=Math.min(100,(p.ego.faith||0)+4*dt);}
+      if(p.ego?.on&&this.t>=p.ego.endsAt){p.ego.on=false;p.ego.endsAt=0;p.ego.cooldownUntil=this.t+EGO.cooldown;p.message='神备收敛 · 冷却 '+EGO.cooldown+' 秒';}
       if(p.respawnAt&&this.t>=p.respawnAt){Object.assign(p,{...(p.respawnPoint||this.spawnPoint()),armor:p.boons.includes('iron')?20:0,respawnAt:0,shield:this.t+10,wanted:0,heat:0,hp:this.maxHp(p),death:null,progress:null,gun:'fists',input:{x:0,y:0,angle:0,at:-1}});this.unstick(p,BODY_RADIUS);}
       if(!alive(p))continue;if(p.reloadAt&&this.t>=p.reloadAt){const n=Math.min(GUNS[p.gun].mag-p.ammo,p.reserve);p.ammo+=n;p.reserve-=n;p.reloadAt=0;}
       if(p.heat>0&&this.t-p.heatAt>4&&!this.npcs.some(n=>n.kind==='police'&&dist(n,p)<250&&wallRange(n,Math.atan2(p.y-n.y,p.x-n.x),dist(n,p),this.objects)>=dist(n,p))&&!this.cars.some(c=>c.kind==='police'&&c.chase===p.id&&c.hp>0)){p.heat=Math.max(0,p.heat-dt*(p.boons.includes('veteran')?.85:.6));p.wanted=clamp(Math.ceil(p.heat/8),0,5);}
@@ -720,7 +724,7 @@ export class CityMatch{
   }
   tick(dt){const stamp=this.now();if(dt===undefined){dt=clamp((stamp-this.last)/1000,0,.2);this.last=stamp;}else dt=clamp(dt,0,.2);this.accumulator=Math.min(.25,this.accumulator+dt);while(this.accumulator>=CITY.step){this.step(CITY.step);this.accumulator-=CITY.step;}this.publish();}
   snapshot(id){const p=this.players.get(id);if(!p)return null;const nearby=q=>dist(p,q)<CITY.view,venue=nearPlace(p,null,110),own={x:round(p.x),y:round(p.y),heading:round(p.heading),hp:p.hp,armor:p.armor,cash:p.cash,bank:p.bank,wanted:p.wanted,gun:p.gun,ammo:p.ammo,reserve:p.reserve,inv:{...p.inv},car:p.car,seq:p.seq,actionSeq:p.actionSeq,shield:Math.max(0,p.shield-this.t),slow:Math.max(0,p.slowUntil-this.t),respawn:Math.max(0,p.respawnAt-this.t),reload:Math.max(0,p.reloadAt-this.t),escaped:p.escaped,escapedAt:round(p.escapedAt||0),result:p.result,message:p.message||'',job:p.job,contract:p.contract?{...p.contract}:null,contracts:p.contracts.map(c=>({...c})),boons:[...p.boons],boonChoices:p.boonChoices?[...p.boonChoices]:null,mods:{...p.mods},body:{...p.body},maxHp:this.maxHp(p),armorCap:this.armorCap(p),invCap:this.invCap(p),heat:round(p.heat||0),boost:Math.max(0,Math.round((p.boostUntil||0)-this.t)),flash:Math.max(0,Math.round((p.flashUntil||0)-this.t)),bounty:p.bounty?{...p.bounty}:null,death:p.death?{...p.death}:null,respawnPoint:p.respawnPoint,near:venue?.id||'',progress:p.progress?{kind:p.progress.kind,left:round(p.progress.left),total:p.progress.total}:null};
-    own.whisper=p.whisper?{...p.whisper}:null;own.ego=p.ego?{desire:p.ego.desire,on:p.ego.on,faith:round(p.ego.faith||0),skill:p.ego.skillAt||0}:null;own.distort=p.distort?{desire:p.distort.desire,maxHp:p.distort.maxHp,enraged:p.distort.enraged,kills:p.distort.kills,damage:p.distort.damage}:null;own.desire={...p.desire};own.toast=p.toast||'';
+    own.whisper=p.whisper?{...p.whisper}:null;own.ego=p.ego?{desire:p.ego.desire,on:p.ego.on,remain:round(Math.max(0,(p.ego.endsAt||0)-this.t)),cooldown:round(Math.max(0,(p.ego.cooldownUntil||0)-this.t)),skill:p.ego.skillAt||0}:null;own.distort=p.distort?{desire:p.distort.desire,maxHp:p.distort.maxHp,enraged:p.distort.enraged,kills:p.distort.kills,damage:p.distort.damage}:null;own.desire={...p.desire};own.toast=p.toast||'';
     const bossNpc=this.npcs.find(n=>n.boss&&n.hp>0&&n.kind.startsWith('ab_')),bossPlayer=[...this.players.values()].find(q=>q.distort&&alive(q));
     const boss=bossNpc?{name:ABNORMALITIES[bossNpc.kind.slice(3)]?.name||'异想体',hp:bossNpc.hp,maxHp:bossNpc.maxHp||bossNpc.hp,kind:bossNpc.kind}:bossPlayer?{name:bossPlayer.name+' · 扭曲',hp:bossPlayer.hp,maxHp:bossPlayer.distort.maxHp,kind:'distorted'}:null;
     const race=this.gooseRace;

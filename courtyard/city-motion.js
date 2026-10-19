@@ -1,4 +1,4 @@
-import {cityMove,cityDrive,SPEED,free,BODY_RADIUS,MOVE_RADIUS,CAR_RADIUS} from './city-rules.js?v=0.27.0';
+import {cityMove,cityDrive,SPEED,free,BODY_RADIUS,MOVE_RADIUS,CAR_RADIUS,EGO} from './city-rules.js?v=0.27.2';
 
 const angleDelta=(a,b)=>Math.atan2(Math.sin(a-b),Math.cos(a-b));
 const unstickPoint=(model,radius,objects)=>{if(free(model.x,model.y,radius,objects))return;for(let d=6;d<=320;d+=6)for(let i=0;i<24;i++){const a=i*Math.PI/12,x=model.x+Math.cos(a)*d,y=model.y+Math.sin(a)*d;if(free(x,y,radius,objects)){model.x=x;model.y=y;return;}}};
@@ -27,14 +27,14 @@ export class CityPrediction{
   constructor(){this.clear();}
   clear(){this.model=null;this.error={x:0,y:0,heading:0};this.life='';this.car='';this.id='';}
   reconcile(s,input){const p=s.self,car=s.cars.find(c=>c[0]===p.car),objects=s.objects.map(o=>({kind:o[1],x:o[2],y:o[3],hp:o[4],w:o[5],h:o[6]})),target={x:p.x,y:p.y,heading:car?.[3]??p.heading,speed:car?.[8]??0};
-    if(p.hp>0&&!p.escaped){if(p.car)Object.assign(target,cityDrive(target,input,.04,objects));else {const speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slow>0?.28:1)*(p.boons?.includes('swift')?1.15:1)*(p.boost>0?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?1.25:1)*(p.distort?1.2:1);Object.assign(target,cityMove(target,input.x*speed*.04,input.y*speed*.04,objects,MOVE_RADIUS));}}
+    if(p.hp>0&&!p.escaped){if(p.car)Object.assign(target,cityDrive(target,input,.04,objects));else {const speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slow>0?.28:1)*(p.boons?.includes('swift')?1.15:1)*(p.boost>0?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?EGO.speed:1)*(p.distort?1.2:1);Object.assign(target,cityMove(target,input.x*speed*.04,input.y*speed*.04,objects,MOVE_RADIUS));}}
     const life=String(p.hp>0)+':'+String(p.escaped),reset=!this.model||s.id!==this.id||p.car!==this.car||life!==this.life||Math.hypot(target.x-this.model.x,target.y-this.model.y)>140;
     if(reset){this.model=target;this.error={x:0,y:0,heading:0};}else{const x=target.x-this.model.x,y=target.y-this.model.y;this.error={x:Math.abs(x)<1?0:x,y:Math.abs(y)<1?0:y,heading:angleDelta(target.heading,this.model.heading)};if(p.car)this.model.speed=target.speed;}
     this.id=s.id;this.car=p.car;this.life=life;return this.model;
   }
   advance(dt,input,p,objects){if(!this.model)return null;dt=Math.max(0,Math.min(.05,dt));
     unstickPoint(this.model,p.car?CAR_RADIUS:BODY_RADIUS,objects);
-    if(p.hp>0&&!p.escaped){if(p.car)Object.assign(this.model,cityDrive(this.model,input,dt,objects));else {const speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slow>0?.28:1)*(p.boons?.includes('swift')?1.15:1)*(p.boost>0?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?1.25:1)*(p.distort?1.2:1);Object.assign(this.model,cityMove(this.model,input.x*speed*dt,input.y*speed*dt,objects,MOVE_RADIUS));}}
+    if(p.hp>0&&!p.escaped){if(p.car)Object.assign(this.model,cityDrive(this.model,input,dt,objects));else {const speed=(input.sprint?SPEED.sprint:SPEED.walk)*(p.slow>0?.28:1)*(p.boons?.includes('swift')?1.15:1)*(p.boost>0?1.35:1)*(1+(p.body?.muscle||0)*.06)*(p.ego?.on?EGO.speed:1)*(p.distort?1.2:1);Object.assign(this.model,cityMove(this.model,input.x*speed*dt,input.y*speed*dt,objects,MOVE_RADIUS));}}
     const factor=1-Math.exp(-dt/((Math.hypot(this.error.x,this.error.y)>60)?.06:.18)),dx=this.error.x*factor,dy=this.error.y*factor;Object.assign(this.model,cityMove(this.model,dx,dy,objects));this.error.x-=dx;this.error.y-=dy;if(p.car){this.model.heading+=this.error.heading*factor;this.error.heading*=1-factor;}
     return this.model;
   }
