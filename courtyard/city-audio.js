@@ -102,6 +102,7 @@ export function createCityAudio() {
         engineGain.gain.setTargetAtTime(on ? .012 + power * .026 : 0, at, .08);
       } catch {}
     },
+    zombie() { tone(92, 55, .7, 'sawtooth', .07); tone(64, 42, .9, 'square', .04, .08); burst(.5, .07, 380, 'lowpass', .05); },
     ui() { tone(460, 460, .025, 'sine', .025); }
   };
 }

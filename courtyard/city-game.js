@@ -1,7 +1,7 @@
-import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,BODY_UPGRADES,dist} from './city-rules.js?v=0.26.1';
-import {CityPrediction} from './city-motion.js?v=0.26.1';
-import {createCityRenderer} from './city-render.js?v=0.26.1';
-import {createCityAudio} from './city-audio.js?v=0.26.1';
+import {CITY,GUNS,GOODS,EVENTS,PLACES,BOONS,SLOT_SYMBOLS,CONTRACT_META,BODY_UPGRADES,DESIRES,dist,nearPlace} from './city-rules.js?v=0.27.0';
+import {CityPrediction} from './city-motion.js?v=0.27.0';
+import {createCityRenderer} from './city-render.js?v=0.27.0';
+import {createCityAudio} from './city-audio.js?v=0.27.0';
 
 const SERVICE = new Set(['arms', 'market', 'bank', 'casino', 'garage', 'job', 'fixer', 'safehouse', 'clinic', 'cyber']);
 const GUN_IDS = new Set(Object.keys(GUNS));
@@ -9,7 +9,7 @@ const padNumber = n => String(n);
 
 export function createCityGame({send, self, online, onActive, exit, avatars, speech}) {
   const $ = id => document.getElementById(id), canvas = $('cityWorld'), keys = new Set();
-  let state = null, active = false, seq = 0, actionSeq = 0, aim = 0, fire = false, interact = false, stick = {x: 0, y: 0}, mode = '', panelKey = '', lastTime = 0, lastPacket = 0, lastMap = 0, lastHud = 0, mapPoints = [], message = '', predicted = null, snapshotAt = 0, obstacles = [], fireAt = 0, lastLocalShot = 0, quickKey = '', promptKey = '', shopTab = 'all', lastDice = null, lastDiceId = '', lastSlots = null, lastSlotsId = '', escapedAt = 0, boonKey = '', raceStake = 50, lastRacePhase = '', feedKey = '', sirenAt = 0, suppressInteract = false, brake = false, lastGun = '', engineAt = 0, leaderboardRows = [];
+  let state = null, active = false, seq = 0, actionSeq = 0, aim = 0, fire = false, interact = false, stick = {x: 0, y: 0}, mode = '', panelKey = '', lastTime = 0, lastPacket = 0, lastMap = 0, lastHud = 0, mapPoints = [], message = '', predicted = null, snapshotAt = 0, obstacles = [], fireAt = 0, lastLocalShot = 0, quickKey = '', promptKey = '', shopTab = 'all', lastDice = null, lastDiceId = '', lastSlots = null, lastSlotsId = '', escapedAt = 0, boonKey = '', raceStake = 50, lastRacePhase = '', feedKey = '', sirenAt = 0, suppressInteract = false, brake = false, lastGun = '', engineAt = 0, leaderboardRows = [], toastKey = '', toastAt = 0;
   const pointer = {clientX: 0, clientY: 0, inside: false};
   const fxAt = new Map();
   const prediction = new CityPrediction();
@@ -258,7 +258,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     result.textContent = lastDice ? `上一把：${lastDice.face} 点 · ${lastDice.win ? '赢得筹码' : '输掉筹码'}` : '押单或双，骰子决定。';
     wrap.append(result);
     const bets = el('div', undefined, 'city-casino-bets');
-    for (const stake of [50, 200, 500]) {
+    for (const stake of [100, 1000, 5000]) {
       const bet = el('div', undefined, 'city-casino-bet');
       bet.append(el('strong', '¥' + stake), el('span', '筹码'));
       bet.append(button('押单', () => action('gamble', {amount: stake, choice: 'odd'}), p.cash < stake));
@@ -306,7 +306,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     clock.textContent = r.phase === 'betting' ? '下注截止 ' + r.startsIn + 's' : r.phase === 'racing' ? '冲线中 · ' + Math.max(0, r.endsIn) + 's' : (r.winnerName || '比赛结束') + ' 获胜';
     wrap.append(clock);
     const stakes = el('div', undefined, 'city-goose-stakes');
-    for (const stake of [50, 200, 500]) {
+    for (const stake of [50, 500, 5000]) {
       const b = button('¥' + stake, () => { raceStake = stake; panelKey = ''; updatePanel(); });
       b.setAttribute('aria-pressed', String(raceStake === stake));
       b.disabled = r.phase !== 'betting';
@@ -395,7 +395,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     result.textContent = lastSlots ? (lastSlots.pay ? '中奖 +¥' + lastSlots.pay + '，见好就收？' : '没有中奖，再拉一把？') : '三枚相同符号有大奖，出现炸弹则清空。';
     wrap.append(result);
     const bets = el('div', undefined, 'city-slots-bets');
-    for (const stake of [50, 200, 500]) bets.append(button('¥' + stake + ' 拉杆', () => action('slots', { amount: stake }), p.cash < stake));
+    for (const stake of [100, 1000, 5000]) bets.append(button('¥' + stake + ' 拉杆', () => action('slots', { amount: stake }), p.cash < stake));
     wrap.append(bets);
     return wrap;
   }
@@ -441,7 +441,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       const target = PLACES.find(q => q.id === targetId);
       const info = el('div', undefined, 'city-contract-active');
       info.style.setProperty('--contract', meta.color);
-      info.append(el('span', '进行中 · ' + meta.name), el('strong', p.contract.name || meta.name), el('p', (p.contract.description || meta.description) + (target ? ' → ' + target.name : '') + ' · 奖励 ¥' + p.contract.pay));
+      info.append(el('span', '进行中 · ' + meta.name), el('strong', p.contract.name || meta.name), el('p', (p.contract.description || meta.description) + (target ? ' → ' + target.name : '') + ' · 奖励 永久强化'));
       if (p.contract.kind === 'race') {
         const cps = (p.contract.checkpoints || []).map(id => PLACES.find(q => q.id === id)?.name).filter(Boolean);
         info.append(el('div', '检查点 ' + Math.min((p.contract.index || 0) + 1, cps.length) + '/' + cps.length + '：' + cps.join(' → ') + ' · 剩余 ' + Math.max(0, Math.ceil((p.contract.expires || 0) - state.time)) + 's', 'city-race-line'));
@@ -453,11 +453,11 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       wrap.append(button('放弃当前委托', () => action('abandonContract')));
       return wrap;
     }
-    wrap.append(el('p', '在 Fixer 接一单：急送、悬赏或偷车。完成任意委托，都能从三项强化里选一项。', 'city-contract-hint'));
+    wrap.append(el('p', '在 Fixer 接一单：急送、悬赏或偷车。完成任意委托，都能选一项强化。', 'city-contract-hint'));
     const grid = el('div', undefined, 'city-contract-grid');
     for (const c of p.contracts || []) {
       const meta = CONTRACT_META[c.kind] || { name: '委托', color: '#f0c97b' };
-      const item = card(c.name, c.description + ' · 奖励 ¥' + c.pay, null, [
+      const item = card(c.name, c.description + ' · 奖励 永久强化', null, [
         button(p.car ? '先下车' : '接受委托', () => action('acceptContract', { item: c.id }), !!p.car)
       ], serviceIcon('fixer'));
       item.style.setProperty('--contract', meta.color);
@@ -508,7 +508,11 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   function quickEntries() {
     const p = state?.self;
     if (!p) return [];
-    return Object.entries(p.inv).filter(([id, n]) => n > 0 && (GUN_IDS.has(id) || Object.hasOwn(GOODS, id))).slice(0, 6);
+    // 枪排在前面，1–6 键先切武器，道具跟在后面；同类保持背包顺序。
+    return Object.entries(p.inv)
+      .filter(([id, n]) => n > 0 && (GUN_IDS.has(id) || Object.hasOwn(GOODS, id)))
+      .sort((a, b) => Number(GUN_IDS.has(b[0])) - Number(GUN_IDS.has(a[0])))
+      .slice(0, 6);
   }
   function useQuick(entry) {
     if (!entry) return;
@@ -595,7 +599,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         entry.append(serviceIcon(place.black ? 'black-market' : place.goose ? 'goose' : place.kind, 'city-place-icon'), el('span', place.name));
         directory.append(entry);
       }
-      body.append(directory, el('p', '金色圆点是你；地图上只标服务类型，完整名称见下方目录。'));
+      body.append(el('p', '紫色「黑」标记是后巷黑市，在地图东北角（娱乐区）；左轮、精确步枪和轻机枪只在黑市出售。', 'city-contract-hint'), directory, el('p', '金色圆点是你；地图上只标服务类型，完整名称见下方目录。'));
       renderer.map(map, state);
       return;
     }
@@ -665,6 +669,10 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       body.append(card('重生点', here ? '这间安全屋已经是你的重生点。' : '把重生点设在这里，倒下后会在安全屋门口醒来，不用被随机投放。', null, [
         button(here ? '已设置' : '设为重生点', () => action('setRespawn'), here || !!p.car)
       ], serviceIcon('safehouse')));
+      const cleanCost = Math.max(300, (p.wanted || 0) * 400);
+      body.append(card('销案底', p.wanted ? `交 ¥${cleanCost}，安全屋帮你把通缉清零。` : '你现在没有被通缉。', el('span', p.wanted ? '¥' + cleanCost : '', 'city-price'), [
+        button(!p.wanted ? '无需处理' : p.cash < cleanCost ? '现金不足' : '清除通缉', () => action('clean'), !p.wanted || p.cash < cleanCost || !!p.car)
+      ], serviceIcon('safehouse', 'danger')));
       body.append(card('安全屋守则', '重生点只记录位置，不保留现金与背包；贵重物品请存银行或尽快撤离。', null, [], serviceIcon('safehouse')));
     } else if (place.kind === 'clinic') {
       const cost = Math.max(60, Math.ceil(((p.maxHp || 100) - p.hp) * 2));
@@ -689,14 +697,17 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       for (const [id, item] of items) {
         const markup = black && state.modifier?.id !== 'blackmarket' ? 1.35 : 1;
         const price = Math.ceil((item.price ?? GUNS[id]?.price ?? 0) * discount * markup * (state.modifier?.sale || 1));
-        const owned = id !== 'ammo' && (id === p.gun || (p.inv[id] || 0) > 0);
+        const isGun = Object.hasOwn(GUNS, id), held = p.inv[id] || 0;
+        const owned = isGun && id !== 'fists' && (id === p.gun || held > 0);
+        const invCount = Object.values(p.inv || {}).reduce((a, b) => a + b, 0), full = !isGun && invCount >= (p.invCap || 12);
         const detail = item.description || (GUNS[id] ? `伤害 ${GUNS[id].damage} · ${GUNS[id].mag ? GUNS[id].mag + ' 发弹匣' : '近战'}` : '');
         const meta = el('div', undefined, 'city-card-meta');
         meta.append(el('span', '¥' + price, 'city-price'));
         if (black) meta.append(el('span', markup > 1 ? '黑市 +35%' : '规则免加价', 'city-owned'));
         if (owned) meta.append(el('span', '已拥有', 'city-owned'));
+        else if (!isGun && held > 0) meta.append(el('span', '持有 ×' + held, 'city-owned'));
         grid.append(card(item.name, detail, meta, [
-          button(owned ? '已拥有' : p.cash < price ? '现金不足' : '购买', () => action('buy', {item: id}), owned || p.cash < price || !!p.car)
+          button(owned ? '已拥有' : full ? '背包已满' : p.cash < price ? '现金不足' : '购买', () => action('buy', {item: id}), owned || full || p.cash < price || !!p.car)
         ], itemIcon(id)));
       }
       if (black) {
@@ -749,18 +760,22 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   }
 
   function quickbar() {
-    const entries = quickEntries(), key = JSON.stringify(entries);
+    const p = state?.self;
+    const entries = quickEntries(), key = JSON.stringify([entries, p?.gun]);
     if (key === quickKey) return;
     quickKey = key;
     const box = $('cityQuick');
     box.replaceChildren();
     entries.forEach(([id, count], i) => {
       const isGun = GUN_IDS.has(id);
-      const b = el('button', undefined, 'city-quick-item');
+      const name = GUNS[id]?.name || GOODS[id]?.name || id;
+      const equipped = isGun && p.gun === id;
+      const b = el('button', undefined, 'city-quick-item' + (isGun ? ' is-gun' : '') + (equipped ? ' is-equipped' : ''));
       b.type = 'button';
-      const copy = el('div', undefined, 'city-quick-copy');
-      copy.append(el('strong', (GUNS[id]?.name || GOODS[id]?.name || id) + ' ×' + count), el('small', isGun ? '装备' : '使用'));
-      b.append(el('kbd', padNumber(i + 1)), itemIcon(id, 'city-quick-icon'), copy);
+      b.title = name + (isGun ? (equipped ? ' · 已装备' : ' · 点击切换') : ' ×' + count + ' · 点击使用');
+      b.setAttribute('aria-label', b.title);
+      b.append(el('kbd', padNumber(i + 1)), itemIcon(id, 'city-quick-icon'));
+      if (!isGun) b.append(el('span', String(count), 'city-quick-count'));
       b.addEventListener('click', () => useQuick([id]));
       box.append(b);
     });
@@ -769,10 +784,12 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   function updatePrompt() {
     if (!state) return;
     const p = state.self, m = me();
-    const place = PLACES.find(q => q.id === p.near);
-    const loot = state.loot.find(q => dist({x: q[2], y: q[3]}, m) < 42);
-    const car = state.cars.find(c => c[4] > 0 && !c[6] && Math.abs(c[8]) < 100 && dist({x: c[1], y: c[2]}, m) < 64);
-    const civilian = state.npcs.find(n => n[1] === 'civilian' && n[4] > 0 && dist({x: n[2], y: n[3]}, m) < 64);
+    const place = PLACES.find(q => q.id === p.near), closePlace = nearPlace(m, null, 75);
+    const loot = state.loot.find(q => dist({x: q[2], y: q[3]}, m) < 40);
+    const car = state.cars.find(c => c[4] > 0 && !c[6] && Math.abs(c[8]) < 100 && dist({x: c[1], y: c[2]}, m) < 60);
+    const civilian = state.npcs.find(n => n[1] === 'civilian' && n[4] > 0 && dist({x: n[2], y: n[3]}, m) < 60);
+    const crate = state.objects.find(o => o[1] === 'airdrop' && o[4] > 0 && dist({x: o[2], y: o[3]}, m) < 48);
+    const world = worldActionHere();
     const hints = [];
     let act = '';
     if (p.hp > 0 && !p.escaped) {
@@ -783,15 +800,18 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         hints.push({work: '打工进行中 · 留在原地', bank: '开金库 · 按住 E', car: '抢车 · 按住 E', mug: '抢劫 · 按住 E', escape: '撤离 · 按住 E'}[p.progress.kind] || '任务进行中');
       } else {
         const serviceSpot = !!(place && SERVICE.has(place.kind));
-        if (serviceSpot) { hints.push('E / F · ' + place.name); act = 'service'; }
-        if (p.contract?.kind === 'delivery' && p.contract.to === place?.id) hints.unshift('按 E 交付委托');
+        if (serviceSpot) { hints.push((world ? 'F / 打开' : 'E / F') + ' · ' + place.name); act = 'service'; }
+        if (p.contract?.kind === 'delivery' && p.contract.to === closePlace?.id) hints.unshift('按 E 交付委托');
         if (p.contract?.kind === 'bounty' && p.contract.place === place?.id) hints.unshift('委托目标就在' + place.name + '附近');
-        if (p.contract?.kind === 'race') { const target = PLACES.find(q => q.id === p.contract.checkpoints?.[p.contract.index]); if (target && place?.id === target.id) hints.unshift('狂飙检查点 ' + ((p.contract.index || 0) + 1) + '/' + p.contract.checkpoints.length + ' · 留在圈内'); }
-        if (p.contract?.kind === 'heist') { const target = p.contract.stage === 2 ? p.contract.drop : p.contract.place; if (place?.id === target) hints.unshift(p.contract.stage === 0 ? '按住 E 取得钥匙卡 4 秒' : p.contract.stage === 1 ? '打开金库' : '按 E 交付赃款'); }
-        if (place?.kind === 'escape') hints.push(p.cash >= CITY.goal ? '按住 E 撤离 8 秒' : `撤离需要 ¥${CITY.goal} · 当前 ¥${p.cash}`);
+        if (p.contract?.kind === 'race') { const target = PLACES.find(q => q.id === p.contract.checkpoints?.[p.contract.index]); if (target && place?.id === target.id) hints.unshift('狂飙检查点 ' + ((p.contract.index || 0) + 1) + '/' + p.contract.checkpoints.length + ' · 开车通过'); }
+        if (p.contract?.kind === 'heist') { const target = p.contract.stage === 2 ? p.contract.drop : p.contract.place; if (closePlace?.id === target) hints.unshift(p.contract.stage === 0 ? '按住 E 取得钥匙卡 4 秒' : p.contract.stage === 1 ? '按住 E 打开金库 12 秒' : '按 E 交付赃款'); }
+        if (closePlace?.kind === 'escape') hints.push(p.cash >= CITY.goal ? '按住 E 撤离 8 秒' : `撤离需要 ¥${CITY.goal} · 当前 ¥${p.cash}`);
         if (loot) hints.push(loot[1] === 'cash' ? 'E 拾取 ¥' + loot[4] : 'E 拾取 ' + (GUNS[loot[1]]?.name || GOODS[loot[1]]?.name || loot[1]));
-        if (!serviceSpot && car) hints.push(car[5] === self() ? '按住 E 上车' : '按住 E 抢车');
-        if (!serviceSpot && civilian && p.gun !== 'fists') hints.push('按住 E 抢劫路人');
+        if (crate) hints.push('E 打开空投');
+        if (p.job && p.job.to === closePlace?.id) hints.push('按 E 送达快递');
+        if (closePlace?.kind === 'job' && !p.job) hints.push('按住 E 打工 10 秒');
+        if (car) hints.push(car[5] === self() ? '按住 E 上车' : '按住 E 抢车');
+        if (civilian && p.gun !== 'fists') hints.push('按住 E 抢劫路人');
         if (!hints.length && place) hints.push(place.name);
       }
     }
@@ -820,9 +840,49 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     $('cityWeapon').textContent = reloadLabel() + ((p.mods?.gun || 0) ? ' · 改装 Lv.' + p.mods.gun : '');
     $('cityPopulation').textContent = state.count + '/8';
     const ruleText = state.modifier ? '规则 ' + state.modifier.name + ' · ' : '';
-    $('cityEvent').textContent = ruleText + (state.event ? EVENTS[state.event.kind].name + ' · ' + Math.ceil(state.event.ends - state.time) + 's' : '下一事件 ' + state.next + 's');
-    $('cityEvent').title = state.modifier ? state.modifier.description : '';
-    $('cityEvent').dataset.active = String(!!state.event);
+    const events = state.events || (state.event ? [state.event] : []), primary = state.event || events[0];
+    $('cityEvent').textContent = ruleText + (primary ? (EVENTS[primary.kind]?.name || primary.name || primary.kind) + ' · ' + Math.max(0, Math.ceil((primary.ends || 0) - state.time)) + 's' : '下一事件 ' + state.next + 's');
+    $('cityEvent').title = primary ? (EVENTS[primary.kind]?.hint || primary.hint || '') : state.modifier ? state.modifier.description : '';
+    $('cityEvent').dataset.active = String(!!primary);
+    const eventsBox = $('cityEvents');
+    if (events.length) {
+      eventsBox.dataset.key = events.map(e => e.kind + ':' + e.ends).join('|');
+      eventsBox.replaceChildren();
+      for (const ev of events.slice(0, 3)) {
+        const line = el('div', undefined, 'city-events-line');
+        line.append(document.createTextNode(EVENTS[ev.kind]?.name || ev.name || ev.kind));
+        line.append(el('small', ' · ' + Math.max(0, Math.ceil((ev.ends || 0) - state.time)) + 's'));
+        eventsBox.append(line);
+      }
+      eventsBox.hidden = false;
+      $('cityEvent').hidden = true;
+    } else { eventsBox.hidden = true; $('cityEvent').hidden = false; }
+    const whisper = p.whisper, whisperBox = $('cityWhisper');
+    if (whisper) {
+      whisperBox.hidden = false;
+      const desire = DESIRES[whisper.desire] || DESIRES.wrath;
+      $('cityWhisperAccept').textContent = desire.accept;
+      $('cityWhisperReject').textContent = desire.reject;
+      $('cityWhisperTimer').textContent = Math.max(0, (whisper.until || 0) - state.time).toFixed(1) + 's';
+    } else whisperBox.hidden = true;
+    const egoBox = $('cityEgo');
+    if (p.ego) {
+      egoBox.hidden = false;
+      $('cityEgoLabel').textContent = (p.ego.on ? '绽放' : '收敛') + ' · ' + Math.round(p.ego.faith || 0);
+      $('cityEgoFill').style.width = Math.max(0, Math.min(100, p.ego.faith || 0)) + '%';
+    } else if (p.distort) {
+      egoBox.hidden = false;
+      $('cityEgoLabel').textContent = '失控 · ' + (p.distort.kills || 0) + ' 杀';
+      $('cityEgoFill').style.width = Math.max(0, Math.min(100, (p.hp / (p.distort.maxHp || 1)) * 100)) + '%';
+    } else egoBox.hidden = true;
+    const boss = state.boss;
+    if (boss) {
+      $('cityBoss').hidden = false;
+      $('cityBossName').textContent = boss.name;
+      $('cityBossFill').style.width = Math.max(0, Math.min(100, (boss.hp / (boss.maxHp || 1)) * 100)) + '%';
+    } else $('cityBoss').hidden = true;
+    if (p.toast && p.toast !== toastKey) { toastKey = p.toast; toastAt = performance.now() + 4200; $('cityToast').textContent = p.toast; }
+    $('cityToast').hidden = !(toastKey && performance.now() < toastAt);
     const feed = (state.feed || []).filter(e => !['race', 'join', 'leave'].includes(e.kind) && state.time - (e.at || 0) < 16), nextFeedKey = feed.map(e => e.id).join('|');
     if (nextFeedKey !== feedKey) {
       feedKey = nextFeedKey;
@@ -857,7 +917,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
     $('cityTask').dataset.hunted = String(!!p.bounty);
     $('cityTask').classList.toggle('city-task-hunted', !!p.bounty);
     const bountyText = p.bounty ? '你被 ' + (p.bounty.hunter || '某人') + ' 悬赏 ¥' + p.bounty.amount + ' · 撑住 ' + Math.max(0, Math.ceil((p.bounty.until || 0) - state.time)) + 's' : '';
-    $('cityTask').textContent = p.bounty ? bountyText : p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? EVENTS[state.event.kind].hint : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
+    $('cityTask').textContent = p.bounty ? bountyText : p.progress ? `${ {work: '打工', bank: '开金库', car: '抢车', mug: '抢劫', escape: '撤离', mine: '挖方块'}[p.progress.kind] } ${Math.max(0, p.progress.left).toFixed(1)}s` : p.contract ? contractText : p.job ? '配送 → ' + PLACES.find(q => q.id === p.job.to)?.name + ' · ¥' + p.job.pay : p.shield > 0 ? '保护 ' + Math.ceil(p.shield) + 's · 主动攻击会结束' : state.event ? (EVENTS[state.event.kind]?.hint || state.event.hint || '') : '赚够 ¥' + CITY.goal + '，去绿色撤离点';
     const nextMessage = p.message || state.feed.at(-1)?.text || '';
     if (nextMessage !== message) {
       message = nextMessage;
@@ -879,7 +939,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   }
 
   function controls() {
-    const stop = blocked() || state.self.hp <= 0 || state.self.escaped;
+    const stop = blocked() || state.self.hp <= 0 || state.self.escaped || !!state.self.whisper;
     const x = stop ? 0 : (keys.has('d') || keys.has('arrowright') ? 1 : 0) - (keys.has('a') || keys.has('arrowleft') ? 1 : 0) + stick.x;
     const y = stop ? 0 : (keys.has('s') || keys.has('arrowdown') ? 1 : 0) - (keys.has('w') || keys.has('arrowup') ? 1 : 0) + stick.y;
     const n = Math.max(1, Math.hypot(x, y));
@@ -888,10 +948,24 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   function packet() { if (active && state && online()) send('city:input', {id: state.id, seq: ++seq, ...controls()}); }
   function predict(dt) { if (state) predicted = prediction.advance(dt, controls(), state.self, obstacles); }
 
-  function worldInteractNearby() {
-    if (!state) return false;
-    const m = me();
-    return state.loot.some(q => dist({x: q[2], y: q[3]}, m) < 42);
+  // 和服务端 interact() 的顺序保持一致：这些交互在附近时，E 不能被商店抢走。
+  function worldActionHere() {
+    const p = state?.self;
+    if (!p || p.hp <= 0 || p.escaped || p.car || p.progress) return '';
+    const m = me(), place = nearPlace(m, null, 75);
+    if (state.loot.some(q => dist({x: q[2], y: q[3]}, m) < 40)) return 'loot';
+    if (state.objects.some(q => (q[1] === 'block' || q[1] === 'chest' || q[1] === 'riftcore') && dist({x: q[2], y: q[3]}, m) < 60)) return 'object';
+    if (p.contract?.kind === 'delivery' && p.contract.to === place?.id) return 'delivery';
+    if (p.contract?.kind === 'heist' && p.contract.stage === 0 && place?.id === p.contract.place) return 'heist';
+    if (p.contract?.kind === 'heist' && p.contract.stage === 1 && place?.id === p.contract.place) return 'heist';
+    if (p.contract?.kind === 'heist' && p.contract.stage === 2 && place?.id === p.contract.drop) return 'heist';
+    if (state.objects.some(o => o[1] === 'airdrop' && o[4] > 0 && dist({x: o[2], y: o[3]}, m) < 48)) return 'crate';
+    if (p.job && p.job.to === place?.id) return 'job';
+    if (place?.kind === 'escape') return 'escape';
+    if (state.cars.some(c => c[4] > 0 && !c[6] && Math.abs(c[8]) < 100 && dist({x: c[1], y: c[2]}, m) < 60)) return 'car';
+    if (p.gun !== 'fists' && state.npcs.some(n => n[1] === 'civilian' && n[4] > 0 && dist({x: n[2], y: n[3]}, m) < 60)) return 'mug';
+    if (place?.kind === 'job' && !p.job) return 'work';
+    return '';
   }
   function serviceHere() {
     const p = state?.self;
@@ -919,9 +993,12 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       return;
     }
     if (k === 'e' && !e.repeat) {
+      if (state.self.distort) { action('distortSkill'); return; }
+      if (state.self.ego?.on) { action('egoSkill'); return; }
       if (mode === 'shop') { closeShop(); suppressInteract = true; return; }
-      if (serviceHere() && !worldInteractNearby()) { openShop(); suppressInteract = true; return; }
+      if (serviceHere() && !worldActionHere()) { openShop(); suppressInteract = true; return; }
     }
+    if (k === 'v' && !e.repeat) { action('egoToggle'); return; }
     if (k === 'escape' && mode === 'shop') { closeShop(); return; }
     if (k === 'f' && !e.repeat) {
       if (state.self.car) { action('exitCar'); return; }
@@ -989,7 +1066,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   $('cityInteract').addEventListener('pointerdown', e => {
     e.preventDefault(); $('cityInteract').setPointerCapture(e.pointerId);
     if (mode === 'shop') { closeShop(); suppressInteract = true; }
-    else if (serviceHere() && !worldInteractNearby()) { openShop(); suppressInteract = true; }
+    else if (serviceHere() && !worldActionHere()) { openShop(); suppressInteract = true; }
     else interact = true;
   });
   for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) $('cityInteract').addEventListener(t, () => { interact = false; suppressInteract = false; });
@@ -1012,6 +1089,8 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   $('cityPanel').addEventListener('close', () => { mode = ''; canvas.focus({preventScroll: true}); });
   $('cityChat').onclick = () => toggleChat();
   $('cityPromptAction').onclick = () => { if (serviceHere()) openShop(); };
+  $('cityWhisperAccept').onclick = () => action('whisper', {choice: 'accept'});
+  $('cityWhisperReject').onclick = () => action('whisper', {choice: 'reject'});
 
   function frame(now) {
     requestAnimationFrame(frame);
@@ -1040,7 +1119,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
   return {
     get active() { return active; },
     receive(data) {
-      const previousSelf = state?.self, previousEvent = state?.event;
+      const previousSelf = state?.self, previousEvent = state?.event, previousEvents = state?.events || [];
       if (data.id !== state?.id) {
         seq = 0;
         actionSeq = 0;
@@ -1080,7 +1159,7 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
       }
       if (data.self.escaped && !escapedAt) escapedAt = snapshotAt;
       if (!data.self.escaped) escapedAt = 0;
-      obstacles = data.objects.map(q => ({kind: q[1], x: q[2], y: q[3], hp: q[4]}));
+      obstacles = data.objects.map(q => ({kind: q[1], x: q[2], y: q[3], hp: q[4], w: q[5], h: q[6]}));
       const effected = new Set();
       for (const e of data.effects) {
         effected.add(e.id);
@@ -1106,7 +1185,10 @@ export function createCityGame({send, self, online, onActive, exit, avatars, spe
         if (!previousSelf.bounty && data.self.bounty) audio.bounty();
         if (!previousSelf.boonChoices?.length && data.self.boonChoices?.length) audio.reward();
       }
-      if (!previousEvent && data.event) audio.alarm();
+      const previousKinds = new Set((previousEvents.length ? previousEvents : (previousEvent ? [previousEvent] : [])).map(e => e.kind));
+      const newEvent = (data.events || (data.event ? [data.event] : [])).find(e => !previousKinds.has(e.kind));
+      if (newEvent) { audio.alarm(); if (newEvent.kind === 'zombies') audio.zombie?.(); }
+      if (data.self.whisper && !previousSelf?.whisper) audio.alarm();
       for (const id of fxAt.keys()) if (!effected.has(id)) fxAt.delete(id);
       predicted = prediction.reconcile(data, controls());
       if (data.map) mapPoints = data.map;
