@@ -11,6 +11,14 @@ window.YUNWEN_PROJECTS = [
     imageAlt: 'Y课表软件插画'
   },
   {
+    title: '让位',
+    category: 'game',
+    description: '换位 · 预判 · 回合解谜',
+    href: './yield/index.html',
+    image: './assets/yield-cover.svg',
+    imageAlt: '让位：在纸面棋盘上与敌人交换位置的回合制解谜游戏'
+  },
+  {
     title: '棱',
     category: 'game',
     description: '光色穿行',
