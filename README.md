@@ -1,12 +1,20 @@
 # YunWen
 
-[网站](https://yunwen831.github.io/ink831/) · [软件](https://yunwen831.github.io/ink831/software/) · [游戏](https://yunwen831.github.io/ink831/games/) · [工具](https://yunwen831.github.io/ink831/tools/)
+[网站](https://ink831.dpdns.org/) · [软件](https://ink831.dpdns.org/software/) · [游戏](https://ink831.dpdns.org/games/) · [工具](https://ink831.dpdns.org/tools/)
 
-- [棱 PRISM](https://yunwen831.github.io/ink831/prism/) · 光色穿行
-- [回声](https://yunwen831.github.io/ink831/echo/) · 声呐潜行
-- [地牢来信](https://yunwen831.github.io/ink831/courtyard/) · 建造 · 派对 · 混乱都市
-- [Y课表](https://yunwen831.github.io/ink831/software/y-timetable/) · 安卓课表
+- [棱 PRISM](https://ink831.dpdns.org/prism/) · 光色穿行
+- [回声](https://ink831.dpdns.org/echo/) · 声呐潜行
+- [地牢来信](https://ink831.dpdns.org/courtyard/) · 建造 · 派对 · 混乱都市
+- [Y课表](https://ink831.dpdns.org/software/y-timetable/) · 安卓课表
+- [词间](https://ink831.dpdns.org/tools/word-study/) · 英文与化学词汇练习
 
-- [词间](https://yunwen831.github.io/ink831/tools/word-study/) · 英文与化学词汇练习
+## 修改与发布
 
-[项目维护](docs/site-maintenance.md)
+Agent 从 [AGENTS.md](AGENTS.md) 开始；具体目录、域名和部署方法见 [项目维护](docs/site-maintenance.md)。
+
+```powershell
+python scripts/site.py status
+python scripts/site.py preview
+```
+
+静态网站提交到 `main` 后由 GitHub Pages 发布。`python scripts/site.py deploy` 可推送已提交的静态站修改、等待对应提交部署，并核实线上访问；腾讯云游戏服务和 Android APK 有单独的发布流程。
