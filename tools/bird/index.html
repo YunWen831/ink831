@@ -7,7 +7,7 @@
   <meta name="description" content="一只鸟，一片像素山谷。点击想去的地方，让鸟飞过去。">
   <title>鸟 · YunWen</title>
   <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
   <script src="./bird.js?v=2" defer></script>
 </head>
 <body>
@@ -30,8 +30,9 @@
           <div id="destination" class="destination" aria-hidden="true"></div>
           <div id="bird" class="bird" role="img" aria-label="停在枝头的小鸟">
             <img class="bird-idle" src="./bird-idle.png" width="255" height="204" alt="" draggable="false">
-            <img class="bird-flight" src="./bird-flight.png" width="255" height="204" alt="" draggable="false">
-            <img class="bird-wing" src="./bird-wing.png" width="75" height="79" alt="" draggable="false">
+            <img class="bird-flight flight-up" src="./flight-up.png" width="255" height="204" alt="" draggable="false">
+            <img class="bird-flight flight-mid" src="./flight-mid.png" width="255" height="204" alt="" draggable="false">
+            <img class="bird-flight flight-down" src="./flight-down.png" width="255" height="204" alt="" draggable="false">
           </div>
           <span class="place place-house" aria-hidden="true">小屋</span>
           <span class="place place-castle" aria-hidden="true">城堡</span>
