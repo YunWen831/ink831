@@ -31,8 +31,8 @@
   function resize() {
     const bounds = scene.getBoundingClientRect();
     const scale = Math.min(bounds.width / 1280, bounds.height / 720);
-    bird.style.width = `${116 * scale}px`;
-    bird.style.height = `${85 * scale}px`;
+    bird.style.width = `${255 * scale}px`;
+    bird.style.height = `${204 * scale}px`;
     drawBird(state.x, state.y);
   }
 
@@ -40,8 +40,8 @@
     const bounds = scene.getBoundingClientRect();
     const width = parseFloat(bird.style.width) || 116;
     const height = parseFloat(bird.style.height) || 85;
-    const offsetX = width * 0.42;
-    const offsetY = height * 0.94;
+    const offsetX = state.facing > 0 ? width * (46 / 255) : width * (1 - 46 / 255);
+    const offsetY = height * (206 / 204);
     const jitter = !reducedMotion.matches && !state.flight ? Math.round(Math.sin(performance.now() / 370)) * 0.1 : 0;
     bird.style.left = `${Math.round(x / 100 * bounds.width - offsetX)}px`;
     bird.style.top = `${Math.round(y / 100 * bounds.height - offsetY + jitter)}px`;
@@ -84,6 +84,7 @@
     state.destination = { ...destination, name: name || placeName(destination.x, destination.y) };
     state.facing = destination.x < state.x ? -1 : 1;
     bird.classList.toggle('facing-left', state.facing < 0);
+    drawBird(state.x, state.y);
     showMarker(destination.x, destination.y);
     if (distance < 1.5) {
       setStatus(`就在这里，${state.destination.name}。`);
