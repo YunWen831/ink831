@@ -107,7 +107,7 @@
     };
     bird.classList.add('is-flying');
     bird.setAttribute('aria-label', `正飞向${state.destination.name}的小鸟`);
-    setStatus(`拍拍翅膀，去${state.destination.name}。`);
+    setStatus(`出发，去${state.destination.name}。`);
   }
 
   function tick(time) {
