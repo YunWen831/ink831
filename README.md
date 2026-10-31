@@ -12,6 +12,8 @@
 
 Agent 从 [AGENTS.md](AGENTS.md) 开始；具体目录、域名和部署方法见 [项目维护](docs/site-maintenance.md)。
 
+其他 agent 或其他电脑使用时，直接复制 [交接提示词](docs/agent-handoff.md)，或读取仓库内的 [便携技能](.agents/skills/yunwen-website/SKILL.md)。
+
 ```powershell
 python scripts/site.py status
 python scripts/site.py preview

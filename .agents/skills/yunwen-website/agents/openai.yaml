@@ -1,0 +1,6 @@
+interface:
+  display_name: "我的网站 · YunWen"
+  short_description: "定位 YunWen 网站项目，完成页面、工具与游戏修改、预览、部署及验收"
+  default_prompt: "使用 $yunwen-website 维护我的网站，按本次需求完成修改、验证和上线检查。"
+policy:
+  allow_implicit_invocation: true

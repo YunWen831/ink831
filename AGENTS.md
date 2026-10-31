@@ -4,6 +4,7 @@
 - 唯一源码仓库：<https://github.com/YunWen831/ink831>；生产分支 `main`。
 - GitHub Pages 从 `main` 的 `/` 根目录发布；普通静态页面无需构建。
 - 开始前读 [维护与部署说明](docs/site-maintenance.md)，按目录表定位本次改动。
+- 其他 agent 接手时使用 [交接说明](docs/agent-handoff.md)；便携技能在 `.agents/skills/yunwen-website/SKILL.md`，不依赖特定电脑路径。
 
 ## 工作约定
 
