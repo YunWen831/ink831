@@ -31,20 +31,19 @@
   function resize() {
     const bounds = scene.getBoundingClientRect();
     const scale = Math.min(bounds.width / 1280, bounds.height / 720);
-    bird.style.width = `${255 * scale}px`;
-    bird.style.height = `${204 * scale}px`;
+    bird.style.width = `${180 * scale}px`;
+    bird.style.height = `${144 * scale}px`;
     drawBird(state.x, state.y);
   }
 
   function drawBird(x, y) {
     const bounds = scene.getBoundingClientRect();
-    const width = parseFloat(bird.style.width) || 116;
-    const height = parseFloat(bird.style.height) || 85;
+    const width = parseFloat(bird.style.width) || 180;
+    const height = parseFloat(bird.style.height) || 144;
     const offsetX = state.facing > 0 ? width * (46 / 255) : width * (1 - 46 / 255);
     const offsetY = height * (206 / 204);
-    const jitter = !reducedMotion.matches && !state.flight ? Math.round(Math.sin(performance.now() / 370)) * 0.1 : 0;
     bird.style.left = `${Math.round(x / 100 * bounds.width - offsetX)}px`;
-    bird.style.top = `${Math.round(y / 100 * bounds.height - offsetY + jitter)}px`;
+    bird.style.top = `${Math.round(y / 100 * bounds.height - offsetY)}px`;
   }
 
   function placeName(x, y) {
@@ -79,7 +78,7 @@
     const distance = Math.hypot(destination.x - state.x, destination.y - state.y);
     if (state.flight) {
       state.flight = null;
-      bird.classList.remove('is-flying');
+      bird.classList.remove('is-flying', 'is-landing');
     }
     state.destination = { ...destination, name: name || placeName(destination.x, destination.y) };
     state.facing = destination.x < state.x ? -1 : 1;
@@ -124,9 +123,10 @@
       state.x = flight.startX + (flight.endX - flight.startX) * ease;
       state.y = flight.startY + (flight.endY - flight.startY) * ease - Math.sin(Math.PI * t) * flight.arc;
       drawBird(state.x, state.y);
+      bird.classList.toggle('is-landing', t > 0.84);
       if (t === 1) {
         state.flight = null;
-        bird.classList.remove('is-flying');
+        bird.classList.remove('is-flying', 'is-landing');
         bird.setAttribute('aria-label', `停在${state.destination.name}的小鸟`);
         setStatus(`到了，${state.destination.name}。`);
       }
@@ -141,9 +141,9 @@
     const stopped = reducedMotion.matches || motionButton.getAttribute('aria-pressed') === 'true';
     world.classList.toggle('animated', !stopped);
     motionButton.setAttribute('aria-pressed', String(stopped));
-    motionButton.title = stopped ? '开启轻微像素抖动' : '关闭轻微像素抖动';
-    motionButton.firstChild.textContent = stopped ? '轻动已停 ' : '轻动 ';
-    motionButton.setAttribute('aria-label', stopped ? '开启轻微像素抖动' : '关闭轻微像素抖动');
+    motionButton.title = stopped ? '播放山谷动画' : '暂停山谷动画';
+    motionButton.firstChild.textContent = stopped ? '动态已停 ' : '动态 ';
+    motionButton.setAttribute('aria-label', stopped ? '播放山谷动画' : '暂停山谷动画');
   }
 
   scene.addEventListener('pointerdown', event => {

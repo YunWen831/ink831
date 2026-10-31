@@ -7,26 +7,32 @@
   <meta name="description" content="一只鸟，一片像素山谷。点击想去的地方，让鸟飞过去。">
   <title>鸟 · YunWen</title>
   <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
-  <script src="./bird.js" defer></script>
+  <link rel="stylesheet" href="./style.css?v=2">
+  <script src="./bird.js?v=2" defer></script>
 </head>
 <body>
   <main class="bird-app">
     <header class="topbar">
       <a class="back" href="../index.html" aria-label="返回工具目录">← <span>工具</span></a>
       <h1>鸟<span aria-hidden="true"> / </span><span class="english" aria-hidden="true">BIRD</span></h1>
-      <button id="motion" class="motion" type="button" aria-pressed="false" title="切换轻微像素抖动">轻动 <span class="motion-light" aria-hidden="true"></span></button>
+      <button id="motion" class="motion" type="button" aria-pressed="false" title="暂停或播放山谷动画">动态 <span class="motion-light" aria-hidden="true"></span></button>
     </header>
 
     <section id="world" class="world" aria-label="像素山谷">
       <div class="scene-wrap">
         <div id="scene" class="scene" role="application" tabindex="0" aria-label="鸟的山谷。点击一个地点让鸟飞过去；也可以用方向键移动落点，回车起飞，空格返回枝头。" aria-describedby="instructions">
           <div class="landscape" aria-hidden="true"></div>
-          <div class="water-shimmer" aria-hidden="true"></div>
-          <div class="leaf-shimmer leaf-one" aria-hidden="true"></div>
-          <div class="leaf-shimmer leaf-two" aria-hidden="true"></div>
+          <div class="river-motion" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="waterfall-motion" aria-hidden="true"><i></i><i></i><i></i><b></b><b></b><b></b></div>
+          <div class="smoke" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="foliage foliage-one" aria-hidden="true"></div>
+          <div class="foliage foliage-two" aria-hidden="true"></div>
           <div id="destination" class="destination" aria-hidden="true"></div>
-          <img id="bird" class="bird" src="./bird.png" width="255" height="204" role="img" aria-label="停在枝头的小鸟" draggable="false">
+          <div id="bird" class="bird" role="img" aria-label="停在枝头的小鸟">
+            <img class="bird-idle" src="./bird-idle.png" width="255" height="204" alt="" draggable="false">
+            <img class="bird-flight" src="./bird-flight.png" width="255" height="204" alt="" draggable="false">
+            <img class="bird-wing" src="./bird-wing.png" width="75" height="79" alt="" draggable="false">
+          </div>
           <span class="place place-house" aria-hidden="true">小屋</span>
           <span class="place place-castle" aria-hidden="true">城堡</span>
           <span class="place place-falls" aria-hidden="true">瀑布</span>
